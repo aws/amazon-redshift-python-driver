@@ -1,0 +1,181 @@
+import logging
+import os
+from typing import Any, Dict, List, Optional
+
+from redshift_connector.core import BINARY, Connection, Cursor, Interval
+from redshift_connector.error import (
+    ArrayContentNotHomogenousError,
+    ArrayContentNotSupportedError,
+    ArrayDimensionsNotConsistentError,
+    DatabaseError,
+    DataError,
+    Error,
+    IntegrityError,
+    InterfaceError,
+    InternalError,
+    NotSupportedError,
+    OperationalError,
+    ProgrammingError,
+    Warning,
+)
+from redshift_connector.iamHelper import set_iam_properties
+from redshift_connector.objects import (
+    Binary,
+    Date,
+    DateFromTicks,
+    Time,
+    TimeFromTicks,
+    Timestamp,
+    TimestampFromTicks,
+)
+from redshift_connector.pg_types import (
+    PGEnum,
+    PGJson,
+    PGJsonb,
+    PGText,
+    PGTsvector,
+    PGVarchar,
+)
+from redshift_connector.RedshiftProperty import RedshiftProperty
+
+from ._version import get_versions
+
+__version__ = get_versions()['version']
+del get_versions
+path = os.path.abspath(__file__)
+log_path = '/'.join(path.split('/')[:-1]) + '/driver.log'
+
+# Copyright (c) 2007-2009, Mathieu Fenniak
+# Copyright (c) The Contributors
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+# * Redistributions of source code must retain the above copyright notice,
+# this list of conditions and the following disclaimer.
+# * Redistributions in binary form must reproduce the above copyright notice,
+# this list of conditions and the following disclaimer in the documentation
+# and/or other materials provided with the distribution.
+# * The name of the author may not be used to endorse or promote products
+# derived from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
+__author__ = "Mathieu Fenniak"
+
+
+def connect(
+        user: Optional[str], host: str = 'localhost', database: Optional[str] = None,
+        port: int = 5432, password: Optional[str] = None,
+        source_address: Optional[str] = None, unix_sock: Optional[str] = None,
+        ssl: bool = True, sslmode: str = "verify-ca", timeout: Optional[int] = None,
+        max_prepared_statements: int = 1000, tcp_keepalive: bool = True,
+        application_name: Optional[str] = None, replication: Optional[str] = None,
+        idp_host: Optional[str] = None, db_user: Optional[str] = None,
+        app_id: Optional[str] = None, app_name: str = 'amazon_aws_redshift',
+        preferred_role: Optional[str] = None, principal_arn: Optional[str] = None,
+        credentials_provider: Optional[str] = None, region: Optional[str] = None,
+        cluster_identifier: Optional[str] = None, iam: bool = False,
+        client_id: Optional[str] = None, idp_tenant: Optional[str] = None,
+        client_secret: Optional[str] = None, partner_sp_id: Optional[str] = None,
+        idp_response_timeout: int = 120, listen_port: int = 7890,
+        login_url: Optional[str] = None, auto_create: bool = False,
+        db_groups: Optional[List[str]] = None, force_lowercase: bool = False,
+        allow_db_user_override: bool = False, dsilog_level: int = 0,
+        log_path: str = log_path
+) -> Connection:
+
+    FORMAT_TO_USE: str = (
+        "%(levelname)s|%(asctime)s|%(name)s|%(filename)s|" "%(funcName)s|%(lineno)d: %(message)s"
+    )
+    log_level_dic: Dict[int, int] = {
+        0: logging.CRITICAL,
+        1: logging.ERROR,
+        2: logging.WARN,
+        3: logging.INFO,
+        4: logging.DEBUG
+    }
+    logging.basicConfig(filename=log_path, filemode='w', format=FORMAT_TO_USE, level=logging.INFO)
+    logging.disable(log_level_dic[dsilog_level])
+
+    info: RedshiftProperty = RedshiftProperty()
+    set_iam_properties(info, user, host=host, database=database, port=port, password=password,
+                       source_address=source_address, unix_sock=unix_sock,
+                       ssl=ssl, sslmode=sslmode, timeout=timeout,
+                       max_prepared_statements=max_prepared_statements,
+                       tcp_keepalive=tcp_keepalive, application_name=application_name,
+                       replication=replication, idp_host=idp_host, db_user=db_user,
+                       app_id=app_id, app_name=app_name, preferred_role=preferred_role, principal_arn=principal_arn,
+                       credentials_provider=credentials_provider,
+                       region=region, cluster_identifier=cluster_identifier, iam=iam,
+                       client_id=client_id, idp_tenant=idp_tenant, client_secret=client_secret,
+                       partner_sp_id=partner_sp_id, idp_response_timeout=idp_response_timeout, listen_port=listen_port,
+                       login_url=login_url, auto_create=auto_create, db_groups=db_groups,
+                       force_lowercase=force_lowercase, allow_db_user_override=allow_db_user_override)
+
+    return Connection(
+        user=info.user_name, host=info.host, database=info.db_name,
+        port=info.port, password=info.password,
+        source_address=info.source_address, unix_sock=info.unix_sock,
+        ssl=info.ssl, sslmode=info.sslmode, timeout=info.timeout,
+        max_prepared_statements=info.max_prepared_statements,
+        tcp_keepalive=info.tcp_keepalive, application_name=info.application_name,
+        replication=info.replication)
+
+
+apilevel: str = "2.0"
+"""The DBAPI level supported, currently "2.0".
+
+This property is part of the `DBAPI 2.0 specification
+<http://www.python.org/dev/peps/pep-0249/>`_.
+"""
+
+threadsafety: int = 1
+"""Integer constant stating the level of thread safety the DBAPI interface
+supports. This DBAPI module supports sharing of the module only. Connections
+and cursors my not be shared between threads.
+
+This property is part of the `DBAPI 2.0 specification
+<http://www.python.org/dev/peps/pep-0249/>`_.
+"""
+
+paramstyle: str = 'format'
+
+# I have no idea what this would be used for by a client app.  Should it be
+# TEXT, VARCHAR, CHAR?  It will only compare against row_description's
+# type_code if it is this one type.  It is the varchar type oid for now, this
+# appears to match expectations in the DB API 2.0 compliance test suite.
+
+STRING: int = 1043
+"""String type oid."""
+
+
+NUMBER: int  = 1700
+"""Numeric type oid"""
+
+DATETIME: int  = 1114
+"""Timestamp type oid"""
+
+ROWID: int  = 26
+"""ROWID type oid"""
+
+__all__: Any = [
+    Warning, DataError, DatabaseError, connect, InterfaceError,
+    ProgrammingError, Error, OperationalError, IntegrityError, InternalError,
+    NotSupportedError, ArrayContentNotHomogenousError,
+    ArrayDimensionsNotConsistentError, ArrayContentNotSupportedError,
+    Connection, Cursor, Binary, Date, DateFromTicks, Time, TimeFromTicks,
+    Timestamp, TimestampFromTicks, BINARY, Interval, PGEnum, PGJson, PGJsonb,
+    PGTsvector, PGText, PGVarchar]

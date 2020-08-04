@@ -1,0 +1,101 @@
+import json
+import logging
+from typing import Any, Dict, Optional
+
+import bs4
+import requests
+
+from redshift_connector.error import InterfaceError
+from redshift_connector.plugin.CredentialProviderConstants import okta_headers
+from redshift_connector.plugin.SamlCredentialsProvider import SamlCredentialsProvider
+from redshift_connector.RedshiftProperty import RedshiftProperty
+
+logger = logging.getLogger(__name__)
+
+
+# Class to get SAML Response from Okta
+class OktaCredentialsProvider(SamlCredentialsProvider):
+    def __init__(self) -> None:
+        super().__init__()
+        self.app_id: Optional[str] = None
+        self.app_name: Optional[str] = None
+
+    def add_parameter(self, info: RedshiftProperty) -> None:
+        super().add_parameter(info)
+        self.app_id = info.app_id
+        self.app_name = info.app_name
+
+    def get_saml_assertion(self) -> str:
+        self.check_required_parameters()
+        if self.app_id == '' or self.app_id is None:
+            raise InterfaceError("Missing required property: app_id")
+
+        okta_session_token: str = self.okta_authentication()
+        return self.handle_saml_assertion(okta_session_token)
+
+    # Authenticates users credentials via Okta, return Okta session token.
+    def okta_authentication(self) -> str:
+        # HTTP Post request to Okta API for session token
+        url: str = "https://{host}/api/v1/authn".format(host=self.idp_host)
+        headers: Dict[str, str] = okta_headers
+        payload: Dict[str, Optional[str]] = {
+            "username": self.user_name,
+            "password": self.password
+        }
+        try:
+            response = requests.post(url, data=json.dumps(payload), headers=headers)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.error("Request for authentication from Okta was unsuccessful. {}".format(str(e)))
+            raise InterfaceError(e)
+        except requests.exceptions.Timeout as e:
+            logger.error("A timeout occurred when requesting authentication from Okta")
+            raise InterfaceError(e)
+        except requests.exceptions.TooManyRedirects as e:
+            logger.error("A error occurred when requesting authentication from Okta. Verify RedshiftProperties are correct")
+            raise InterfaceError(e)
+        except requests.exceptions.RequestException as e:
+            logger.error("A unknown error occurred when requesting authentication from Okta")
+            raise InterfaceError(e)
+
+        # Retrieve and parse the Okta response for session token
+        if response is None:
+            raise InterfaceError("Request for authentication returned empty payload")
+        response_payload: Dict[Any, Any] = response.json()
+        if 'status' not in response_payload:
+            raise InterfaceError("Request for authentication retrieved malformed payload.")
+        elif response_payload['status'] != 'SUCCESS':
+            raise InterfaceError("Request for authentication received non success response.")
+        else:
+            return str(response_payload['sessionToken'])
+
+    # Retrieves SAML assertion from Okta containing AWS roles.
+    def handle_saml_assertion(self, okta_session_token: str) -> str:
+        url: str = "https://{host}/home/{app_name}/{app_id}?onetimetoken={session_token}".format(
+            host=self.idp_host, app_name=self.app_name, app_id=self.app_id, session_token=okta_session_token
+        )
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.error("Request for SAML assertion from Okta was unsuccessful. {}".format(str(e)))
+            raise InterfaceError(e)
+        except requests.exceptions.Timeout as e:
+            logger.error("A timeout occurred when requesting SAML assertion from Okta")
+            raise InterfaceError(e)
+        except requests.exceptions.TooManyRedirects as e:
+            logger.error("A error occurred when requesting SAML assertion from Okta. Verify RedshiftProperties are correct")
+            raise InterfaceError(e)
+        except requests.exceptions.RequestException as e:
+            logger.error("A unknown error occurred when requesting SAML assertion from Okta")
+            raise InterfaceError(e)
+
+        text: str = response.text
+
+        try:
+            soup = bs4.BeautifulSoup(text, "html.parser")
+            saml_response: str = soup.find('input', {'name': 'SAMLResponse'})["value"]
+            return saml_response
+        except Exception as e:
+            logger.error("An error occurred while parsing SAML response: {}".format(str(e)))
+            raise InterfaceError(e)

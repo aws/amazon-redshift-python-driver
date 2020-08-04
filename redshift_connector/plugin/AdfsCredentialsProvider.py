@@ -1,0 +1,101 @@
+import logging
+import re
+from typing import Dict, Optional
+
+import bs4
+import requests
+
+from redshift_connector.error import InterfaceError
+from redshift_connector.plugin.SamlCredentialsProvider import SamlCredentialsProvider
+
+logger = logging.getLogger(__name__)
+
+
+class AdfsCredentialsProvider(SamlCredentialsProvider):
+    # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
+    def get_saml_assertion(self) -> Optional[str]:
+        if self.idp_host == '' or self.idp_host is None:
+            raise InterfaceError("Missing required property: idp_host")
+
+        if self.user_name == '' or self.user_name is None or self.password == '' or self.password is None:
+            return self.windows_integrated_authentication()
+
+        return self.form_based_authentication()
+
+    def windows_integrated_authentication(self):
+        pass
+
+    def form_based_authentication(self) -> str:
+        url: str = "https://{host}:{port}/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices".format(
+            host=self.idp_host, port=str(self.idpPort))
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
+            raise InterfaceError(e)
+        except requests.exceptions.Timeout as e:
+            logger.error("A timeout occurred when requesting SAML assertion")
+            raise InterfaceError(e)
+        except requests.exceptions.TooManyRedirects as e:
+            logger.error("A error occurred when requesting SAML assertion to refresh credentials. Verify RedshiftProperties are correct")
+            raise InterfaceError(e)
+        except requests.exceptions.RequestException as e:
+            logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
+            raise InterfaceError(e)
+
+        try:
+            soup = bs4.BeautifulSoup(response.text)
+        except Exception as e:
+            logger.error("An error occurred while parsing response: {}".format(str(e)))
+            raise InterfaceError(e)
+
+        payload: Dict[str, Optional[str]] = {}
+
+        for inputtag in soup.find_all(re.compile('(INPUT|input)')):
+            name: str = inputtag.get('name', '')
+            value: str = inputtag.get('value', '')
+            if "username" in name.lower():
+                payload[name] = self.user_name
+            elif "authmethod" in name.lower():
+                payload[name] = value
+            elif "password" in name.lower():
+                payload[name] = self.password
+            elif name != '':
+                payload[name] = value
+
+        action: Optional[str] = self.get_form_action(soup)
+        if action and action.startswith('/'):
+            url = 'https://{host}:{port}{action}'.format(host=self.idp_host, port=str(self.idpPort), action=action)
+
+        try:
+            response = requests.post(url, data=payload)
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:
+            logger.error("Request to refresh credentials was unsuccessful. {}".format(str(e)))
+            raise InterfaceError(e)
+        except requests.exceptions.Timeout as e:
+            logger.error("A timeout occurred when attempting to refresh credentials")
+            raise InterfaceError(e)
+        except requests.exceptions.TooManyRedirects as e:
+            logger.error("A error occurred when refreshing credentials. Verify RedshiftProperties are correct")
+            raise InterfaceError(e)
+        except requests.exceptions.RequestException as e:
+            logger.error("A unknown error occurred when refreshing credentials")
+            raise InterfaceError(e)
+
+        try:
+            soup = bs4.BeautifulSoup(response.text)
+        except Exception as e:
+            logger.error("An error occurred while parsing response: {}".format(str(e)))
+            raise InterfaceError(e)
+        assertion: str = ''
+
+        for inputtag in soup.find_all('input'):
+            if inputtag.get('name') == 'SAMLResponse':
+                assertion = inputtag.get('value')
+
+        if assertion == '':
+            raise InterfaceError("Failed to find Adfs access_token")
+
+        return assertion

@@ -1,0 +1,2 @@
+include redshift_connector/files/*
+recursive-include files *.crt
