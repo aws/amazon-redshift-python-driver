@@ -6,7 +6,7 @@ Redshift Python Connector requires Python3 and pip3. This connector has many Red
   * IDP authentication
   * Redshift specific datatypes support
   * API to explore database objects such as get_tables(), get_columns() etc.
-  * External schema support as part of get_tables() and get_columns() JDBC API
+  * External schema support as part of get_tables() and get_columns() API
   * Easy to integrate with Pandas and NumPy
   * Pure Python Driver
 
