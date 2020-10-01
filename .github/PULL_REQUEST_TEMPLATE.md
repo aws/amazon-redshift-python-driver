@@ -35,4 +35,4 @@
 <!--- The SDK is released under the Apache 2.0 license (http://aws.amazon.com/apache2.0/), so any code you submit will be released under that license -->
 <!--- For substantial contributions, we may ask you to sign a Contributor License Agreement (http://en.wikipedia.org/wiki/Contributor_License_Agreement) -->
 <!--- Put an `x` in the below box if you confirm that this request can be released under the Apache 2 license -->
-- [ ] I confirm that this pull request can be released under the Apache 2 license
+- By submitting this pull request, I confirm that you can use, modify, copy, and redistribute this contribution, under the terms of your choice.
