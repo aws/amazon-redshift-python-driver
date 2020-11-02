@@ -12,7 +12,7 @@ Supported Amazon Redshift features include:
 - Redshift specific data types
 
 
-This pure Python connector implements Python Database API Specification 2.0.
+This pure Python connector implements `Python Database API Specification 2.0 <https://www.python.org/dev/peps/pep-0249/>`_.
 
 
 Getting Started
