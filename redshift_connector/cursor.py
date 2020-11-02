@@ -1,17 +1,21 @@
+import typing
 from collections import deque
 from itertools import count, islice
-from typing import Optional
+from typing import TYPE_CHECKING
 from warnings import warn
 
-import numpy
-import pandas
+import numpy  # type: ignore
+import pandas  # type: ignore
 
 import redshift_connector
 from redshift_connector.config import table_type_clauses
 from redshift_connector.error import InterfaceError, ProgrammingError
 
+if TYPE_CHECKING:
+    from redshift_connector.core import Connection
 
-class Cursor():
+
+class Cursor:
     """A cursor object is returned by the :meth:`~Connection.cursor` method of
     a connection. It has the following attributes and methods:
 
@@ -64,44 +68,43 @@ class Cursor():
         <http://www.python.org/dev/peps/pep-0249/>`_.
     """
 
-    def __init__(self, connection, paramstyle=None):
-        self._c = connection
-        self.arraysize = 1
-        self.ps = None
-        self._row_count = -1
-        self._cached_rows = deque()
+    def __init__(self: "Cursor", connection: "Connection", paramstyle=None) -> None:
+        self._c: typing.Optional["Connection"] = connection
+        self.arraysize: int = 1
+        self.ps: typing.Optional[typing.Dict[str, typing.Any]] = None
+        self._row_count: int = -1
+        self._cached_rows: deque = deque()
         if paramstyle is None:
-            self.paramstyle = redshift_connector.paramstyle
+            self.paramstyle: str = redshift_connector.paramstyle
         else:
             self.paramstyle = paramstyle
 
-    def __enter__(self):
+    def __enter__(self: "Cursor") -> "Cursor":
         return self
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self: "Cursor", exc_type, exc_value, traceback) -> None:
         self.close()
 
     @property
-    def connection(self):
+    def connection(self: "Cursor") -> typing.Optional["Connection"]:
         warn("DB-API extension cursor.connection used", stacklevel=3)
         return self._c
 
     @property
-    def rowcount(self):
+    def rowcount(self: "Cursor") -> int:
         return self._row_count
 
     description = property(lambda self: self._getDescription())
 
-    def _getDescription(self):
+    def _getDescription(self: "Cursor") -> typing.Optional[typing.List[typing.Optional[typing.Tuple]]]:
         if self.ps is None:
             return None
-        row_desc = self.ps['row_desc']
+        row_desc = self.ps["row_desc"]
         if len(row_desc) == 0:
             return None
-        columns = []
+        columns: typing.List[typing.Optional[typing.Tuple]] = []
         for col in row_desc:
-            columns.append(
-                (col["name"], col["type_oid"], None, None, None, None, None))
+            columns.append((col["name"], col["type_oid"], None, None, None, None, None))
         return columns
 
     ##
@@ -109,7 +112,7 @@ class Cursor():
     # or mapping and will be bound to variables in the operation.
     # <p>
     # Stability: Part of the DBAPI 2.0 specification.
-    def execute(self, operation, args=None, stream=None, merge_socket_read=False):
+    def execute(self: "Cursor", operation, args=None, stream=None, merge_socket_read=False) -> "Cursor":
         """Executes a database operation.  Parameters may be provided as a
         sequence, or as a mapping, depending upon the value of
         :data:`paramstyle`.
@@ -136,9 +139,13 @@ class Cursor():
 
             .. versionadded:: 1.9.11
         """
+        if self._c is None:
+            raise InterfaceError("Cursor closed")
+        if self._c._sock is None:
+            raise InterfaceError("connection is closed")
+
         try:
             self.stream = stream
-
             # For Redshift, we need to begin transaction and then to process query
             # In the end we can use commit or rollback to end the transaction
             if not self._c.in_transaction and not self._c.autocommit:
@@ -146,15 +153,10 @@ class Cursor():
             self._c.merge_socket_read = merge_socket_read
             self._c.execute(self, operation, args)
         except AttributeError as e:
-            if self._c is None:
-                raise InterfaceError("Cursor closed")
-            elif self._c._sock is None:
-                raise InterfaceError("connection is closed")
-            else:
-                raise e
+            raise e
         return self
 
-    def executemany(self, operation, param_sets):
+    def executemany(self: "Cursor", operation, param_sets) -> "Cursor":
         """Prepare a database operation, and then execute it against all
         parameter sequences or mappings provided.
 
@@ -168,7 +170,7 @@ class Cursor():
             in the sequence should be sequences or mappings of parameters, the
             same as the args argument of the :meth:`execute` method.
         """
-        rowcounts = []
+        rowcounts: typing.List[int] = []
         for parameters in param_sets:
             self.execute(operation, parameters)
             rowcounts.append(self._row_count)
@@ -176,7 +178,7 @@ class Cursor():
         self._row_count = -1 if -1 in rowcounts else sum(rowcounts)
         return self
 
-    def fetchone(self):
+    def fetchone(self: "Cursor") -> typing.Optional["Cursor"]:
         """Fetch the next row of a query result set.
 
         This method is part of the `DBAPI 2.0 specification
@@ -187,7 +189,7 @@ class Cursor():
             are available.
         """
         try:
-            return next(self)
+            return typing.cast("Cursor", next(self))
         except StopIteration:
             return None
         except TypeError:
@@ -195,13 +197,13 @@ class Cursor():
         except AttributeError:
             raise ProgrammingError("attempting to use unexecuted cursor")
 
-    def fetchmany(self, num=None):
+    def fetchmany(self: "Cursor", num: typing.Optional[int] = None) -> typing.Tuple:
         """Fetches the next set of rows of a query result.
 
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
 
-        :param size:
+        :param num:
 
             The number of rows to fetch when called.  If not provided, the
             :attr:`arraysize` attribute value is used instead.
@@ -213,12 +215,11 @@ class Cursor():
             will be returned.
         """
         try:
-            return tuple(
-                islice(self, self.arraysize if num is None else num))
+            return tuple(islice(self, self.arraysize if num is None else num))
         except TypeError:
             raise ProgrammingError("attempting to use unexecuted cursor")
 
-    def fetchall(self):
+    def fetchall(self: "Cursor") -> typing.Tuple:
         """Fetches all remaining rows of a query result.
 
         This method is part of the `DBAPI 2.0 specification
@@ -234,7 +235,7 @@ class Cursor():
         except TypeError:
             raise ProgrammingError("attempting to use unexecuted cursor")
 
-    def close(self):
+    def close(self: "Cursor") -> None:
         """Closes the cursor.
 
         This method is part of the `DBAPI 2.0 specification
@@ -242,42 +243,42 @@ class Cursor():
         """
         self._c = None
 
-    def __iter__(self):
+    def __iter__(self: "Cursor") -> "Cursor":
         """A cursor object is iterable to retrieve the rows from a query.
 
         This is a DBAPI 2.0 extension.
         """
         return self
 
-    def setinputsizes(self, sizes):
+    def setinputsizes(self: "Cursor", sizes):
         """This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_, however, it is not
         implemented.
         """
         pass
 
-    def setoutputsize(self, size, column=None):
+    def setoutputsize(self: "Cursor", size, column=None):
         """This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_, however, it is not
         implemented.
         """
         pass
 
-    def __next__(self):
+    def __next__(self: "Cursor"):
         try:
             return self._cached_rows.popleft()
         except IndexError:
             if self.ps is None:
                 raise ProgrammingError("A query hasn't been issued.")
-            elif len(self.ps['row_desc']) == 0:
+            elif len(self.ps["row_desc"]) == 0:
                 raise ProgrammingError("no result set")
             else:
                 raise StopIteration()
 
-    def fetch_dataframe(self, num: Optional[int] = None) -> Optional[pandas.DataFrame]:
+    def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> typing.Optional[pandas.DataFrame]:
         """Return a dataframe of the last query results."""
         try:
-            columns: list = [column[0].decode().lower() for column in self.description]
+            columns: typing.List = [column[0].decode().lower() for column in self.description]
         except:
             columns = [column[0].lower() for column in self.description]
 
@@ -286,32 +287,36 @@ class Cursor():
         else:
             fetcheddata = self.fetchall()
 
-        result: list = [tuple(column for column in rows) for rows in fetcheddata]
+        result: typing.List = [tuple(column for column in rows) for rows in fetcheddata]
         if len(result) == 0:
             return None
         return pandas.DataFrame(result, columns=columns)
 
-    def write_dataframe(self, df: pandas.DataFrame, table: str) -> None:
+    def write_dataframe(self: "Cursor", df: pandas.DataFrame, table: str) -> None:
         """write same structure dataframe into Redshift database"""
         arrays: numpy.ndarray = df.values
-        placeholder: str = ', '.join(['%s'] * len(arrays[0]))
+        placeholder: str = ", ".join(["%s"] * len(arrays[0]))
         sql: str = "insert into {table} values ({placeholder})".format(table=table, placeholder=placeholder)
         if len(arrays) == 1:
             self.execute(sql, arrays[0])
         elif len(arrays) > 1:
             self.executemany(sql, arrays)
 
-    def fetch_numpy_array(self, num: Optional[int] = None) -> numpy.ndarray:
+    def fetch_numpy_array(self: "Cursor", num: typing.Optional[int] = None) -> numpy.ndarray:
         """Return a numpy array of the last query results."""
         if num:
-            fetched = self.fetchmany(num)
+            fetched: typing.Tuple = self.fetchmany(num)
         else:
             fetched = self.fetchall()
 
         return numpy.array(fetched)
 
-    def get_procedures(self, catalog: Optional[str] = None, schema_pattern: Optional[str] = None,
-                       procedure_name_pattern: Optional[str] = None) -> tuple:
+    def get_procedures(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema_pattern: typing.Optional[str] = None,
+        procedure_name_pattern: typing.Optional[str] = None,
+    ) -> tuple:
         sql: str = (
             "SELECT current_database() AS PROCEDURE_CAT, n.nspname AS PROCEDURE_SCHEM, p.proname AS PROCEDURE_NAME, "
             "NULL, NULL, NULL, d.description AS REMARKS, "
@@ -340,7 +345,9 @@ class Cursor():
         procedures: tuple = self.fetchall()
         return procedures
 
-    def get_schemas(self, catalog: Optional[str] = None, schema_pattern: Optional[str] = None) -> tuple:
+    def get_schemas(
+        self: "Cursor", catalog: typing.Optional[str] = None, schema_pattern: typing.Optional[str] = None
+    ) -> tuple:
         sql: str = (
             "SELECT nspname AS TABLE_SCHEM, NULL AS TABLE_CATALOG FROM pg_catalog.pg_namespace "
             " WHERE nspname <> 'pg_toast' AND (nspname !~ '^pg_temp_' "
@@ -355,8 +362,12 @@ class Cursor():
         schemas: tuple = self.fetchall()
         return schemas
 
-    def get_primary_keys(self, catalog: Optional[str] = None, schema: Optional[str] = None,
-                         table: Optional[str] = None) -> tuple:
+    def get_primary_keys(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema: typing.Optional[str] = None,
+        table: typing.Optional[str] = None,
+    ) -> tuple:
         sql: str = (
             "SELECT "
             "current_database() AS TABLE_CAT, "
@@ -388,24 +399,34 @@ class Cursor():
         keys: tuple = self.fetchall()
         return keys
 
-    def get_tables(self, catalog: Optional[str] = None, schema_pattern: Optional[str] = None,
-                   table_name_pattern: Optional[str] = None, types: list = []) -> tuple:
+    def get_tables(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema_pattern: typing.Optional[str] = None,
+        table_name_pattern: typing.Optional[str] = None,
+        types: list = [],
+    ) -> tuple:
         """Returns the unique public tables which are user-defined within the system"""
-        sql: str = ''
+        sql: str = ""
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
-        if schema_pattern_type == 'LOCAL_SCHEMA_QUERY':
+        if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
             sql = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
-        elif schema_pattern_type == 'NO_SCHEMA_UNIVERSAL_QUERY':
+        elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
             sql = self.__build_universal_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
-        elif schema_pattern_type == 'EXTERNAL_SCHEMA_QUERY':
+        elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
             sql = self.__build_external_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
 
         self.execute(sql)
         tables: tuple = self.fetchall()
         return tables
 
-    def __build_local_schema_tables_query(self, catalog: Optional[str], schema_pattern: Optional[str],
-                                          table_name_pattern: Optional[str], types: list) -> str:
+    def __build_local_schema_tables_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        table_name_pattern: typing.Optional[str],
+        types: list,
+    ) -> str:
         sql: str = (
             "SELECT CAST(current_database() AS VARCHAR(124)) AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME, "
             " CASE n.nspname ~ '^pg_' OR n.nspname = 'information_schema' "
@@ -452,14 +473,21 @@ class Cursor():
             " LEFT JOIN pg_catalog.pg_namespace dn ON (dn.oid=dc.relnamespace AND dn.nspname='pg_catalog') "
             " WHERE c.relnamespace = n.oid "
         )
-        filter_clause: str = self.__get_table_filter_clause(catalog, schema_pattern, table_name_pattern, types,
-                                                            'LOCAL_SCHEMA_QUERY')
+        filter_clause: str = self.__get_table_filter_clause(
+            catalog, schema_pattern, table_name_pattern, types, "LOCAL_SCHEMA_QUERY"
+        )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
 
         return sql + filter_clause + orderby
 
-    def __get_table_filter_clause(self, catalog: Optional[str], schema_pattern: Optional[str],
-                                  table_name_pattern: Optional[str], types: list, schema_pattern_type: str) -> str:
+    def __get_table_filter_clause(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        table_name_pattern: typing.Optional[str],
+        types: list,
+        schema_pattern_type: str,
+    ) -> str:
         filter_clause: str = ""
         use_schemas: str = "SCHEMAS"
         if schema_pattern is not None:
@@ -467,7 +495,7 @@ class Cursor():
         if table_name_pattern is not None:
             filter_clause += " AND TABLE_NAME LIKE {table}".format(table=self.__escape_quotes(table_name_pattern))
         if len(types) > 0:
-            if schema_pattern_type == 'LOCAL_SCHEMA_QUERY':
+            if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
                 filter_clause += " AND (false "
                 orclause: str = ""
                 for type in types:
@@ -477,7 +505,7 @@ class Cursor():
                         orclause += " OR ( {cluase} ) ".format(cluase=cluase)
                 filter_clause += orclause + ") "
 
-            elif schema_pattern_type == 'NO_SCHEMA_UNIVERSAL_QUERY' or schema_pattern_type == 'EXTERNAL_SCHEMA_QUERY':
+            elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY" or schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
                 filter_clause += " AND TABLE_TYPE IN ( "
                 length = len(types)
                 for type in types:
@@ -489,8 +517,13 @@ class Cursor():
 
         return filter_clause
 
-    def __build_universal_schema_tables_query(self, catalog: Optional[str], schema_pattern: Optional[str],
-                                              table_name_pattern: Optional[str], types: list) -> str:
+    def __build_universal_schema_tables_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        table_name_pattern: typing.Optional[str],
+        types: list,
+    ) -> str:
         sql: str = (
             "SELECT * FROM (SELECT CAST(current_database() AS VARCHAR(124)) AS TABLE_CAT,"
             " table_schema AS TABLE_SCHEM,"
@@ -521,14 +554,20 @@ class Cursor():
             " FROM svv_tables)"
             " WHERE true "
         )
-        filter_clause: str = self.__get_table_filter_clause(catalog, schema_pattern, table_name_pattern, types,
-                                                            'NO_SCHEMA_UNIVERSAL_QUERY')
+        filter_clause: str = self.__get_table_filter_clause(
+            catalog, schema_pattern, table_name_pattern, types, "NO_SCHEMA_UNIVERSAL_QUERY"
+        )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
         return sql
 
-    def __build_external_schema_tables_query(self, catalog: Optional[str], schema_pattern: Optional[str],
-                                             table_name_pattern: Optional[str], types: list) -> str:
+    def __build_external_schema_tables_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        table_name_pattern: typing.Optional[str],
+        types: list,
+    ) -> str:
         sql: str = (
             "SELECT * FROM (SELECT CAST(current_database() AS VARCHAR(124)) AS TABLE_CAT,"
             " schemaname AS table_schem,"
@@ -543,33 +582,47 @@ class Cursor():
             " FROM svv_external_tables)"
             " WHERE true "
         )
-        filter_clause: str = self.__get_table_filter_clause(catalog, schema_pattern, table_name_pattern, types,
-                                                            'EXTERNAL_SCHEMA_QUERY')
+        filter_clause: str = self.__get_table_filter_clause(
+            catalog, schema_pattern, table_name_pattern, types, "EXTERNAL_SCHEMA_QUERY"
+        )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
         return sql
 
-    def get_columns(self, catalog: Optional[str] = None, schema_pattern: Optional[str] = None,
-                    tablename_pattern: Optional[str] = None, columnname_pattern: Optional[str] = None) -> tuple:
+    def get_columns(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema_pattern: typing.Optional[str] = None,
+        tablename_pattern: typing.Optional[str] = None,
+        columnname_pattern: typing.Optional[str] = None,
+    ) -> tuple:
         """Returns a list of all columns in a specific table in Amazon Redshift database"""
-        sql: str = ''
+        sql: str = ""
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
-        if schema_pattern_type == 'LOCAL_SCHEMA_QUERY':
-            sql = self.__build_local_schema_columns_query(catalog, schema_pattern, tablename_pattern,
-                                                          columnname_pattern)
-        elif schema_pattern_type == 'NO_SCHEMA_UNIVERSAL_QUERY':
-            sql = self.__build_universal_schema_columns_query(catalog, schema_pattern, tablename_pattern,
-                                                              columnname_pattern)
-        elif schema_pattern_type == 'EXTERNAL_SCHEMA_QUERY':
-            sql = self.__build_external_schema_columns_query(catalog, schema_pattern, tablename_pattern,
-                                                             columnname_pattern)
+        if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
+            sql = self.__build_local_schema_columns_query(
+                catalog, schema_pattern, tablename_pattern, columnname_pattern
+            )
+        elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
+            sql = self.__build_universal_schema_columns_query(
+                catalog, schema_pattern, tablename_pattern, columnname_pattern
+            )
+        elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
+            sql = self.__build_external_schema_columns_query(
+                catalog, schema_pattern, tablename_pattern, columnname_pattern
+            )
 
         self.execute(sql)
         columns: tuple = self.fetchall()
         return columns
 
-    def __build_local_schema_columns_query(self, catalog: Optional[str], schema_pattern: Optional[str],
-                                           tablename_pattern: Optional[str], columnname_pattern: Optional[str]) -> str:
+    def __build_local_schema_columns_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        tablename_pattern: typing.Optional[str],
+        columnname_pattern: typing.Optional[str],
+    ) -> str:
         sql: str = (
             "SELECT * FROM ( "
             "SELECT current_database() AS TABLE_CAT, "
@@ -583,7 +636,8 @@ class Cursor():
             "when 'boolean' THEN -7 "
             "when 'varchar' THEN 12 "
             "when 'character varying' THEN 12 "
-            "when 'char' THEN 1 ""when '\"char\"' THEN 1 "
+            "when 'char' THEN 1 "
+            "when '\"char\"' THEN 1 "
             "when 'character' THEN 1 "
             "when 'nchar' THEN 12 "
             "when 'bpchar' THEN 1 "
@@ -955,9 +1009,13 @@ class Cursor():
 
         return sql
 
-    def __build_universal_schema_columns_query(self, catalog: Optional[str], schema_pattern: Optional[str],
-                                               tablename_pattern: Optional[str],
-                                               columnname_pattern: Optional[str]) -> str:
+    def __build_universal_schema_columns_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        tablename_pattern: typing.Optional[str],
+        columnname_pattern: typing.Optional[str],
+    ) -> str:
         unknown_column_size: str = "2147483647"
         sql: str = (
             "SELECT current_database()::varchar(128) AS TABLE_CAT,"
@@ -1181,9 +1239,13 @@ class Cursor():
         sql += " ORDER BY table_schem,table_name,ORDINAL_POSITION "
         return sql
 
-    def __build_external_schema_columns_query(self, catalog: Optional[str], schema_pattern: Optional[str],
-                                              tablename_pattern: Optional[str],
-                                              columnname_pattern: Optional[str]) -> str:
+    def __build_external_schema_columns_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        tablename_pattern: typing.Optional[str],
+        columnname_pattern: typing.Optional[str],
+    ) -> str:
         sql: str = (
             "SELECT current_database()::varchar(128) AS TABLE_CAT,"
             " schemaname AS TABLE_SCHEM,"
@@ -1372,18 +1434,19 @@ class Cursor():
 
         return sql
 
-    def __schema_pattern_match(self, schema_pattern: Optional[str]) -> str:
+    def __schema_pattern_match(self: "Cursor", schema_pattern: typing.Optional[str]) -> str:
         if schema_pattern is not None:
             sql: str = "select 1 from svv_external_schemas where schemaname like {schema}".format(
-                schema=self.__escape_quotes(schema_pattern))
+                schema=self.__escape_quotes(schema_pattern)
+            )
             self.execute(sql)
             schemas: tuple = self.fetchall()
             if len(schemas) > 0:
-                return 'EXTERNAL_SCHEMA_QUERY'
+                return "EXTERNAL_SCHEMA_QUERY"
             else:
-                return 'LOCAL_SCHEMA_QUERY'
+                return "LOCAL_SCHEMA_QUERY"
         else:
-            return 'NO_SCHEMA_UNIVERSAL_QUERY'
+            return "NO_SCHEMA_UNIVERSAL_QUERY"
 
-    def __escape_quotes(self, s: str) -> str:
+    def __escape_quotes(self: "Cursor", s: str) -> str:
         return "'{s}'".format(s=s)

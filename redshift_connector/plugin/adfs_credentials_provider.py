@@ -1,35 +1,36 @@
 import logging
 import re
-from typing import Dict, Optional
+import typing
 
-import bs4
+import bs4  # type: ignore
 import requests
 
 from redshift_connector.error import InterfaceError
-from redshift_connector.plugin.SamlCredentialsProvider import SamlCredentialsProvider
+from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 
 logger = logging.getLogger(__name__)
 
 
 class AdfsCredentialsProvider(SamlCredentialsProvider):
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
-    def get_saml_assertion(self) -> Optional[str]:
-        if self.idp_host == '' or self.idp_host is None:
+    def get_saml_assertion(self: "AdfsCredentialsProvider") -> typing.Optional[str]:
+        if self.idp_host == "" or self.idp_host is None:
             raise InterfaceError("Missing required property: idp_host")
 
-        if self.user_name == '' or self.user_name is None or self.password == '' or self.password is None:
+        if self.user_name == "" or self.user_name is None or self.password == "" or self.password is None:
             return self.windows_integrated_authentication()
 
         return self.form_based_authentication()
 
-    def windows_integrated_authentication(self):
+    def windows_integrated_authentication(self: "AdfsCredentialsProvider"):
         pass
 
-    def form_based_authentication(self) -> str:
+    def form_based_authentication(self: "AdfsCredentialsProvider") -> str:
         url: str = "https://{host}:{port}/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices".format(
-            host=self.idp_host, port=str(self.idpPort))
+            host=self.idp_host, port=str(self.idpPort)
+        )
         try:
-            response = requests.get(url)
+            response: "requests.Response" = requests.get(url)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
@@ -38,7 +39,10 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             logger.error("A timeout occurred when requesting SAML assertion")
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            logger.error("A error occurred when requesting SAML assertion to refresh credentials. Verify RedshiftProperties are correct")
+            logger.error(
+                "A error occurred when requesting SAML assertion to refresh credentials. "
+                "Verify RedshiftProperties are correct"
+            )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
             logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
@@ -50,23 +54,23 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             logger.error("An error occurred while parsing response: {}".format(str(e)))
             raise InterfaceError(e)
 
-        payload: Dict[str, Optional[str]] = {}
+        payload: typing.Dict[str, typing.Optional[str]] = {}
 
-        for inputtag in soup.find_all(re.compile('(INPUT|input)')):
-            name: str = inputtag.get('name', '')
-            value: str = inputtag.get('value', '')
+        for inputtag in soup.find_all(re.compile("(INPUT|input)")):
+            name: str = inputtag.get("name", "")
+            value: str = inputtag.get("value", "")
             if "username" in name.lower():
                 payload[name] = self.user_name
             elif "authmethod" in name.lower():
                 payload[name] = value
             elif "password" in name.lower():
                 payload[name] = self.password
-            elif name != '':
+            elif name != "":
                 payload[name] = value
 
-        action: Optional[str] = self.get_form_action(soup)
-        if action and action.startswith('/'):
-            url = 'https://{host}:{port}{action}'.format(host=self.idp_host, port=str(self.idpPort), action=action)
+        action: typing.Optional[str] = self.get_form_action(soup)
+        if action and action.startswith("/"):
+            url = "https://{host}:{port}{action}".format(host=self.idp_host, port=str(self.idpPort), action=action)
 
         try:
             response = requests.post(url, data=payload)
@@ -89,13 +93,13 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
         except Exception as e:
             logger.error("An error occurred while parsing response: {}".format(str(e)))
             raise InterfaceError(e)
-        assertion: str = ''
+        assertion: str = ""
 
-        for inputtag in soup.find_all('input'):
-            if inputtag.get('name') == 'SAMLResponse':
-                assertion = inputtag.get('value')
+        for inputtag in soup.find_all("input"):
+            if inputtag.get("name") == "SAMLResponse":
+                assertion = inputtag.get("value")
 
-        if assertion == '':
+        if assertion == "":
             raise InterfaceError("Failed to find Adfs access_token")
 
         return assertion

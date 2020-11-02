@@ -5,6 +5,7 @@ class Warning(Exception):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -15,6 +16,7 @@ class Error(Exception):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -27,6 +29,7 @@ class InterfaceError(Error):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -37,6 +40,7 @@ class DatabaseError(Error):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -47,6 +51,7 @@ class DataError(DatabaseError):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -59,6 +64,7 @@ class OperationalError(DatabaseError):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -70,6 +76,7 @@ class IntegrityError(DatabaseError):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -81,6 +88,7 @@ class InternalError(DatabaseError):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -92,6 +100,7 @@ class ProgrammingError(DatabaseError):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -102,6 +111,7 @@ class NotSupportedError(DatabaseError):
     This exception is part of the `DBAPI 2.0 specification
     <http://www.python.org/dev/peps/pep-0249/>`_.
     """
+
     pass
 
 
@@ -110,6 +120,7 @@ class ArrayContentNotSupportedError(NotSupportedError):
     Raised when attempting to transmit an array where the base type is not
     supported for binary data transfer by the interface.
     """
+
     pass
 
 
@@ -118,6 +129,7 @@ class ArrayContentNotHomogenousError(ProgrammingError):
     Raised when attempting to transmit an array that doesn't contain only a
     single type of object.
     """
+
     pass
 
 
@@ -126,4 +138,5 @@ class ArrayDimensionsNotConsistentError(ProgrammingError):
     Raised when attempting to transmit an array that has inconsistent
     multi-dimension sizes.
     """
+
     pass

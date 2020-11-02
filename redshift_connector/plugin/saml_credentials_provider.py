@@ -2,38 +2,39 @@ import base64
 import logging
 import random
 import re
+import typing
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
 
-import boto3
-import bs4
+import boto3  # type: ignore
+import bs4  # type: ignore
 
-from redshift_connector.CredentialsHolder import CredentialsHolder
+from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.error import InterfaceError
-from redshift_connector.RedshiftProperty import RedshiftProperty
+from redshift_connector.plugin.credential_provider_constants import SAML_RESP_NAMESPACES
+from redshift_connector.redshift_property import RedshiftProperty
 
 logger = logging.getLogger(__name__)
 
 
 class SamlCredentialsProvider(ABC):
-    def __init__(self) -> None:
-        self.user_name: Optional[str] = None
-        self.password: Optional[str] = None
-        self.idp_host: Optional[str] = None
+    def __init__(self: "SamlCredentialsProvider") -> None:
+        self.user_name: typing.Optional[str] = None
+        self.password: typing.Optional[str] = None
+        self.idp_host: typing.Optional[str] = None
         self.idpPort: int = 443
-        self.duration: Optional[int] = None
-        self.preferred_role: Optional[str] = None
-        self.sslInsecure: Optional[bool] = None
-        self.db_user: Optional[str] = None
-        self.db_groups: Optional[List[str]] = None
-        self.force_lowercase: Optional[bool] = None
-        self.auto_create: Optional[bool] = None
-        self.region: Optional[str] = None
-        self.principal: Optional[str] = None
+        self.duration: typing.Optional[int] = None
+        self.preferred_role: typing.Optional[str] = None
+        self.sslInsecure: typing.Optional[bool] = None
+        self.db_user: typing.Optional[str] = None
+        self.db_groups: typing.Optional[typing.List[str]] = None
+        self.force_lowercase: typing.Optional[bool] = None
+        self.auto_create: typing.Optional[bool] = None
+        self.region: typing.Optional[str] = None
+        self.principal: typing.Optional[str] = None
 
         self.cache: dict = {}
 
-    def add_parameter(self, info: RedshiftProperty) -> None:
+    def add_parameter(self: "SamlCredentialsProvider", info: RedshiftProperty) -> None:
         self.user_name = info.user_name
         self.password = info.password
         self.idp_host = info.idp_host
@@ -48,7 +49,7 @@ class SamlCredentialsProvider(ABC):
         self.region = info.region
         self.principal = info.principal
 
-    def get_credentials(self) -> CredentialsHolder:
+    def get_credentials(self: "SamlCredentialsProvider") -> CredentialsHolder:
         key: str = self.get_cache_key()
         if key not in self.cache or self.cache[key].is_expired():
             try:
@@ -68,7 +69,7 @@ class SamlCredentialsProvider(ABC):
 
         return credentials
 
-    def refresh(self) -> None:
+    def refresh(self: "SamlCredentialsProvider") -> None:
         try:
             # get SAML assertion from specific identity provider
             saml_assertion = self.get_saml_assertion()
@@ -78,32 +79,32 @@ class SamlCredentialsProvider(ABC):
         # decode SAML assertion into xml format
         doc: bytes = base64.b64decode(saml_assertion)
 
-        soup = bs4.BeautifulSoup(doc,'xml')
-        attrs = soup.findAll('Attribute')
+        soup = bs4.BeautifulSoup(doc, "xml")
+        attrs = soup.findAll("Attribute")
         # extract RoleArn adn PrincipleArn from SAML assertion
-        role_pattern = re.compile(r'arn:aws:iam::\d*:role/\S+')
-        provider_pattern = re.compile(r'arn:aws:iam::\d*:saml-provider/\S+')
-        roles: Dict[str, str] = {}
+        role_pattern = re.compile(r"arn:aws:iam::\d*:role/\S+")
+        provider_pattern = re.compile(r"arn:aws:iam::\d*:saml-provider/\S+")
+        roles: typing.Dict[str, str] = {}
         for attr in attrs:
-            name: str = attr.attrs['Name']
-            values: Any = attr.findAll('AttributeValue')
+            name: str = attr.attrs["Name"]
+            values: typing.Any = attr.findAll("AttributeValue")
             if name == "https://aws.amazon.com/SAML/Attributes/Role":
                 for value in values:
-                    arns = value.contents[0].split(',')
-                    role: str = ''
-                    provider: str = ''
+                    arns = value.contents[0].split(",")
+                    role: str = ""
+                    provider: str = ""
                     for arn in arns:
                         if role_pattern.match(arn):
                             role = arn
                         if provider_pattern.match(arn):
                             provider = arn
-                    if role != '' and provider != '':
+                    if role != "" and provider != "":
                         roles[role] = provider
 
         if len(roles) == 0:
             raise InterfaceError("No role found in SamlAssertion")
-        role_arn: str = ''
-        principle: str = ''
+        role_arn: str = ""
+        principle: str = ""
         if self.preferred_role:
             role_arn = self.preferred_role
             if role_arn not in roles:
@@ -113,16 +114,16 @@ class SamlCredentialsProvider(ABC):
             role_arn = random.choice(list(roles))
             principle = roles[role_arn]
 
-        client = boto3.client('sts')
+        client = boto3.client("sts")
 
         try:
             response = client.assume_role_with_saml(
-                RoleArn=role_arn,   # self.preferred_role,
-                PrincipalArn=principle,   # self.principal,
-                SAMLAssertion=saml_assertion
+                RoleArn=role_arn,  # self.preferred_role,
+                PrincipalArn=principle,  # self.principal,
+                SAMLAssertion=saml_assertion,
             )
 
-            stscred: Dict[str, Any] = response['Credentials']
+            stscred: typing.Dict[str, typing.Any] = response["Credentials"]
             credentials: CredentialsHolder = CredentialsHolder(stscred)
             # get metadata from SAML assertion
             credentials.set_metadata(self.read_metadata(doc))
@@ -156,33 +157,46 @@ class SamlCredentialsProvider(ABC):
             logger.error("other Exception: %s", e)
             raise e
 
-    def get_cache_key(self) -> str:
-        return '{username}{password}{idp_host}{idp_port}{duration}{preferred_role}'.format(
-            username=self.user_name, password=self.password, idp_host=self.idp_host, idp_port=self.idpPort,
-            duration=self.duration, preferred_role=self.preferred_role)
+    def get_cache_key(self: "SamlCredentialsProvider") -> str:
+        return "{username}{password}{idp_host}{idp_port}{duration}{preferred_role}".format(
+            username=self.user_name,
+            password=self.password,
+            idp_host=self.idp_host,
+            idp_port=self.idpPort,
+            duration=self.duration,
+            preferred_role=self.preferred_role,
+        )
 
     @abstractmethod
-    def get_saml_assertion(self):
+    def get_saml_assertion(self: "SamlCredentialsProvider"):
         pass
 
-    def check_required_parameters(self) -> None:
-        if self.user_name == '' or self.user_name is None:
+    def check_required_parameters(self: "SamlCredentialsProvider") -> None:
+        if self.user_name == "" or self.user_name is None:
             raise InterfaceError("Missing required property: user_name")
-        if self.password == '' or self.password is None:
+        if self.password == "" or self.password is None:
             raise InterfaceError("Missing required property: password")
-        if self.idp_host == '' or self.idp_host is None:
+        if self.idp_host == "" or self.idp_host is None:
             raise InterfaceError("Missing required property: idp_host")
 
-    def read_metadata(self, doc: bytes) -> CredentialsHolder.IamMetadata:
+    def read_metadata(self: "SamlCredentialsProvider", doc: bytes) -> CredentialsHolder.IamMetadata:
         try:
-            soup = bs4.BeautifulSoup(doc, 'xml')
-            attrs = soup.findAll('saml2:Attribute')
+            soup = bs4.BeautifulSoup(doc, "xml")
+            attrs: typing.Any = []
+            namespace_used_idx: int = 0
+
+            # prefer using Attributes in saml-compliant namespace
+            for idx, namespace in enumerate(SAML_RESP_NAMESPACES):
+                attrs = soup.find_all("{}Attribute".format(namespace))
+                if len(attrs) > 0:
+                    namespace_used_idx = idx
+                    break
 
             metadata: CredentialsHolder.IamMetadata = CredentialsHolder.IamMetadata()
 
             for attr in attrs:
-                name: str = attr.attrs['Name']
-                values: Any = attr.findAll('saml2:AttributeValue')  # [0].contents[0]
+                name: str = attr.attrs["Name"]
+                values: typing.Any = attr.findAll("{}AttributeValue".format(SAML_RESP_NAMESPACES[namespace_used_idx]))
                 if len(values) == 0:
                     # Ignore empty-valued attributes.
                     continue
@@ -198,7 +212,7 @@ class SamlCredentialsProvider(ABC):
                 elif name == "https://redshift.amazon.com/SAML/Attributes/AutoCreate":
                     metadata.set_auto_create(value)
                 elif name == "https://redshift.amazon.com/SAML/Attributes/DbGroups":
-                    groups = ','.join([value.contents[0] for value in values])
+                    groups = ",".join([value.contents[0] for value in values])
                     metadata.set_db_groups(groups)
                 elif name == "https://redshift.amazon.com/SAML/Attributes/ForceLowercase":
                     metadata.set_force_lowercase(value)
@@ -211,15 +225,15 @@ class SamlCredentialsProvider(ABC):
             logger.error("KeyError: %s", e)
             raise e
 
-    def get_form_action(self, soup) -> Optional[str]:
-        for inputtag in soup.find_all(re.compile('(FORM|form)')):
-            action: str = inputtag.get('action')
+    def get_form_action(self: "SamlCredentialsProvider", soup) -> typing.Optional[str]:
+        for inputtag in soup.find_all(re.compile("(FORM|form)")):
+            action: str = inputtag.get("action")
             if action:
                 return action
         return None
 
-    def is_text(self, inputtag) -> bool:
-        return 'text' == inputtag.get('type')
+    def is_text(self: "SamlCredentialsProvider", inputtag) -> bool:
+        return typing.cast(bool, "text" == inputtag.get("type"))
 
-    def is_password(self, inputtag) -> bool:
-        return 'password' == inputtag.get('type')
+    def is_password(self: "SamlCredentialsProvider", inputtag) -> bool:
+        return typing.cast(bool, "password" == inputtag.get("type"))
