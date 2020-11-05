@@ -2,7 +2,7 @@
 redshift_connector
 =======================================================
 
-redshift_connector is the Amazon Web Services (AWS) Redshift connector for
+redshift_connector is the Amazon Redshift connector for
 Python. Easy integration with `pandas <https://github.com/pandas-dev/pandas>`_ and `numpy <https://github.com/numpy/numpy>`_, as well as support for numerous Amazon Redshift specific features help you get the most out of your data
 
 Supported Amazon Redshift features include:
