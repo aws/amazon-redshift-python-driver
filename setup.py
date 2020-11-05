@@ -93,7 +93,7 @@ setup(
     author="Amazon Web Services",
     author_email="redshift-drivers@amazon.com",
     url="https://github.com/aws/amazon-redshift-python-driver",
-    license="BSD",
+    license="Apache License 2.0",
     python_requires=">=3.5",
     install_requires=[
         "scramp>=1.2.0<1.3.0",
@@ -125,7 +125,7 @@ setup(
     ],
     keywords="redshift dbapi",
     include_package_data=True,
-    package_data={"redshift-connector": ["*.py", "*.crt", "LICENSE"]},
+    package_data={"redshift-connector": ["*.py", "*.crt", "LICENSE", "NOTICE"]},
     packages=find_packages(exclude=["test*"]),
     cmdclass={
         "install": InstallCommand,
