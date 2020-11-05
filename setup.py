@@ -78,8 +78,10 @@ class BDistWheelCommand(BDistWheelCommandBase):
         return python, abi, plat
 
 
-long_description = """\
-redshift_connector is a Pure-Python interface to the Amazon Redshift. """
+# read the contents of your README file
+this_directory = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(this_directory, "README.rst"), encoding="utf-8") as f:
+    long_description = f.read()
 exec(open("redshift_connector/version.py").read())
 
 setup(
@@ -87,6 +89,7 @@ setup(
     version=__version__,
     description="Redshift interface library",
     long_description=long_description,
+    long_description_content_type="text/markdown",
     author="Amazon Web Services",
     author_email="redshift-drivers@amazon.com",
     url="https://github.com/aws/amazon-redshift-python-driver",
