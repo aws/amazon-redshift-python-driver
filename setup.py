@@ -89,7 +89,7 @@ setup(
     version=__version__,
     description="Redshift interface library",
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/x-rst",
     author="Amazon Web Services",
     author_email="redshift-drivers@amazon.com",
     url="https://github.com/aws/amazon-redshift-python-driver",
