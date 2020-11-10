@@ -45,7 +45,6 @@ Basic Example
     # Connects to Redshift cluster using AWS credentials
     conn = redshift_connector.connect(
         host='examplecluster.abc123xyz789.us-west-1.redshift.amazonaws.com',
-        port=5439,
         database='dev',
         user='awsuser',
         password='my_password'
@@ -132,7 +131,7 @@ Connection Parameters
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | idp_response_timeout    | Int. The timeout for retrieving SAML assertion from IdP                                    | 120           | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
-| idp_port                | Int. The listen port IdP will send the SAML assertion to                                   | 7890          | No       |
+| listen_port                | Int. The listen port IdP will send the SAML assertion to                                | 7890          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | log_level               | Int. The level of logging enabled, increasing in granularity (values [0,4] are valid)      | 0             | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
@@ -142,14 +141,22 @@ Connection Parameters
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | idp_tenant              | String. The IdP tenant                                                                     | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
-| credential_provider     | String. The IdP that will be used for authenticating with Amazon Redshift.                 | None          | No       |
+| credentials_provider    | String. The IdP that will be used for authenticating with Amazon Redshift.                 | None          | No       |
 |                         | 'OktaCredentialsProvider', 'AzureCredentialsProvider', 'BrowserAzureCredentialsProvider',  |               |          |
 |                         | 'PingCredentialsProvider', 'BrowserSamlCredentialsProvider', and 'AdfsCredentialsProvider' |               |          |
-|                         | are supported.                                                                             |               |          |
+|                         | are supported                                                                              |               |          |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | cluster_identifier      | String. The cluster identifier of the Amazon Redshift Cluster                              | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | db_user                 | String. The user ID to use with Amazon Redshift                                            | None          | No       |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| db_groups               | String. A comma-separated list of existing database group names that the DbUser joins for  | None          | No       |
+|                         | the current session                                                                        |               |          |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| auto_create             | Bool. Indicates whether the user should be created if they do not exist                    | False         | No       |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| allow_db_user_override  | Bool. `True` specifies the driver uses the DbUser value from the SAML assertion while      | False         | No       |
+|                         | `False` indicates the value in the DbUser connection parameter is used                     |               |          |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | login_url               | String. The SSO Url for the IdP                                                            | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
@@ -161,7 +168,7 @@ Connection Parameters
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | region                  | String. The AWS region where the cluster is located                                        | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
-| app_name                | String. The name of the IdP application used for authentication.                           | None          | No       |
+| app_name                | String. The name of the IdP application used for authentication                            | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 
 
