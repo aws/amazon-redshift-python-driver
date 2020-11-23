@@ -38,8 +38,6 @@ unsupported_datatypes: typing.List[str] = [
     "interval",
     "bit",
     "bit varying",
-    "time",
-    "timetz" "super",
     "hstore",
     "json",
     "serial",
