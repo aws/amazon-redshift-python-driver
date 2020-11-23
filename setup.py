@@ -84,6 +84,10 @@ with open(os.path.join(this_directory, "README.rst"), encoding="utf-8") as f:
     long_description = f.read()
 exec(open("redshift_connector/version.py").read())
 
+optional_deps = {
+    "full": ["numpy", "pandas"],
+}
+
 setup(
     name="redshift_connector",
     version=__version__,
@@ -95,18 +99,8 @@ setup(
     url="https://github.com/aws/amazon-redshift-python-driver",
     license="Apache License 2.0",
     python_requires=">=3.5",
-    install_requires=[
-        "scramp>=1.2.0<1.3.0",
-        "pytz>=2020.1<2020.2",
-        "BeautifulSoup4>=4.7.0<4.8.0",
-        "boto3>=1.16.8<1.17.0",
-        "requests>=2.23.0<2.24.0",
-        "lxml>=4.2.5<4.6.0",
-        "botocore>=1.19.8<1.20.0",
-        "numpy>=1.15.4<1.20.0",
-        "pandas==0.25.3",
-        "wheel>=0.33",
-    ],
+    install_requires=open("requirements.txt").read().strip().split("\n"),
+    extras_require=optional_deps,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
