@@ -63,14 +63,6 @@ from redshift_connector.utils import (
     pg_types,
     py_types,
     q_pack,
-    timestamp_recv_float,
-    timestamp_recv_integer,
-    timestamp_send_float,
-    timestamp_send_integer,
-    timestamptz_recv_float,
-    timestamptz_recv_integer,
-    timestamptz_send_float,
-    timestamptz_send_integer,
     walk_array,
 )
 
@@ -1186,33 +1178,6 @@ class Connection:
         if key == b"client_encoding":
             encoding = value.decode("ascii").lower()
             _client_encoding = pg_to_py_encodings.get(encoding, encoding)
-
-        elif key == b"integer_datetimes":
-            if value == b"on":
-
-                py_types[1114] = (1114, FC_BINARY, timestamp_send_integer)
-                pg_types[1114] = (FC_BINARY, timestamp_recv_integer)
-
-                py_types[1184] = (1184, FC_BINARY, timestamptz_send_integer)
-                pg_types[1184] = (FC_BINARY, timestamptz_recv_integer)
-
-                # py_types[Interval] = (
-                #     1186, FC_BINARY, interval_send_integer)
-                # py_types[Timedelta] = (
-                #     1186, FC_BINARY, interval_send_integer)
-                # pg_types[1186] = (FC_BINARY, interval_recv_integer)
-            else:
-                py_types[1114] = (1114, FC_BINARY, timestamp_send_float)
-                pg_types[1114] = (FC_BINARY, timestamp_recv_float)
-                py_types[1184] = (1184, FC_BINARY, timestamptz_send_float)
-                pg_types[1184] = (FC_BINARY, timestamptz_recv_float)
-
-                # py_types[Interval] = (
-                #     1186, FC_BINARY, interval_send_float)
-                # py_types[Timedelta] = (
-                #     1186, FC_BINARY, interval_send_float)
-                # pg_types[1186] = (FC_BINARY, interval_recv_float)
-
         elif key == b"server_version":
             self._server_version: LooseVersion = LooseVersion(value.decode("ascii"))
             if self._server_version < LooseVersion("8.2.0"):

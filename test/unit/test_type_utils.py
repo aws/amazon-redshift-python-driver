@@ -69,19 +69,7 @@ def test_numeric_out(_input):
     assert type_utils.numeric_out(in_val) == exp_val
 
 
-@pytest.mark.parametrize(
-    "_input",
-    [
-        (datetime(1999, 12, 12, 12, 12, 12, 342380), b"\xc19\xb2c\xa8Y\xc8\x00"),
-        (datetime(2017, 11, 28, 23, 55, 59, 342380), b"A\xc0\xd8Z\x07\xab\xd3\x1c"),
-    ],
-)
-def test_timestamp_send_float(_input):
-    in_val, exp_val = _input
-    assert type_utils.timestamp_send_float(in_val) == exp_val
-
-
-timestamp_send_float_data = [
+timestamp_send_integer_data = [
     (b"00000000", int.from_bytes(b"00000000", "big")),
     (b"12345678", int.from_bytes(b"12345678", "big")),
     (INFINITY_MICROSECONDS.to_bytes(length=8, byteorder="big"), "infinity"),
@@ -89,7 +77,7 @@ timestamp_send_float_data = [
 ]
 
 
-@pytest.mark.parametrize("_input", timestamp_send_float_data)
+@pytest.mark.parametrize("_input", timestamp_send_integer_data)
 def test_timestamp_recv_integer(_input):
     in_val, exp_val = _input
     print(type_utils.timestamp_recv_integer(in_val, 0, 0))

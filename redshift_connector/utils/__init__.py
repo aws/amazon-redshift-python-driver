@@ -23,12 +23,8 @@ from .type_utils import (
     pg_types,
     py_types,
     q_pack,
-    timestamp_recv_float,
     timestamp_recv_integer,
-    timestamp_send_float,
     timestamp_send_integer,
-    timestamptz_recv_float,
     timestamptz_recv_integer,
-    timestamptz_send_float,
     timestamptz_send_integer,
 )

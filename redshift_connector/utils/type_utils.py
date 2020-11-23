@@ -116,15 +116,6 @@ def null_send(v) -> bytes:
     return NULL
 
 
-# data is double-precision float representing seconds since 2000-01-01
-def timestamp_recv_float(data: bytes, offset: int, length: int) -> Datetime:
-    return Datetime.utcfromtimestamp(EPOCH_SECONDS + d_unpack(data, offset)[0])
-
-
-def timestamptz_recv_float(data: bytes, offset: int, length: int) -> Datetime:
-    return timestamp_recv_float(data, offset, length).replace(tzinfo=Timezone.utc)
-
-
 # data is 64-bit integer representing microseconds since 2000-01-01
 def timestamp_recv_integer(data: bytes, offset: int, length: int) -> typing.Union[Datetime, str, float]:
     micros: float = q_unpack(data, offset)[0]
@@ -144,21 +135,10 @@ def timestamp_send_integer(v: Datetime) -> bytes:
     return q_pack(int((timegm(v.timetuple()) - EPOCH_SECONDS) * 1e6) + v.microsecond)
 
 
-# data is double-precision float representing seconds since 2000-01-01
-def timestamp_send_float(v: Datetime) -> bytes:
-    return d_pack(timegm(v.timetuple()) + v.microsecond / 1e6 - EPOCH_SECONDS)
-
-
 def timestamptz_send_integer(v: Datetime) -> bytes:
     # timestamps should be sent as UTC.  If they have zone info,
     # convert them.
     return timestamp_send_integer(v.astimezone(Timezone.utc).replace(tzinfo=None))
-
-
-def timestamptz_send_float(v: Datetime) -> bytes:
-    # timestamps should be sent as UTC.  If they have zone info,
-    # convert them.
-    return timestamp_send_float(v.astimezone(Timezone.utc).replace(tzinfo=None))
 
 
 # return a timezone-aware datetime instance if we're reading from a
@@ -193,21 +173,6 @@ def timestamptz_recv_integer(data: bytes, offset: int, length: int) -> typing.Un
 #     return typing.cast(bytes, qii_pack(microseconds, v.days, months))
 
 
-# def interval_send_float(v: typing.Union[Interval, Timedelta]) -> bytes:
-#     seconds: float = v.microseconds / 1000.0 / 1000.0
-#     try:
-#         seconds += v.seconds  # type: ignore
-#     except AttributeError:
-#         pass
-#
-#     try:
-#         months: int = v.months  # type: ignore
-#     except AttributeError:
-#         months = 0
-#
-#     return typing.cast(bytes, dii_pack(seconds, v.days, months))
-
-
 glbls: typing.Dict[str, type] = {"Decimal": Decimal}
 trans_tab = dict(zip(map(ord, "{}"), "[]"))
 
@@ -234,15 +199,6 @@ def numeric_in(data: bytes, offset: int, length: int) -> Decimal:
 
 # def uuid_recv(data: bytes, offset: int, length: int) -> UUID:
 #     return UUID(bytes=data[offset:offset+length])
-
-
-# def interval_recv_float(data: bytes, offset: int, length: int) -> typing.Union[Timedelta, Interval]:
-#     seconds, days, months = typing.cast(typing.Tuple[int, ...], dii_unpack(data, offset))
-#     if months == 0:
-#         secs, microseconds = divmod(seconds, 1e6)
-#         return Timedelta(days, secs, microseconds)
-#     else:
-#         return Interval(int(seconds * 1000 * 1000), days, months)
 
 
 # def interval_recv_integer(data: bytes, offset: int, length: int) -> typing.Union[Timedelta, Interval]:
@@ -346,8 +302,8 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         1043: (FC_BINARY, text_recv),  # VARCHAR type
         1082: (FC_TEXT, date_in),  # date
         1083: (FC_TEXT, time_in),
-        1114: (FC_BINARY, timestamp_recv_float),  # timestamp w/ tz
-        1184: (FC_BINARY, timestamptz_recv_float),
+        1114: (FC_BINARY, timestamp_recv_integer),  # timestamp w/ tz
+        1184: (FC_BINARY, timestamptz_recv_integer),
         # 1186: (FC_BINARY, interval_recv_integer),
         # 1231: (FC_TEXT, array_in),  # NUMERIC[]
         # 1263: (FC_BINARY, array_recv),  # cstring[]
