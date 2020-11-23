@@ -2,22 +2,11 @@
 import os
 import sys
 
-from setuptools import Command, find_packages, setup
+from setuptools import find_packages, setup
 from setuptools.command.install import install as InstallCommandBase
 from setuptools.command.test import test as TestCommand
 from setuptools.dist import Distribution
 from wheel.bdist_wheel import bdist_wheel as BDistWheelCommandBase
-
-
-class NoopCommand(Command):
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        pass
 
 
 class BasePytestCommand(TestCommand):
@@ -39,7 +28,6 @@ class BasePytestCommand(TestCommand):
         if src_dir:
             src_dir += "/"
         args = [self.test_dir, "--cov=redshift_connector", "--cov-report=xml", "--cov-report=html"]
-        print(args)
 
         errno = pytest.main(args)
         sys.exit(errno)
@@ -77,6 +65,17 @@ class BDistWheelCommand(BDistWheelCommandBase):
         python, abi, plat = "py3", "none", "any"
         return python, abi, plat
 
+
+custom_cmds = {
+    "bdist_wheel": BDistWheelCommand,
+    "unit_test": UnitTestCommand,
+    "integration_test": IntegrationTestCommand,
+}
+
+if os.getenv("CUSTOMINSTALL", False):
+    custom_cmds["install"] = InstallCommand
+elif "install" in custom_cmds:
+    del custom_cmds["install"]
 
 # read the contents of your README file
 this_directory = os.path.abspath(os.path.dirname(__file__))
@@ -121,10 +120,5 @@ setup(
     include_package_data=True,
     package_data={"redshift-connector": ["*.py", "*.crt", "LICENSE", "NOTICE"]},
     packages=find_packages(exclude=["test*"]),
-    cmdclass={
-        "install": InstallCommand,
-        "bdist_wheel": BDistWheelCommand,
-        "unit_test": UnitTestCommand,
-        "integration_test": IntegrationTestCommand,
-    },
+    cmdclass=custom_cmds,
 )
