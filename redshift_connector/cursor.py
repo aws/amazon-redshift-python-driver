@@ -99,7 +99,7 @@ class Cursor:
     def _getDescription(self: "Cursor") -> typing.Optional[typing.List[typing.Optional[typing.Tuple]]]:
         if self.ps is None:
             return None
-        row_desc = self.ps["row_desc"]
+        row_desc: typing.List[typing.Dict[str, typing.Union[bytes, int, typing.Callable]]] = self.ps["row_desc"]
         if len(row_desc) == 0:
             return None
         columns: typing.List[typing.Optional[typing.Tuple]] = []
@@ -277,10 +277,17 @@ class Cursor:
 
     def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> typing.Optional[pandas.DataFrame]:
         """Return a dataframe of the last query results."""
+        columns: typing.Optional[typing.List[typing.Union[str, bytes]]] = None
         try:
-            columns: typing.List = [column[0].decode().lower() for column in self.description]
-        except:
+            columns = [column[0].decode().lower() for column in self.description]
+        except UnicodeError as e:
+            warn(
+                "Unable to decode column names. Byte values will be used for pandas dataframe column labels.",
+                stacklevel=2,
+            )
             columns = [column[0].lower() for column in self.description]
+        except:
+            warn("No row description was found. pandas dataframe will be missing column labels.", stacklevel=2)
 
         if num:
             fetcheddata: tuple = self.fetchmany(num)
