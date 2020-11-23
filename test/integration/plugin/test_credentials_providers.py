@@ -106,6 +106,15 @@ def testPreferredRole(idp_arg):
         redshift_connector.connect(**idp_arg)
 
 
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+def test_invalid_db_group(idp_arg):
+    idp_arg["db_groups"] = ["girl_dont_do_it"]
+    with pytest.raises(
+        redshift_connector.ProgrammingError, match='Group "{}" does not exist'.format(idp_arg["db_groups"][0])
+    ):
+        redshift_connector.connect(**idp_arg)
+
+
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
 def testSslAndIam(idp_arg):
     idp_arg["ssl"] = False
