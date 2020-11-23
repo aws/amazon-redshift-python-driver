@@ -4,15 +4,22 @@ from itertools import count, islice
 from typing import TYPE_CHECKING
 from warnings import warn
 
-import numpy  # type: ignore
-import pandas  # type: ignore
-
 import redshift_connector
 from redshift_connector.config import table_type_clauses
-from redshift_connector.error import InterfaceError, ProgrammingError
+from redshift_connector.error import (
+    MISSING_MODULE_ERROR_MSG,
+    InterfaceError,
+    ProgrammingError,
+)
 
 if TYPE_CHECKING:
     from redshift_connector.core import Connection
+
+    try:
+        import numpy
+        import pandas
+    except:
+        pass
 
 
 class Cursor:
@@ -275,8 +282,13 @@ class Cursor:
             else:
                 raise StopIteration()
 
-    def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> typing.Optional[pandas.DataFrame]:
+    def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> typing.Optional["pandas.DataFrame"]:
         """Return a dataframe of the last query results."""
+        try:
+            import pandas
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="pandas"))
+
         columns: typing.Optional[typing.List[typing.Union[str, bytes]]] = None
         try:
             columns = [column[0].decode().lower() for column in self.description]
@@ -299,9 +311,14 @@ class Cursor:
             return None
         return pandas.DataFrame(result, columns=columns)
 
-    def write_dataframe(self: "Cursor", df: pandas.DataFrame, table: str) -> None:
+    def write_dataframe(self: "Cursor", df: "pandas.DataFrame", table: str) -> None:
         """write same structure dataframe into Redshift database"""
-        arrays: numpy.ndarray = df.values
+        try:
+            import pandas
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="pandas"))
+
+        arrays: "numpy.ndarray" = df.values
         placeholder: str = ", ".join(["%s"] * len(arrays[0]))
         sql: str = "insert into {table} values ({placeholder})".format(table=table, placeholder=placeholder)
         if len(arrays) == 1:
@@ -309,8 +326,13 @@ class Cursor:
         elif len(arrays) > 1:
             self.executemany(sql, arrays)
 
-    def fetch_numpy_array(self: "Cursor", num: typing.Optional[int] = None) -> numpy.ndarray:
+    def fetch_numpy_array(self: "Cursor", num: typing.Optional[int] = None) -> "numpy.ndarray":
         """Return a numpy array of the last query results."""
+        try:
+            import numpy
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="numpy"))
+
         if num:
             fetched: typing.Tuple = self.fetchmany(num)
         else:
