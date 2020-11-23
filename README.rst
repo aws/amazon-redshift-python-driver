@@ -21,20 +21,20 @@ The easiest way to get started with redshift_connector is via `pip <https://pip.
 
 ``pip install redshift_connector``
 
+For `pandas <https://github.com/pandas-dev/pandas>`_ and `numpy <https://github.com/numpy/numpy>`_ support, install as shown below:
+
+``pip install 'redshift_connector[full]'``
+
 Note: redshift_connector requires Python >= 3.5
 
 
-You can install from source by cloning this repository. Assuming that you have Python and ``virtualenv`` installed, set up your environment and install the required dependencies like this:
+You can install from source by cloning this repository.
 
 .. code-block:: sh
 
     $ git clone https://github.com/aws/amazon-redshift-python-driver.git
     $ cd redshift_connector
-    $ virtualenv venv
-    $ . venv/bin/activate
-    $ python -m pip install -r requirements.txt
-    $ python -m pip install -e .
-    $ python -m pip install redshift_connector
+    $ pip install .
 
 Basic Example
 ~~~~~~~~~~~~~
