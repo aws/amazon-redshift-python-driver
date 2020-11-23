@@ -107,7 +107,7 @@ def connect(
     listen_port: int = 7890,
     login_url: typing.Optional[str] = None,
     auto_create: bool = False,
-    db_groups: typing.Optional[typing.List[str]] = None,
+    db_groups: typing.List[str] = list(),
     force_lowercase: bool = False,
     allow_db_user_override: bool = False,
     log_level: int = 0,

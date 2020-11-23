@@ -42,7 +42,7 @@ class CredentialsHolder:
             self.db_user: typing.Optional[str] = None
             self.saml_db_user: typing.Optional[str] = None
             self.profile_db_user: typing.Optional[str] = None
-            self.db_groups: typing.Optional[str] = None
+            self.db_groups: typing.List[str] = list()
             self.allow_db_user_override: bool = False
             self.force_lowercase: bool = False
 
@@ -73,10 +73,10 @@ class CredentialsHolder:
         def set_profile_db_user(self: "CredentialsHolder.IamMetadata", profile_db_user: str) -> None:
             self.profile_db_user = profile_db_user
 
-        def get_db_groups(self: "CredentialsHolder.IamMetadata") -> typing.Optional[str]:
+        def get_db_groups(self: "CredentialsHolder.IamMetadata") -> typing.List[str]:
             return self.db_groups
 
-        def set_db_groups(self: "CredentialsHolder.IamMetadata", db_groups: str) -> None:
+        def set_db_groups(self: "CredentialsHolder.IamMetadata", db_groups: typing.List[str]) -> None:
             self.db_groups = db_groups
 
         def get_allow_db_user_override(self: "CredentialsHolder.IamMetadata") -> bool:

@@ -26,7 +26,7 @@ class SamlCredentialsProvider(ABC):
         self.preferred_role: typing.Optional[str] = None
         self.sslInsecure: typing.Optional[bool] = None
         self.db_user: typing.Optional[str] = None
-        self.db_groups: typing.Optional[typing.List[str]] = None
+        self.db_groups: typing.List[str] = list()
         self.force_lowercase: typing.Optional[bool] = None
         self.auto_create: typing.Optional[bool] = None
         self.region: typing.Optional[str] = None
@@ -212,8 +212,7 @@ class SamlCredentialsProvider(ABC):
                 elif name == "https://redshift.amazon.com/SAML/Attributes/AutoCreate":
                     metadata.set_auto_create(value)
                 elif name == "https://redshift.amazon.com/SAML/Attributes/DbGroups":
-                    groups = ",".join([value.contents[0] for value in values])
-                    metadata.set_db_groups(groups)
+                    metadata.set_db_groups([value.contents[0].lower() for value in values])
                 elif name == "https://redshift.amazon.com/SAML/Attributes/ForceLowercase":
                     metadata.set_force_lowercase(value)
 

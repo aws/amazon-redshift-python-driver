@@ -62,7 +62,7 @@ def set_iam_properties(
     listen_port: int,
     login_url: typing.Optional[str],
     auto_create: bool,
-    db_groups: typing.Optional[typing.List[str]],
+    db_groups: typing.List[str],
     force_lowercase: bool,
     allow_db_user_override: bool,
 ) -> None:
@@ -190,7 +190,7 @@ def set_iam_credentials(info: RedshiftProperty) -> None:
         db_user: typing.Optional[str] = metadata.get_db_user()
         saml_db_user: typing.Optional[str] = metadata.get_saml_db_user()
         profile_db_user: typing.Optional[str] = metadata.get_profile_db_user()
-        db_groups: typing.Optional[str] = metadata.get_db_groups()
+        db_groups: typing.List[str] = metadata.get_db_groups()
         force_lowercase: bool = metadata.get_force_lowercase()
         allow_db_user_override: bool = metadata.get_allow_db_user_override()
         if auto_create is True:
@@ -214,9 +214,8 @@ def set_iam_credentials(info: RedshiftProperty) -> None:
             if saml_db_user is not None:
                 info.db_user = saml_db_user
 
-        if (info.db_groups is None) and (db_groups is not None):
-            tmp: typing.List[str] = db_groups.split(",")
-            info.db_groups = [group.lower() for group in tmp]
+        if (len(info.db_groups) == 0) and (len(db_groups) > 0):
+            info.db_groups = db_groups
 
     set_cluster_credentials(provider, info)
 
@@ -240,6 +239,7 @@ def set_cluster_credentials(cred_provider: SamlCredentialsProvider, info: Redshi
         cred: dict = client.get_cluster_credentials(
             DbUser=info.db_user,
             DbName=info.db_name,
+            DbGroups=info.db_groups,
             ClusterIdentifier=info.cluster_identifier,
             AutoCreate=info.auto_create,
         )

@@ -27,7 +27,7 @@ class RedshiftProperty:
     credentials_provider: typing.Optional[str] = None
     # A comma-separated list of existing database group names that the DbUser joins for the current session.
     # If not specified, defaults to PUBLIC.
-    db_groups: typing.Optional[typing.List[str]] = None
+    db_groups: typing.List[str] = list()
     # Forces the database group names to be lower case.
     force_lowercase: bool = False
     # This option specifies whether the driver uses the DbUser value from the SAML assertion
