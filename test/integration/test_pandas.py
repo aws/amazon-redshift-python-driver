@@ -1,7 +1,6 @@
+from test.utils import numpy_only, pandas_only
 from warnings import filterwarnings
 
-import numpy as np  # type: ignore
-import pandas as pd  # type: ignore
 import pytest  # type: ignore
 
 import redshift_connector
@@ -30,7 +29,11 @@ def db_table(request, con):
     return con
 
 
+@pandas_only
 def test_fetch_dataframe(db_table):
+    import numpy as np
+    import pandas as pd
+
     df = pd.DataFrame(
         np.array(
             [
@@ -53,7 +56,11 @@ def test_fetch_dataframe(db_table):
         assert result.columns[0] == "bookname"
 
 
+@pandas_only
 def test_write_dataframe(db_table):
+    import numpy as np
+    import pandas as pd
+
     df = pd.DataFrame(
         np.array(
             [
@@ -70,6 +77,7 @@ def test_write_dataframe(db_table):
         assert len(np.array(result)) == 2
 
 
+@numpy_only
 def test_fetch_numpyarray(db_table):
     with db_table.cursor() as cursor:
         cursor.executemany(

@@ -1,4 +1,5 @@
 import typing
+from test.utils import pandas_only
 
 import pytest  # type: ignore
 from pytest_mock import mocker
@@ -11,6 +12,7 @@ test_warn_response_data: typing.List[typing.Tuple[typing.Optional[typing.List[by
 ]
 
 
+@pandas_only
 @pytest.mark.parametrize("_input", test_warn_response_data)
 def test_fetch_dataframe_warns_user(_input, mocker):
     data, exp_warning_msg = _input
@@ -21,6 +23,7 @@ def test_fetch_dataframe_warns_user(_input, mocker):
         mock_cursor.fetch_dataframe(1)
 
 
+@pandas_only
 def test_fetch_dataframe_no_results(mocker):
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mocker.patch("redshift_connector.Cursor._getDescription", return_value=["test"])
