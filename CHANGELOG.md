@@ -2,8 +2,15 @@ Changelog
 =========
 
 
-2.0.659 (2020-11-23)
-------------
+v2.0.711 (2020-11-25)
+---------------------
+- Refactor(cursor): use prepared statements in class methods. [Brooke
+  White]
+- Release v2.0.659. [Brooke White]
+
+
+v2.0.659 (2020-11-23)
+---------------------
 - Refactor(integer-datetime): remove datatype conversion functions for
   when server option integer_datetime is disabled. [Brooke White]
 - Refactor: clean up setup.py. [Brooke White]
@@ -25,27 +32,31 @@ Changelog
   White]
 - Doc: Fix errors in connection parameter table. Add missing parameters
   to table (#12) [Brooke White]
+
+
+v2.0.405 (2020-11-05)
+---------------------
 - Doc: re-word project description (#8) [Brooke White]
 
 
-2.0.399 (2020-11-05)
---------------------
+v2.0.399 (2020-11-05)
+---------------------
 - Chore: Add license, usage files and include in whl (#7) [Brooke White]
 
 
-2.0.393 (2020-11-05)
---------------------
+v2.0.393 (2020-11-05)
+---------------------
 - Build: set long_description_format_type set to x-rst (#6) [Brooke
   White]
 
 
-2.0.389 (2020-11-05)
---------------------
+v2.0.389 (2020-11-05)
+---------------------
 - Build: include README in built dist (#5) [Brooke White]
 
 
-2.0.384 (2020-11-04)
---------------------
+v2.0.384 (2020-11-04)
+---------------------
 - Chore: bump boto3, botocore min versions to 1.16.8, 1.19.8 resp (#4)
   [Brooke White]
 - Chore: add readme hyperlink to DBAPI2.0 (#3) [Brooke White]
