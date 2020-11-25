@@ -367,3 +367,10 @@ def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker):
         # begin transaction, drop table t1, create table t1
         assert spy.called
         assert spy.call_count == 3
+
+
+@pytest.mark.parametrize("_input", ["NO_SCHEMA_UNIVERSAL_QUERY", "EXTERNAL_SCHEMA_QUERY", "LOCAL_SCHEMA_QUERY"])
+def test___get_table_filter_clause_throws_for_bad_type(con, _input):
+    with con.cursor() as cursor:
+        with pytest.raises(redshift_connector.InterfaceError):
+            cursor.get_tables(schema_pattern=_input, types=["garbage"])

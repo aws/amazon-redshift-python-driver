@@ -1,3 +1,4 @@
+import re
 import typing
 from collections import deque
 from itertools import count, islice
@@ -185,7 +186,7 @@ class Cursor:
         self._row_count = -1 if -1 in rowcounts else sum(rowcounts)
         return self
 
-    def fetchone(self: "Cursor") -> typing.Optional["Cursor"]:
+    def fetchone(self: "Cursor") -> typing.Optional[typing.List]:
         """Fetch the next row of a query result set.
 
         This method is part of the `DBAPI 2.0 specification
@@ -196,7 +197,7 @@ class Cursor:
             are available.
         """
         try:
-            return typing.cast("Cursor", next(self))
+            return next(self)
         except StopIteration:
             return None
         except TypeError:
@@ -271,7 +272,7 @@ class Cursor:
         """
         pass
 
-    def __next__(self: "Cursor"):
+    def __next__(self: "Cursor") -> typing.List:
         try:
             return self._cached_rows.popleft()
         except IndexError:
@@ -311,6 +312,33 @@ class Cursor:
             return None
         return pandas.DataFrame(result, columns=columns)
 
+    def __is_valid_table(self: "Cursor", table: str) -> bool:
+        split_table_name: typing.List[str] = table.split(".")
+
+        if len(split_table_name) > 2:
+            return False
+
+        q: str = "select 1 from information_schema.tables where table_name = ?"
+
+        temp = self.paramstyle
+        self.paramstyle = "qmark"
+
+        try:
+            if len(split_table_name) == 2:
+                q += " and table_schema = ?"
+                self.execute(q, (split_table_name[1], split_table_name[0]))
+            else:
+                self.execute(q, (split_table_name[0],))
+        except:
+            raise
+        finally:
+            # reset paramstyle to it's original value
+            self.paramstyle = temp
+
+        result = self.fetchone()
+
+        return result[0] == 1 if result is not None else False
+
     def write_dataframe(self: "Cursor", df: "pandas.DataFrame", table: str) -> None:
         """write same structure dataframe into Redshift database"""
         try:
@@ -318,9 +346,14 @@ class Cursor:
         except ModuleNotFoundError:
             raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="pandas"))
 
+        if not self.__is_valid_table(table):
+            raise InterfaceError("Invalid table name passed to write_dataframe: {}".format(table))
+        sanitized_table_name: str = self.__sanitize_str(table)
         arrays: "numpy.ndarray" = df.values
         placeholder: str = ", ".join(["%s"] * len(arrays[0]))
-        sql: str = "insert into {table} values ({placeholder})".format(table=table, placeholder=placeholder)
+        sql: str = "insert into {table} values ({placeholder})".format(
+            table=sanitized_table_name, placeholder=placeholder
+        )
         if len(arrays) == 1:
             self.execute(sql, arrays[0])
         elif len(arrays) > 1:
@@ -361,16 +394,33 @@ class Cursor:
             " LEFT JOIN pg_catalog.pg_namespace pn ON (c.relnamespace=pn.oid AND pn.nspname='pg_catalog') "
             " WHERE p.pronamespace=n.oid "
         )
+        query_args: typing.List[str] = []
         if schema_pattern is not None:
-            sql += " AND n.nspname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND n.nspname LIKE ?"
+            query_args.append(self.__sanitize_str(schema_pattern))
         else:
             sql += "and pg_function_is_visible(p.prooid)"
 
         if procedure_name_pattern is not None:
-            sql += " AND p.proname LIKE {procedure}".format(procedure=self.__escape_quotes(procedure_name_pattern))
+            sql += " AND p.proname LIKE ?"
+            query_args.append(self.__sanitize_str(procedure_name_pattern))
         sql += " ORDER BY PROCEDURE_SCHEM, PROCEDURE_NAME, p.prooid::text "
 
-        self.execute(sql)
+        if len(query_args) > 0:
+            # temporarily use qmark paramstyle
+            temp = self.paramstyle
+            self.paramstyle = "qmark"
+
+            try:
+                self.execute(sql, tuple(query_args))
+            except:
+                raise
+            finally:
+                # reset the original value of paramstyle
+                self.paramstyle = temp
+        else:
+            self.execute(sql)
+
         procedures: tuple = self.fetchall()
         return procedures
 
@@ -383,11 +433,25 @@ class Cursor:
             " OR nspname = (pg_catalog.current_schemas(true))[1]) AND (nspname !~ '^pg_toast_temp_' "
             " OR nspname = replace((pg_catalog.current_schemas(true))[1], 'pg_temp_', 'pg_toast_temp_')) "
         )
+        query_args: typing.List[str] = []
         if schema_pattern is not None:
-            sql += " AND nspname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND nspname LIKE ?"
+            query_args.append(self.__sanitize_str(schema_pattern))
         sql += " ORDER BY TABLE_SCHEM"
 
-        self.execute(sql)
+        if len(query_args) == 1:
+            # temporarily use qmark paramstyle
+            temp = self.paramstyle
+            self.paramstyle = "qmark"
+            try:
+                self.execute(sql, tuple(query_args))
+            except:
+                raise
+            finally:
+                self.paramstyle = temp
+        else:
+            self.execute(sql)
+
         schemas: tuple = self.fetchall()
         return schemas
 
@@ -418,13 +482,28 @@ class Cursor:
             "i.indisprimary  AND "
             "ct.relnamespace = n.oid "
         )
+        query_args: typing.List[str] = []
         if schema is not None:
-            sql += " AND n.nspname = {schema}".format(schema=self.__escape_quotes(schema))
+            sql += " AND n.nspname = ?"
+            query_args.append(self.__sanitize_str(schema))
         if table is not None:
-            sql += " AND ct.relname = {table}".format(table=self.__escape_quotes(table))
+            sql += " AND ct.relname = ?"
+            query_args.append(self.__sanitize_str(table))
 
         sql += " ORDER BY table_name, pk_name, key_seq"
-        self.execute(sql)
+
+        if len(query_args) > 0:
+            # temporarily use qmark paramstyle
+            temp = self.paramstyle
+            self.paramstyle = "qmark"
+            try:
+                self.execute(sql, tuple(query_args))
+            except:
+                raise
+            finally:
+                self.paramstyle = temp
+        else:
+            self.execute(sql)
         keys: tuple = self.fetchall()
         return keys
 
@@ -437,15 +516,30 @@ class Cursor:
     ) -> tuple:
         """Returns the unique public tables which are user-defined within the system"""
         sql: str = ""
+        sql_args: typing.Tuple[str, ...] = tuple()
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
-            sql = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+            sql, sql_args = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
-            sql = self.__build_universal_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+            sql, sql_args = self.__build_universal_schema_tables_query(
+                catalog, schema_pattern, table_name_pattern, types
+            )
         elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
-            sql = self.__build_external_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+            sql, sql_args = self.__build_external_schema_tables_query(
+                catalog, schema_pattern, table_name_pattern, types
+            )
 
-        self.execute(sql)
+        if len(sql_args) > 0:
+            temp = self.paramstyle
+            self.paramstyle = "qmark"
+            try:
+                self.execute(sql, sql_args)
+            except:
+                raise
+            finally:
+                self.paramstyle = temp
+        else:
+            self.execute(sql)
         tables: tuple = self.fetchall()
         return tables
 
@@ -455,7 +549,7 @@ class Cursor:
         schema_pattern: typing.Optional[str],
         table_name_pattern: typing.Optional[str],
         types: list,
-    ) -> str:
+    ) -> typing.Tuple[str, typing.Tuple[str, ...]]:
         sql: str = (
             "SELECT CAST(current_database() AS VARCHAR(124)) AS TABLE_CAT, n.nspname AS TABLE_SCHEM, c.relname AS TABLE_NAME, "
             " CASE n.nspname ~ '^pg_' OR n.nspname = 'information_schema' "
@@ -502,32 +596,41 @@ class Cursor:
             " LEFT JOIN pg_catalog.pg_namespace dn ON (dn.oid=dc.relnamespace AND dn.nspname='pg_catalog') "
             " WHERE c.relnamespace = n.oid "
         )
-        filter_clause: str = self.__get_table_filter_clause(
+        filter_clause, filter_args = self.__get_table_filter_clause(
             catalog, schema_pattern, table_name_pattern, types, "LOCAL_SCHEMA_QUERY"
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
 
-        return sql + filter_clause + orderby
+        return sql + filter_clause + orderby, filter_args
 
     def __get_table_filter_clause(
         self: "Cursor",
         catalog: typing.Optional[str],
         schema_pattern: typing.Optional[str],
         table_name_pattern: typing.Optional[str],
-        types: list,
+        types: typing.List[str],
         schema_pattern_type: str,
-    ) -> str:
+    ) -> typing.Tuple[str, typing.Tuple[str, ...]]:
         filter_clause: str = ""
         use_schemas: str = "SCHEMAS"
+        query_args: typing.List[str] = []
         if schema_pattern is not None:
-            filter_clause += " AND TABLE_SCHEM LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            filter_clause += " AND TABLE_SCHEM LIKE ?"
+            query_args.append(self.__sanitize_str(schema_pattern))
         if table_name_pattern is not None:
-            filter_clause += " AND TABLE_NAME LIKE {table}".format(table=self.__escape_quotes(table_name_pattern))
+            filter_clause += " AND TABLE_NAME LIKE ?"
+            query_args.append(self.__sanitize_str(table_name_pattern))
         if len(types) > 0:
             if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
                 filter_clause += " AND (false "
                 orclause: str = ""
                 for type in types:
+                    if type not in table_type_clauses.keys():
+                        raise InterfaceError(
+                            "Invalid type: {} provided. types may only contain: {}".format(
+                                type, table_type_clauses.keys()
+                            )
+                        )
                     clauses = table_type_clauses[type]
                     if len(clauses) > 0:
                         cluase = clauses[use_schemas]
@@ -538,13 +641,20 @@ class Cursor:
                 filter_clause += " AND TABLE_TYPE IN ( "
                 length = len(types)
                 for type in types:
-                    filter_clause += self.__escape_quotes(type)
+                    if type not in table_type_clauses.keys():
+                        raise InterfaceError(
+                            "Invalid type: {} provided. types may only contain: {}".format(
+                                type, table_type_clauses.keys()
+                            )
+                        )
+                    filter_clause += "?"
+                    query_args.append(self.__sanitize_str(type))
                     length -= 1
                     if length > 0:
                         filter_clause += ", "
                 filter_clause += ") "
 
-        return filter_clause
+        return filter_clause, tuple(query_args)
 
     def __build_universal_schema_tables_query(
         self: "Cursor",
@@ -552,7 +662,7 @@ class Cursor:
         schema_pattern: typing.Optional[str],
         table_name_pattern: typing.Optional[str],
         types: list,
-    ) -> str:
+    ) -> typing.Tuple[str, typing.Tuple[str, ...]]:
         sql: str = (
             "SELECT * FROM (SELECT CAST(current_database() AS VARCHAR(124)) AS TABLE_CAT,"
             " table_schema AS TABLE_SCHEM,"
@@ -583,12 +693,12 @@ class Cursor:
             " FROM svv_tables)"
             " WHERE true "
         )
-        filter_clause: str = self.__get_table_filter_clause(
+        filter_clause, filter_args = self.__get_table_filter_clause(
             catalog, schema_pattern, table_name_pattern, types, "NO_SCHEMA_UNIVERSAL_QUERY"
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
-        return sql
+        return sql, filter_args
 
     def __build_external_schema_tables_query(
         self: "Cursor",
@@ -596,7 +706,7 @@ class Cursor:
         schema_pattern: typing.Optional[str],
         table_name_pattern: typing.Optional[str],
         types: list,
-    ) -> str:
+    ) -> typing.Tuple[str, typing.Tuple[str, ...]]:
         sql: str = (
             "SELECT * FROM (SELECT CAST(current_database() AS VARCHAR(124)) AS TABLE_CAT,"
             " schemaname AS table_schem,"
@@ -611,12 +721,12 @@ class Cursor:
             " FROM svv_external_tables)"
             " WHERE true "
         )
-        filter_clause: str = self.__get_table_filter_clause(
+        filter_clause, filter_args = self.__get_table_filter_clause(
             catalog, schema_pattern, table_name_pattern, types, "EXTERNAL_SCHEMA_QUERY"
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
-        return sql
+        return sql, filter_args
 
     def get_columns(
         self: "Cursor",
@@ -1477,5 +1587,8 @@ class Cursor:
         else:
             return "NO_SCHEMA_UNIVERSAL_QUERY"
 
+    def __sanitize_str(self: "Cursor", s: str) -> str:
+        return re.sub(r"[-;/'\"\n\r ]", "", s)
+
     def __escape_quotes(self: "Cursor", s: str) -> str:
-        return "'{s}'".format(s=s)
+        return "'{s}'".format(s=self.__sanitize_str(s))
