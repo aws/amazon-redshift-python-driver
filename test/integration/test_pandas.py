@@ -31,8 +31,8 @@ def db_table(request, con):
 
 @pandas_only
 def test_fetch_dataframe(db_table):
-    import numpy as np
-    import pandas as pd
+    import numpy as np  # type: ignore
+    import pandas as pd  # type: ignore
 
     df = pd.DataFrame(
         np.array(

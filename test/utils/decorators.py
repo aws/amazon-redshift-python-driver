@@ -3,7 +3,7 @@ import pytest
 
 def is_numpy_installed() -> bool:
     try:
-        import numpy
+        import numpy  # type: ignore
 
         return True
     except ModuleNotFoundError:
@@ -12,13 +12,13 @@ def is_numpy_installed() -> bool:
 
 def is_pandas_installed() -> bool:
     try:
-        import pandas
+        import pandas  # type: ignore
 
         return True
     except ModuleNotFoundError:
         return False
 
 
-numpy_only: pytest.mark = pytest.mark.skipif(not is_numpy_installed(), reason="requires numpy")
+numpy_only = pytest.mark.skipif(not is_numpy_installed(), reason="requires numpy")
 
-pandas_only: pytest.mark = pytest.mark.skipif(not is_pandas_installed(), reason="requires pandas")
+pandas_only = pytest.mark.skipif(not is_pandas_installed(), reason="requires pandas")

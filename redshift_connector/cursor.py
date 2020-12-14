@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from redshift_connector.core import Connection
 
     try:
-        import numpy
-        import pandas
+        import numpy  # type: ignore
+        import pandas  # type: ignore
     except:
         pass
 

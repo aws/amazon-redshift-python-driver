@@ -123,7 +123,7 @@ client_protocol_version_values: typing.List[int] = ClientProtocolVersion.list()
 
 
 @pytest.mark.parametrize("_input", client_protocol_version_values)
-def test_set_iam_properties_enforce_min_ssl_mode(_input):
+def test_set_iam_properties_enforce_client_protocol_version(_input):
     keywords: typing.Dict = {"client_protocol_version": _input}
     all_params: typing.Dict = get_set_iam_properties_args(**keywords)
     assert all_params["client_protocol_version"] == _input
