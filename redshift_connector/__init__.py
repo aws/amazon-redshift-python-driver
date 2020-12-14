@@ -1,5 +1,4 @@
 import logging
-import os
 import typing
 
 from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
@@ -41,8 +40,7 @@ from redshift_connector.redshift_property import RedshiftProperty
 
 from .version import __version__
 
-path: str = os.path.abspath(__file__)
-log_path: str = "/".join(path.split("/")[:-1]) + "/driver.log"
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # Copyright (c) 2007-2009, Mathieu Fenniak
 # Copyright (c) The Contributors
@@ -112,20 +110,7 @@ def connect(
     force_lowercase: bool = False,
     allow_db_user_override: bool = False,
     client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
-    log_level: int = 0,
-    log_path: str = log_path,
 ) -> Connection:
-
-    FORMAT_TO_USE: str = "%(levelname)s|%(asctime)s|%(name)s|%(filename)s|" "%(funcName)s|%(lineno)d: %(message)s"
-    log_level_dic: typing.Dict[int, int] = {
-        0: logging.CRITICAL,
-        1: logging.ERROR,
-        2: logging.WARN,
-        3: logging.INFO,
-        4: logging.DEBUG,
-    }
-    logging.basicConfig(filename=log_path, filemode="w", format=FORMAT_TO_USE, level=logging.INFO)
-    logging.disable(log_level_dic[log_level])
 
     info: RedshiftProperty = RedshiftProperty()
     set_iam_properties(

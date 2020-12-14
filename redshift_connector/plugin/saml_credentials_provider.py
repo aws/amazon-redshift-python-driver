@@ -10,7 +10,7 @@ from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.credential_provider_constants import SAML_RESP_NAMESPACES
 from redshift_connector.redshift_property import RedshiftProperty
 
-logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 class SamlCredentialsProvider(ABC):
@@ -52,7 +52,7 @@ class SamlCredentialsProvider(ABC):
             try:
                 self.refresh()
             except Exception as e:
-                logger.error("refresh failed: {}".format(str(e)))
+                _logger.error("refresh failed: {}".format(str(e)))
                 raise InterfaceError(e)
         # if the SAML response has db_user argument, it will be picked up at this point.
         credentials: CredentialsHolder = self.cache[key]
@@ -74,7 +74,7 @@ class SamlCredentialsProvider(ABC):
             # get SAML assertion from specific identity provider
             saml_assertion = self.get_saml_assertion()
         except Exception as e:
-            logger.error("get saml assertion failed: {}".format(str(e)))
+            _logger.error("get saml assertion failed: {}".format(str(e)))
             raise InterfaceError(e)
         # decode SAML assertion into xml format
         doc: bytes = base64.b64decode(saml_assertion)
@@ -129,31 +129,31 @@ class SamlCredentialsProvider(ABC):
             key: str = self.get_cache_key()
             self.cache[key] = credentials
         except AttributeError as e:
-            logger.error("AttributeError: %s", e)
+            _logger.error("AttributeError: %s", e)
             raise e
         except KeyError as e:
-            logger.error("KeyError: %s", e)
+            _logger.error("KeyError: %s", e)
             raise e
         except client.exceptions.MalformedPolicyDocumentException as e:
-            logger.error("MalformedPolicyDocumentException: %s", e)
+            _logger.error("MalformedPolicyDocumentException: %s", e)
             raise e
         except client.exceptions.PackedPolicyTooLargeException as e:
-            logger.error("PackedPolicyTooLargeException: %s", e)
+            _logger.error("PackedPolicyTooLargeException: %s", e)
             raise e
         except client.exceptions.IDPRejectedClaimException as e:
-            logger.error("IDPRejectedClaimException: %s", e)
+            _logger.error("IDPRejectedClaimException: %s", e)
             raise e
         except client.exceptions.InvalidIdentityTokenException as e:
-            logger.error("InvalidIdentityTokenException: %s", e)
+            _logger.error("InvalidIdentityTokenException: %s", e)
             raise e
         except client.exceptions.ExpiredTokenException as e:
-            logger.error("ExpiredTokenException: %s", e)
+            _logger.error("ExpiredTokenException: %s", e)
             raise e
         except client.exceptions.RegionDisabledException as e:
-            logger.error("RegionDisabledException: %s", e)
+            _logger.error("RegionDisabledException: %s", e)
             raise e
         except Exception as e:
-            logger.error("other Exception: %s", e)
+            _logger.error("other Exception: %s", e)
             raise e
 
     def get_cache_key(self: "SamlCredentialsProvider") -> str:
@@ -219,10 +219,10 @@ class SamlCredentialsProvider(ABC):
 
             return metadata
         except AttributeError as e:
-            logger.error("AttributeError: %s", e)
+            _logger.error("AttributeError: %s", e)
             raise e
         except KeyError as e:
-            logger.error("KeyError: %s", e)
+            _logger.error("KeyError: %s", e)
             raise e
 
     def get_form_action(self: "SamlCredentialsProvider", soup) -> typing.Optional[str]:

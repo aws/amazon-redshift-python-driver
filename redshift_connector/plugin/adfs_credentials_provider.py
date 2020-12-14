@@ -5,7 +5,7 @@ import typing
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 
-logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 class AdfsCredentialsProvider(SamlCredentialsProvider):
@@ -33,25 +33,25 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             response: "requests.Response" = requests.get(url)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
+            _logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            logger.error("A timeout occurred when requesting SAML assertion")
+            _logger.error("A timeout occurred when requesting SAML assertion")
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            logger.error(
+            _logger.error(
                 "A error occurred when requesting SAML assertion to refresh credentials. "
                 "Verify RedshiftProperties are correct"
             )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
+            _logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
             raise InterfaceError(e)
 
         try:
             soup = bs4.BeautifulSoup(response.text)
         except Exception as e:
-            logger.error("An error occurred while parsing response: {}".format(str(e)))
+            _logger.error("An error occurred while parsing response: {}".format(str(e)))
             raise InterfaceError(e)
 
         payload: typing.Dict[str, typing.Optional[str]] = {}
@@ -76,22 +76,22 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             response = requests.post(url, data=payload)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error("Request to refresh credentials was unsuccessful. {}".format(str(e)))
+            _logger.error("Request to refresh credentials was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            logger.error("A timeout occurred when attempting to refresh credentials")
+            _logger.error("A timeout occurred when attempting to refresh credentials")
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            logger.error("A error occurred when refreshing credentials. Verify RedshiftProperties are correct")
+            _logger.error("A error occurred when refreshing credentials. Verify RedshiftProperties are correct")
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            logger.error("A unknown error occurred when refreshing credentials")
+            _logger.error("A unknown error occurred when refreshing credentials")
             raise InterfaceError(e)
 
         try:
             soup = bs4.BeautifulSoup(response.text)
         except Exception as e:
-            logger.error("An error occurred while parsing response: {}".format(str(e)))
+            _logger.error("An error occurred while parsing response: {}".format(str(e)))
             raise InterfaceError(e)
         assertion: str = ""
 

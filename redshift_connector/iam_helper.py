@@ -16,7 +16,7 @@ from redshift_connector.plugin import (
 )
 from redshift_connector.redshift_property import RedshiftProperty
 
-logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 class SSLMode(Enum):
@@ -256,17 +256,17 @@ def set_cluster_credentials(cred_provider: SamlCredentialsProvider, info: Redshi
         info.user_name = cred["DbUser"]
         info.password = cred["DbPassword"]
     except botocore.exceptions.ClientError as e:
-        logger.error("ClientError: %s", e)
+        _logger.error("ClientError: %s", e)
         raise e
     except client.exceptions.ClusterNotFoundFault as e:
-        logger.error("ClusterNotFoundFault: %s", e)
+        _logger.error("ClusterNotFoundFault: %s", e)
         raise e
     except client.exceptions.UnsupportedOperationFault as e:
-        logger.error("UnsupportedOperationFault: %s", e)
+        _logger.error("UnsupportedOperationFault: %s", e)
         raise e
     except botocore.exceptions.EndpointConnectionError as e:
-        logger.error("EndpointConnectionError: %s", e)
+        _logger.error("EndpointConnectionError: %s", e)
         raise e
     except Exception as e:
-        logger.error("other Exception: %s", e)
+        _logger.error("other Exception: %s", e)
         raise e

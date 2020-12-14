@@ -7,7 +7,7 @@ from redshift_connector.plugin.credential_provider_constants import okta_headers
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
-logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 # Class to get SAML Response from Okta
@@ -42,18 +42,18 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             response: "requests.Response" = requests.post(url, data=json.dumps(payload), headers=headers)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error("Request for authentication from Okta was unsuccessful. {}".format(str(e)))
+            _logger.error("Request for authentication from Okta was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            logger.error("A timeout occurred when requesting authentication from Okta")
+            _logger.error("A timeout occurred when requesting authentication from Okta")
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            logger.error(
+            _logger.error(
                 "A error occurred when requesting authentication from Okta. Verify RedshiftProperties are correct"
             )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            logger.error("A unknown error occurred when requesting authentication from Okta")
+            _logger.error("A unknown error occurred when requesting authentication from Okta")
             raise InterfaceError(e)
 
         # Retrieve and parse the Okta response for session token
@@ -79,18 +79,18 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             response: "requests.Response" = requests.get(url)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error("Request for SAML assertion from Okta was unsuccessful. {}".format(str(e)))
+            _logger.error("Request for SAML assertion from Okta was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            logger.error("A timeout occurred when requesting SAML assertion from Okta")
+            _logger.error("A timeout occurred when requesting SAML assertion from Okta")
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            logger.error(
+            _logger.error(
                 "A error occurred when requesting SAML assertion from Okta. Verify RedshiftProperties are correct"
             )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            logger.error("A unknown error occurred when requesting SAML assertion from Okta")
+            _logger.error("A unknown error occurred when requesting SAML assertion from Okta")
             raise InterfaceError(e)
 
         text: str = response.text
@@ -100,5 +100,5 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             saml_response: str = soup.find("input", {"name": "SAMLResponse"})["value"]
             return saml_response
         except Exception as e:
-            logger.error("An error occurred while parsing SAML response: {}".format(str(e)))
+            _logger.error("An error occurred while parsing SAML response: {}".format(str(e)))
             raise InterfaceError(e)

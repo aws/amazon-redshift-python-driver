@@ -10,7 +10,7 @@ from redshift_connector.plugin.credential_provider_constants import azure_header
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
-logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 #  Class to get SAML Response from Microsoft Azure using OAuth 2.0 API
@@ -87,10 +87,10 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
             return str(return_value)
         except socket.error as e:
-            logger.error("socket error: %s", e)
+            _logger.error("socket error: %s", e)
             raise e
         except Exception as e:
-            logger.error("other Exception: %s", e)
+            _logger.error("other Exception: %s", e)
             raise e
 
     # Initiates the request to the IDP and gets the response body
@@ -117,27 +117,27 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             response = requests.post(url, data=payload, headers=headers)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error("Request for authentication from Microsoft was unsuccessful. {}".format(str(e)))
+            _logger.error("Request for authentication from Microsoft was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            logger.error("A timeout occurred when requesting authentication from Azure")
+            _logger.error("A timeout occurred when requesting authentication from Azure")
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            logger.error(
+            _logger.error(
                 "A error occurred when requesting authentication from Azure. Verify RedshiftProperties are correct"
             )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            logger.error("A unknown error occurred when requesting authentication from Azure")
+            _logger.error("A unknown error occurred when requesting authentication from Azure")
             raise InterfaceError(e)
 
         try:
             saml_assertion: str = response.json()["access_token"]
         except TypeError as e:
-            logger.error("Failed to decode saml assertion returned from Azure")
+            _logger.error("Failed to decode saml assertion returned from Azure")
             raise InterfaceError(e)
         except KeyError as e:
-            logger.error("Azure access_token was not found in saml assertion")
+            _logger.error("Azure access_token was not found in saml assertion")
             raise InterfaceError(e)
         except Exception as e:
             raise InterfaceError(e)

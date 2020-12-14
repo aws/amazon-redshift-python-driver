@@ -7,7 +7,7 @@ from redshift_connector.plugin.credential_provider_constants import azure_header
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
-logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 #  Class to get SAML Response from Microsoft Azure using OAuth 2.0 API
@@ -72,18 +72,18 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
             response: "requests.Response" = requests.post(url, data=payload, headers=headers)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            logger.error("Request for authentication from Azure was unsuccessful. {}".format(str(e)))
+            _logger.error("Request for authentication from Azure was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            logger.error("A timeout occurred when requesting authentication from Azure")
+            _logger.error("A timeout occurred when requesting authentication from Azure")
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            logger.error(
+            _logger.error(
                 "A error occurred when requesting authentication from Azure. Verify RedshiftProperties are correct"
             )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            logger.error("A unknown error occurred when requesting authentication from Azure.")
+            _logger.error("A unknown error occurred when requesting authentication from Azure.")
             raise InterfaceError(e)
 
         # parse the JSON response to grab access_token field which contains Base64 encoded SAML
@@ -92,7 +92,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         try:
             saml_assertion = response.json()["access_token"]
         except Exception as e:
-            logger.error("Failed to authenticate with Azure. Response from Azure did not include access_token.")
+            _logger.error("Failed to authenticate with Azure. Response from Azure did not include access_token.")
             raise InterfaceError(e)
         if saml_assertion == "":
             raise InterfaceError("Azure access_token is empty")
@@ -106,7 +106,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         try:
             decoded_saml_assertion = str(base64.urlsafe_b64decode(saml_assertion))
         except TypeError as e:
-            logger.error("Failed to decode saml assertion returned from Azure")
+            _logger.error("Failed to decode saml assertion returned from Azure")
             raise InterfaceError(e)
 
         # SAML Response is required to be sent to base class. We need to provide a minimum of:

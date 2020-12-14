@@ -9,7 +9,7 @@ from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
-logger = logging.getLogger(__name__)
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 #  Class to get SAML Response
@@ -57,10 +57,10 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
             samlresponse = urllib.parse.unquote(return_value)
             return str(samlresponse)
         except socket.error as e:
-            logger.error("socket error: %s", e)
+            _logger.error("socket error: %s", e)
             raise e
         except Exception as e:
-            logger.error("other Exception: %s", e)
+            _logger.error("other Exception: %s", e)
             raise e
 
     def run_server(self: "BrowserSamlCredentialsProvider", listen_port: int, idp_response_timeout: int) -> str:
