@@ -2,7 +2,7 @@ import typing
 import webbrowser
 from test.unit.mocks.mock_socket import MockSocket
 from test.unit.plugin.data import browser_azure_data
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest  # type: ignore
 import requests
@@ -77,13 +77,58 @@ def test_get_saml_assertion_invalid_idp_response_timeout_should_fail(idp_respons
     assert "idp_response_timeout should be 10 seconds or greater." in str(ex.value)
 
 
-def get_listen_socket_chooses_free_socket():
+def test_get_saml_assertion_uses_listen_port(mocker):
+    bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
+    mocked_token: str = "test_token"
+    mocked_saml_assertion: str = "test_saml_assertion"
+    mocked_socket = MockSocket()
+    mocker.patch(
+        "redshift_connector.plugin.BrowserAzureCredentialsProvider.get_listen_socket", return_value=mocked_socket
+    )
+    mocker.patch(
+        "redshift_connector.plugin.BrowserAzureCredentialsProvider.fetch_authorization_token", return_value=mocked_token
+    )
+    mocker.patch(
+        "redshift_connector.plugin.BrowserAzureCredentialsProvider.fetch_saml_response",
+        return_value=mocked_saml_assertion,
+    )
+    mocker.patch(
+        "redshift_connector.plugin.BrowserAzureCredentialsProvider.wrap_and_encode_assertion", return_value=None
+    )
+
+    get_listen_socket_spy = mocker.spy(BrowserAzureCredentialsProvider, "get_listen_socket")
+    fetch_auth_spy = mocker.spy(BrowserAzureCredentialsProvider, "fetch_authorization_token")
+    fetch_saml_spy = mocker.spy(BrowserAzureCredentialsProvider, "fetch_saml_response")
+    wrap_and_encode_spy = mocker.spy(BrowserAzureCredentialsProvider, "wrap_and_encode_assertion")
+
+    bacp.get_saml_assertion()
+
+    assert bacp.redirectUri == "http://localhost:{port}/redshift/".format(port=bacp.listen_port)
+
+    assert get_listen_socket_spy.called
+    assert get_listen_socket_spy.call_count == 1
+
+    assert fetch_auth_spy.called
+    assert fetch_auth_spy.call_count == 1
+    assert fetch_auth_spy.call_args[0][0] == mocked_socket
+
+    assert fetch_saml_spy.called
+    assert fetch_saml_spy.call_count == 1
+    assert fetch_saml_spy.call_args[0][0] == mocked_token
+
+    assert wrap_and_encode_spy.called
+    assert wrap_and_encode_spy.call_count == 1
+    assert wrap_and_encode_spy.call_args[0][0] == mocked_saml_assertion
+
+
+def test_get_listen_socket_chooses_free_socket():
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     ports: typing.Set[int] = set()
     sockets: typing.List["socket.socket"] = []
 
     for _ in range(5):  # open up 10 listen sockets
         _socket: "socket.socket" = bacp.get_listen_socket()
+        assert bacp.listen_port == _socket.getsockname()[1]
         sockets.append(_socket)
 
         assert _socket is not None
@@ -97,6 +142,29 @@ def get_listen_socket_chooses_free_socket():
     # clean up sockets
     for s in sockets:
         s.close()
+
+
+def test_fetch_authorization_token_returns_authorization_token(mocker):
+    bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
+    mock_authorization_token: str = "my_authorization_token"
+
+    mocker.patch("redshift_connector.plugin.BrowserAzureCredentialsProvider.open_browser", return_value=None)
+    mocker.patch(
+        "redshift_connector.plugin.BrowserAzureCredentialsProvider.run_server", return_value=mock_authorization_token
+    )
+
+    assert bacp.fetch_authorization_token(listen_socket=MockSocket()) == mock_authorization_token
+
+
+def test_fetch_authorization_errors_should_fail(mocker):
+    bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
+
+    mocker.patch("redshift_connector.plugin.BrowserAzureCredentialsProvider.open_browser", return_value=None)
+    with patch("redshift_connector.plugin.BrowserAzureCredentialsProvider.run_server") as mocked_server:
+        mocked_server.side_effect = Exception("bad mistake")
+
+        with pytest.raises(Exception, match="bad mistake"):
+            bacp.fetch_authorization_token(listen_socket=MockSocket())
 
 
 def test_run_server():

@@ -27,3 +27,6 @@ class MockSocket(socket.socket):
 
     def recv(self, bufsize, flags=...):
         return self.mocked_data
+
+    def close(self) -> None:
+        pass

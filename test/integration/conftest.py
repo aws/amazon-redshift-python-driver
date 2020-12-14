@@ -103,6 +103,48 @@ def azure_browser_idp():
     return db_connect
 
 
+@pytest.fixture(scope="class")
+def azure_idp():
+    db_connect = {
+        "database": conf.get("database", "database"),
+        "host": conf.get("database", "host"),
+        "port": conf.getint("database", "port"),
+        "db_user": conf.get("database", "user"),
+        "ssl": conf.getboolean("database", "ssl"),
+        "sslmode": conf.get("database", "sslmode"),
+        "password": conf.get("azure-idp", "password"),
+        "iam": conf.getboolean("azure-idp", "iam"),
+        "user": conf.get("azure-idp", "user"),
+        "credentials_provider": conf.get("azure-idp", "credentials_provider"),
+        "region": conf.get("azure-idp", "region"),
+        "cluster_identifier": conf.get("azure-idp", "cluster_identifier"),
+        "idp_tenant": conf.get("azure-idp", "idp_tenant"),
+        "client_id": conf.get("azure-idp", "client_id"),
+        "client_secret": conf.get("azure-idp", "client_secret"),
+    }
+    return db_connect
+
+
+@pytest.fixture(scope="class")
+def adfs_idp():
+    db_connect = {
+        "database": conf.get("database", "database"),
+        "host": conf.get("database", "host"),
+        "port": conf.getint("database", "port"),
+        "db_user": conf.get("database", "user"),
+        "ssl": conf.getboolean("database", "ssl"),
+        "sslmode": conf.get("database", "sslmode"),
+        "password": conf.get("adfs-idp", "password"),
+        "iam": conf.getboolean("adfs-idp", "iam"),
+        "user": conf.get("adfs-idp", "user"),
+        "credentials_provider": conf.get("adfs-idp", "credentials_provider"),
+        "region": conf.get("adfs-idp", "region"),
+        "cluster_identifier": conf.get("adfs-idp", "cluster_identifier"),
+        "idp_host": conf.get("adfs-idp", "idp_host"),
+    }
+    return db_connect
+
+
 @pytest.fixture
 def con(request, db_kwargs):
     conn = redshift_connector.connect(**db_kwargs)
@@ -127,6 +169,11 @@ def cursor(request, con):
 
     request.addfinalizer(fin)
     return cursor
+
+
+@pytest.fixture
+def idp_arg(request):
+    return request.getfixturevalue(request.param)
 
 
 @pytest.fixture

@@ -70,6 +70,29 @@ def test_get_saml_assertion_invalid_listen_port_should_fail(listen_port):
     assert "Invalid property value: listen_port" in str(ex.value)
 
 
+def test_authenticate_returns_authorization_token(mocker):
+    browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
+    mock_authorization_token: str = "my_authorization_token"
+
+    mocker.patch("redshift_connector.plugin.BrowserSamlCredentialsProvider.open_browser", return_value=None)
+    mocker.patch(
+        "redshift_connector.plugin.BrowserSamlCredentialsProvider.run_server", return_value=mock_authorization_token
+    )
+
+    assert browser_saml_credentials.authenticate() == mock_authorization_token
+
+
+def test_authenticate_errors_should_fail(mocker):
+    browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
+
+    mocker.patch("redshift_connector.plugin.BrowserSamlCredentialsProvider.open_browser", return_value=None)
+    with patch("redshift_connector.plugin.BrowserSamlCredentialsProvider.run_server") as mocked_server:
+        mocked_server.side_effect = Exception("bad mistake")
+
+        with pytest.raises(Exception, match="bad mistake"):
+            browser_saml_credentials.authenticate()
+
+
 def test_open_browser_no_url_should_fail():
     browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
 

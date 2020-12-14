@@ -2,6 +2,7 @@ import configparser
 import os
 import sys
 import typing
+from test import idp_arg
 
 import botocore
 import pytest  # type: ignore
@@ -14,7 +15,6 @@ conf.read(root_path + "/config.ini")
 
 
 NON_BROWSER_IDP: typing.List[str] = ["okta_idp"]
-
 ALL_IDP: typing.List[str] = ["okta_browser_idp", "azure_browser_idp"] + NON_BROWSER_IDP
 
 
@@ -46,25 +46,12 @@ if "java" in sys.platform:
     DEFAULT_CONTEXT = SSLContext.getDefault()
 
 
-@pytest.fixture
-def idp_arg(request):
-    return request.getfixturevalue(request.param)
-
-
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def testIdpPassword(idp_arg):
+    idp_arg = idp_arg
     idp_arg["password"] = "wrong_password"
 
-    with pytest.raises(redshift_connector.InterfaceError, match="Unauthorized"):
-        redshift_connector.connect(**idp_arg)
-
-
-@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
-def testIdpHost(idp_arg):
-    wrong_idp_host = "andrew.okta.com"
-    idp_arg["idp_host"] = wrong_idp_host
-
-    with pytest.raises(redshift_connector.InterfaceError, match="Unauthorized"):
+    with pytest.raises(redshift_connector.InterfaceError, match=r"(Unauthorized)|(400 Client Error: Bad Request)"):
         redshift_connector.connect(**idp_arg)
 
 
@@ -96,12 +83,8 @@ def testCredentialsProvider(idp_arg):
 
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
-def testPreferredRole(idp_arg):
-    idp_arg["preferred_role"] = conf.get("okta-idp", "preferred_role")
-    with redshift_connector.connect(**idp_arg):
-        pass
-
-    idp_arg["preferred_role"] = "arn:aws:iam::111111111111:role/Okta-role"
+def test_preferred_role_invalid_should_fail(idp_arg):
+    idp_arg["preferred_role"] = "arn:aws:iam::111111111111:role/Trash-role"
     with pytest.raises(redshift_connector.InterfaceError, match="Preferred role not found in SamlAssertion"):
         redshift_connector.connect(**idp_arg)
 
