@@ -75,6 +75,9 @@ class RedshiftProperty:
     tcp_keepalive: bool = True
     # client's requested transfer protocol version. See config.py for supported protocols
     client_protocol_version: int = DEFAULT_PROTOCOL_VERSION
+    # Boolean indicating if application supports multidatabase datashare catalogs. Default value of True indicates the
+    # application is does not support multidatabase datashare catalogs for backwards compatibility.
+    database_metadata_current_db_only: bool = True
     # application name
     application_name: typing.Optional[str] = None
     # Used to run in streaming replication mode. If your server character encoding is not ascii or utf8,

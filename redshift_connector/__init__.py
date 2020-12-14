@@ -110,6 +110,7 @@ def connect(
     force_lowercase: bool = False,
     allow_db_user_override: bool = False,
     client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
+    database_metadata_current_db_only: bool = True,
 ) -> Connection:
 
     info: RedshiftProperty = RedshiftProperty()
@@ -151,6 +152,7 @@ def connect(
         force_lowercase=force_lowercase,
         allow_db_user_override=allow_db_user_override,
         client_protocol_version=client_protocol_version,
+        database_metadata_current_db_only=database_metadata_current_db_only,
     )
 
     return Connection(
@@ -169,6 +171,7 @@ def connect(
         application_name=info.application_name,
         replication=info.replication,
         client_protocol_version=info.client_protocol_version,
+        database_metadata_current_db_only=database_metadata_current_db_only,
     )
 
 

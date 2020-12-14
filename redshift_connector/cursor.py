@@ -395,13 +395,13 @@ class Cursor:
             " WHERE p.pronamespace=n.oid "
         )
         query_args: typing.List[str] = []
-        if schema_pattern is not None:
+        if schema_pattern is not None and schema_pattern != "":
             sql += " AND n.nspname LIKE ?"
             query_args.append(self.__sanitize_str(schema_pattern))
         else:
             sql += "and pg_function_is_visible(p.prooid)"
 
-        if procedure_name_pattern is not None:
+        if procedure_name_pattern is not None and procedure_name_pattern != "":
             sql += " AND p.proname LIKE ?"
             query_args.append(self.__sanitize_str(procedure_name_pattern))
         sql += " ORDER BY PROCEDURE_SCHEM, PROCEDURE_NAME, p.prooid::text "
@@ -424,20 +424,65 @@ class Cursor:
         procedures: tuple = self.fetchall()
         return procedures
 
+    def _get_catalog_filter_conditions(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        api_supported_only_for_connected_database: bool,
+        database_col_name: typing.Optional[str],
+    ) -> str:
+        if self._c is None:
+            raise InterfaceError("connection is closed")
+
+        catalog_filter: str = ""
+        if catalog is not None and catalog != "":
+            if self._c.is_single_database_metadata is True or api_supported_only_for_connected_database is True:
+                catalog_filter += " AND current_database() = {catalog}".format(catalog=self.__escape_quotes(catalog))
+            else:
+                if database_col_name is None or database_col_name == "":
+                    database_col_name = "database_name"
+                catalog_filter += " AND {col_name} = {catalog}".format(
+                    col_name=self.__sanitize_str(database_col_name), catalog=self.__escape_quotes(catalog)
+                )
+        return catalog_filter
+
     def get_schemas(
         self: "Cursor", catalog: typing.Optional[str] = None, schema_pattern: typing.Optional[str] = None
     ) -> tuple:
-        sql: str = (
-            "SELECT nspname AS TABLE_SCHEM, NULL AS TABLE_CATALOG FROM pg_catalog.pg_namespace "
-            " WHERE nspname <> 'pg_toast' AND (nspname !~ '^pg_temp_' "
-            " OR nspname = (pg_catalog.current_schemas(true))[1]) AND (nspname !~ '^pg_toast_temp_' "
-            " OR nspname = replace((pg_catalog.current_schemas(true))[1], 'pg_temp_', 'pg_toast_temp_')) "
-        )
+        if self._c is None:
+            raise InterfaceError("connection is closed")
+
         query_args: typing.List[str] = []
-        if schema_pattern is not None:
-            sql += " AND nspname LIKE ?"
-            query_args.append(self.__sanitize_str(schema_pattern))
-        sql += " ORDER BY TABLE_SCHEM"
+        sql: str = ""
+
+        if self._c.is_single_database_metadata is True:
+            sql = (
+                "SELECT nspname AS TABLE_SCHEM, NULL AS TABLE_CATALOG FROM pg_catalog.pg_namespace "
+                " WHERE nspname <> 'pg_toast' AND (nspname !~ '^pg_temp_' "
+                " OR nspname = (pg_catalog.current_schemas(true))[1]) AND (nspname !~ '^pg_toast_temp_' "
+                " OR nspname = replace((pg_catalog.current_schemas(true))[1], 'pg_temp_', 'pg_toast_temp_')) "
+            )
+            sql += self._get_catalog_filter_conditions(catalog, True, None)
+
+            if schema_pattern is not None and schema_pattern != "":
+                sql += " AND nspname LIKE ?"
+                query_args.append(self.__sanitize_str(schema_pattern))
+
+            # if self._c.get_hide_unprivileged_objects():  # TODO: not implemented
+            #     sql += " AND has_schema_privilege(nspname, 'USAGE, CREATE')"
+            sql += " ORDER BY TABLE_SCHEM"
+        else:
+            sql = (
+                "SELECT CAST(schema_name AS varchar(124)) AS TABLE_SCHEM, "
+                " CAST(database_name AS varchar(124)) AS TABLE_CATALOG "
+                " FROM PG_CATALOG.SVV_ALL_SCHEMAS "
+                " WHERE TRUE "
+            )
+            sql += self._get_catalog_filter_conditions(catalog, False, None)
+
+            if schema_pattern is not None and schema_pattern != "":
+                sql += " AND schema_name LIKE ?"
+                query_args.append(self.__sanitize_str(schema_pattern))
+            sql += " ORDER BY TABLE_CATALOG, TABLE_SCHEM"
 
         if len(query_args) == 1:
             # temporarily use qmark paramstyle
@@ -483,10 +528,10 @@ class Cursor:
             "ct.relnamespace = n.oid "
         )
         query_args: typing.List[str] = []
-        if schema is not None:
+        if schema is not None and schema != "":
             sql += " AND n.nspname = ?"
             query_args.append(self.__sanitize_str(schema))
-        if table is not None:
+        if table is not None and table != "":
             sql += " AND ct.relname = ?"
             query_args.append(self.__sanitize_str(table))
 
@@ -507,6 +552,26 @@ class Cursor:
         keys: tuple = self.fetchall()
         return keys
 
+    def get_catalogs(self: "Cursor") -> typing.Tuple:
+        """
+        Redshift does not support multiple catalogs from a single connection, so to reduce confusion we only return the
+        current catalog.
+        """
+        if self._c is None:
+            raise InterfaceError("connection is closed")
+
+        sql: str = ""
+        if self._c.is_single_database_metadata is True:
+            sql = "select current_database as TABLE_CAT FROM current_database()"
+        else:
+            # Datasharing/federation support enable, so get databases using the new view.
+            sql = "SELECT CAST(database_name AS varchar(124)) AS TABLE_CAT FROM PG_CATALOG.SVV_REDSHIFT_DATABASES "
+        sql += " ORDER BY TABLE_CAT"
+
+        self.execute(sql)
+        catalogs: typing.Tuple = self.fetchall()
+        return catalogs
+
     def get_tables(
         self: "Cursor",
         catalog: typing.Optional[str] = None,
@@ -515,15 +580,23 @@ class Cursor:
         types: list = [],
     ) -> tuple:
         """Returns the unique public tables which are user-defined within the system"""
+        if self._c is None:
+            raise InterfaceError("connection is closed")
+
         sql: str = ""
         sql_args: typing.Tuple[str, ...] = tuple()
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
             sql, sql_args = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
-            sql, sql_args = self.__build_universal_schema_tables_query(
-                catalog, schema_pattern, table_name_pattern, types
-            )
+            if self._c.is_single_database_metadata is True:
+                sql, sql_args = self.__build_universal_schema_tables_query(
+                    catalog, schema_pattern, table_name_pattern, types
+                )
+            else:
+                sql, sql_args = self.__build_universal_all_schema_tables_query(
+                    catalog, schema_pattern, table_name_pattern, types
+                )
         elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
             sql, sql_args = self.__build_external_schema_tables_query(
                 catalog, schema_pattern, table_name_pattern, types
@@ -597,7 +670,7 @@ class Cursor:
             " WHERE c.relnamespace = n.oid "
         )
         filter_clause, filter_args = self.__get_table_filter_clause(
-            catalog, schema_pattern, table_name_pattern, types, "LOCAL_SCHEMA_QUERY"
+            catalog, schema_pattern, table_name_pattern, types, "LOCAL_SCHEMA_QUERY", True, None
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
 
@@ -610,14 +683,21 @@ class Cursor:
         table_name_pattern: typing.Optional[str],
         types: typing.List[str],
         schema_pattern_type: str,
+        api_supported_only_for_connected_database: bool,
+        database_col_name: typing.Optional[str],
     ) -> typing.Tuple[str, typing.Tuple[str, ...]]:
         filter_clause: str = ""
         use_schemas: str = "SCHEMAS"
+
+        filter_clause += self._get_catalog_filter_conditions(
+            catalog, api_supported_only_for_connected_database, database_col_name
+        )
         query_args: typing.List[str] = []
-        if schema_pattern is not None:
+
+        if schema_pattern is not None and schema_pattern != "":
             filter_clause += " AND TABLE_SCHEM LIKE ?"
             query_args.append(self.__sanitize_str(schema_pattern))
-        if table_name_pattern is not None:
+        if table_name_pattern is not None and table_name_pattern != "":
             filter_clause += " AND TABLE_NAME LIKE ?"
             query_args.append(self.__sanitize_str(table_name_pattern))
         if len(types) > 0:
@@ -631,9 +711,9 @@ class Cursor:
                                 type, table_type_clauses.keys()
                             )
                         )
-                    clauses = table_type_clauses[type]
-                    if len(clauses) > 0:
-                        cluase = clauses[use_schemas]
+                    clauses: typing.Optional[typing.Dict[str, str]] = table_type_clauses[type]
+                    if clauses is not None:
+                        cluase: str = clauses[use_schemas]
                         orclause += " OR ( {cluase} ) ".format(cluase=cluase)
                 filter_clause += orclause + ") "
 
@@ -648,7 +728,7 @@ class Cursor:
                             )
                         )
                     filter_clause += "?"
-                    query_args.append(self.__sanitize_str(type))
+                    query_args.append(type)
                     length -= 1
                     if length > 0:
                         filter_clause += ", "
@@ -694,10 +774,49 @@ class Cursor:
             " WHERE true "
         )
         filter_clause, filter_args = self.__get_table_filter_clause(
-            catalog, schema_pattern, table_name_pattern, types, "NO_SCHEMA_UNIVERSAL_QUERY"
+            catalog, schema_pattern, table_name_pattern, types, "NO_SCHEMA_UNIVERSAL_QUERY", True, None
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
+        return sql, filter_args
+
+    def __build_universal_all_schema_tables_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        table_name_pattern: typing.Optional[str],
+        types: list,
+    ) -> typing.Tuple[str, typing.Tuple[str, ...]]:
+        sql: str = (
+            "SELECT * FROM (SELECT CAST(DATABASE_NAME AS VARCHAR(124)) AS TABLE_CAT,"
+            " SCHEMA_NAME AS TABLE_SCHEM,"
+            " TABLE_NAME  AS TABLE_NAME,"
+            " CAST("
+            " CASE "
+            " WHEN SCHEMA_NAME='information_schema' "
+            "    AND TABLE_TYPE='TABLE' THEN 'SYSTEM TABLE' "
+            " WHEN SCHEMA_NAME='information_schema' "
+            "    AND TABLE_TYPE='VIEW' THEN 'SYSTEM VIEW' "
+            " ELSE TABLE_TYPE "
+            " END "
+            " AS VARCHAR(124)) AS TABLE_TYPE,"
+            " REMARKS,"
+            " '' as TYPE_CAT,"
+            " '' as TYPE_SCHEM,"
+            " '' as TYPE_NAME, "
+            " '' AS SELF_REFERENCING_COL_NAME,"
+            " '' AS REF_GENERATION "
+            " FROM PG_CATALOG.SVV_ALL_TABLES)"
+            " WHERE true "
+        )
+        filter_clause, filter_args = self.__get_table_filter_clause(
+            catalog, schema_pattern, table_name_pattern, types, "NO_SCHEMA_UNIVERSAL_QUERY", False, "TABLE_CAT"
+        )
+        orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
+
+        sql += filter_clause
+        sql += orderby
+
         return sql, filter_args
 
     def __build_external_schema_tables_query(
@@ -722,7 +841,7 @@ class Cursor:
             " WHERE true "
         )
         filter_clause, filter_args = self.__get_table_filter_clause(
-            catalog, schema_pattern, table_name_pattern, types, "EXTERNAL_SCHEMA_QUERY"
+            catalog, schema_pattern, table_name_pattern, types, "EXTERNAL_SCHEMA_QUERY", True, None
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
@@ -736,6 +855,9 @@ class Cursor:
         columnname_pattern: typing.Optional[str] = None,
     ) -> tuple:
         """Returns a list of all columns in a specific table in Amazon Redshift database"""
+        if self._c is None:
+            raise InterfaceError("connection is closed")
+
         sql: str = ""
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
@@ -743,9 +865,14 @@ class Cursor:
                 catalog, schema_pattern, tablename_pattern, columnname_pattern
             )
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
-            sql = self.__build_universal_schema_columns_query(
-                catalog, schema_pattern, tablename_pattern, columnname_pattern
-            )
+            if self._c.is_single_database_metadata is True:
+                sql = self.__build_universal_schema_columns_query(
+                    catalog, schema_pattern, tablename_pattern, columnname_pattern
+                )
+            else:
+                sql = self.__build_universal_all_schema_columns_query(
+                    catalog, schema_pattern, tablename_pattern, columnname_pattern
+                )
         elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
             sql = self.__build_external_schema_columns_query(
                 catalog, schema_pattern, tablename_pattern, columnname_pattern
@@ -965,11 +1092,14 @@ class Cursor:
             "LEFT JOIN pg_catalog.pg_namespace dn ON (dc.relnamespace=dn.oid AND dn.nspname='pg_catalog') "
             "WHERE a.attnum > 0 AND NOT a.attisdropped    "
         )
-        if schema_pattern is not None:
+
+        sql += self._get_catalog_filter_conditions(catalog, True, None)
+
+        if schema_pattern is not None and schema_pattern != "":
             sql += " AND n.nspname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
-        elif tablename_pattern is not None:
+        if tablename_pattern is not None and tablename_pattern != "":
             sql += " AND c.relname LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
-        elif columnname_pattern is not None:
+        if columnname_pattern is not None and columnname_pattern != "":
             sql += " AND attname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
 
         sql += " ORDER BY TABLE_SCHEM,c.relname,attnum ) "
@@ -1139,14 +1269,31 @@ class Cursor:
             "columntype text, columnnum int)) lbv_columns  "
             " WHERE true "
         )
-        if schema_pattern is not None:
+        if schema_pattern is not None and schema_pattern != "":
             sql += " AND schemaname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
-        if tablename_pattern is not None:
+        if tablename_pattern is not None and tablename_pattern != "":
             sql += " AND tablename LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
-        if columnname_pattern is not None:
+        if columnname_pattern is not None and columnname_pattern != "":
             sql += " AND columnname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
 
         return sql
+
+    def __build_universal_schema_columns_query_filters(
+        self: "Cursor",
+        schema_pattern: typing.Optional[str],
+        tablename_pattern: typing.Optional[str],
+        columnname_pattern: typing.Optional[str],
+    ) -> str:
+        filter_clause: str = ""
+
+        if schema_pattern is not None and schema_pattern != "":
+            filter_clause += " AND schema_name LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+        if tablename_pattern is not None and tablename_pattern != "":
+            filter_clause += " AND table_name LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+        if columnname_pattern is not None and columnname_pattern != "":
+            filter_clause += " AND COLUMN_NAME LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+
+        return filter_clause
 
     def __build_universal_schema_columns_query(
         self: "Cursor",
@@ -1360,7 +1507,7 @@ class Cursor:
             " CASE"
             " WHEN domain_name is not null THEN data_type"
             " END AS SOURCE_DATA_TYPE,"
-            " CASE WHEN left(column_default, 10) = '\\\"identity\\\"' THEN 'YES'"
+            " CASE WHEN left(column_default, 10) = '\"identity\"' THEN 'YES'"
             " WHEN left(column_default, 16) = 'default_identity' THEN 'YES' "
             " ELSE 'NO' END AS IS_AUTOINCREMENT,"
             " IS_AUTOINCREMENT AS IS_GENERATEDCOLUMN"
@@ -1368,14 +1515,236 @@ class Cursor:
             " WHERE true "
         ).format(unknown_column_size=unknown_column_size)
 
-        if schema_pattern is not None:
-            sql += " AND table_schema LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
-        if tablename_pattern is not None:
-            sql += " AND table_name LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
-        if columnname_pattern is not None:
-            sql += " AND COLUMN_NAME LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+        sql += self._get_catalog_filter_conditions(catalog, True, None)
+        sql += self.__build_universal_schema_columns_query_filters(
+            schema_pattern, tablename_pattern, columnname_pattern
+        )
 
         sql += " ORDER BY table_schem,table_name,ORDINAL_POSITION "
+        return sql
+
+    def __build_universal_all_schema_columns_query(
+        self: "Cursor",
+        catalog: typing.Optional[str],
+        schema_pattern: typing.Optional[str],
+        tablename_pattern: typing.Optional[str],
+        columnname_pattern: typing.Optional[str],
+    ) -> str:
+        unknown_column_size: str = "2147483647"
+        sql: str = (
+            "SELECT database_name AS TABLE_CAT, "
+            " schema_name AS TABLE_SCHEM, "
+            " table_name, "
+            " COLUMN_NAME, "
+            " CAST(CASE regexp_replace(data_type, '^_.', 'ARRAY') "
+            " WHEN 'text' THEN 12 "
+            " WHEN 'bit' THEN -7 "
+            " WHEN 'bool' THEN -7 "
+            " WHEN 'boolean' THEN -7 "
+            " WHEN 'varchar' THEN 12 "
+            " WHEN 'character varying' THEN 12 "
+            " WHEN 'char' THEN 1 "
+            " WHEN 'character' THEN 1 "
+            " WHEN 'nchar' THEN 1 "
+            " WHEN 'bpchar' THEN 1 "
+            " WHEN 'nvarchar' THEN 12 "
+            " WHEN '\"char\"' THEN 1 "
+            " WHEN 'date' THEN 91 "
+            " WHEN 'timestamp' THEN 93 "
+            " WHEN 'timestamp without time zone' THEN 93 "
+            " WHEN 'timestamp with time zone' THEN 2014 "
+            " WHEN 'smallint' THEN 5 "
+            " WHEN 'int2' THEN 5 "
+            " WHEN 'integer' THEN 4 "
+            " WHEN 'int' THEN 4 "
+            " WHEN 'int4' THEN 4 "
+            " WHEN 'bigint' THEN -5 "
+            " WHEN 'int8' THEN -5 "
+            " WHEN 'decimal' THEN 3 "
+            " WHEN 'real' THEN 7 "
+            " WHEN 'float4' THEN 7 "
+            " WHEN 'double precision' THEN 8 "
+            " WHEN 'float8' THEN 8 "
+            " WHEN 'float' THEN 6 "
+            " WHEN 'numeric' THEN 2 "
+            " WHEN 'timestamptz' THEN 2014 "
+            " WHEN 'bytea' THEN -2 "
+            " WHEN 'oid' THEN -5 "
+            " WHEN 'name' THEN 12 "
+            " WHEN 'ARRAY' THEN 2003 "
+            " WHEN 'geometry' THEN -4 "
+            " WHEN 'super' THEN -16 "
+            " ELSE 1111 END AS SMALLINT) AS DATA_TYPE, "
+            " CASE data_type "
+            " WHEN 'boolean' THEN 'bool' "
+            " WHEN 'character varying' THEN 'varchar' "
+            " WHEN '\"char\"' THEN 'char' "
+            " WHEN 'smallint' THEN 'int2' "
+            " WHEN 'integer' THEN 'int4' "
+            " WHEN 'bigint' THEN 'int8' "
+            " WHEN 'real' THEN 'float4' "
+            " WHEN 'double precision' THEN 'float8' "
+            " WHEN 'timestamp without time zone' THEN 'timestamp' "
+            " WHEN 'timestamp with time zone' THEN 'timestamptz' "
+            " ELSE data_type "
+            " END AS TYPE_NAME, "
+            " CASE data_type "
+            " WHEN 'int4' THEN 10 "
+            " WHEN 'bit' THEN 1 "
+            " WHEN 'bool' THEN 1 "
+            " WHEN 'boolean' THEN 1 "
+            " WHEN 'varchar' THEN character_maximum_length "
+            " WHEN 'character varying' THEN character_maximum_length "
+            " WHEN 'char' THEN character_maximum_length "
+            " WHEN 'character' THEN character_maximum_length "
+            " WHEN 'nchar' THEN character_maximum_length "
+            " WHEN 'bpchar' THEN character_maximum_length "
+            " WHEN 'nvarchar' THEN character_maximum_length "
+            " WHEN 'date' THEN 13 "
+            " WHEN 'timestamp' THEN 29 "
+            " WHEN 'timestamp without time zone' THEN 29 "
+            " WHEN 'smallint' THEN 5 "
+            " WHEN 'int2' THEN 5 "
+            " WHEN 'integer' THEN 10 "
+            " WHEN 'int' THEN 10 "
+            " WHEN 'int4' THEN 10 "
+            " WHEN 'bigint' THEN 19 "
+            " WHEN 'int8' THEN 19 "
+            " WHEN 'decimal' THEN numeric_precision "
+            " WHEN 'real' THEN 8 "
+            " WHEN 'float4' THEN 8 "
+            " WHEN 'double precision' THEN 17 "
+            " WHEN 'float8' THEN 17 "
+            " WHEN 'float' THEN 17 "
+            " WHEN 'numeric' THEN numeric_precision "
+            " WHEN '_float4' THEN 8 "
+            " WHEN 'timestamptz' THEN 35 "
+            " WHEN 'timestamp with time zone' THEN 35 "
+            " WHEN 'oid' THEN 10 "
+            " WHEN '_int4' THEN 10 "
+            " WHEN '_int2' THEN 5 "
+            " WHEN 'geometry' THEN NULL "
+            " WHEN 'super' THEN NULL "
+            " ELSE   2147483647 "
+            " END AS COLUMN_SIZE, "
+            " NULL AS BUFFER_LENGTH, "
+            " CASE data_type "
+            " WHEN 'real' THEN 8 "
+            " WHEN 'float4' THEN 8 "
+            " WHEN 'double precision' THEN 17 "
+            " WHEN 'float8' THEN 17 "
+            " WHEN 'numeric' THEN numeric_scale "
+            " WHEN 'timestamp' THEN 6 "
+            " WHEN 'timestamp without time zone' THEN 6 "
+            " WHEN 'geometry' THEN NULL "
+            " WHEN 'super' THEN NULL "
+            " ELSE 0 "
+            " END AS DECIMAL_DIGITS, "
+            " 10 AS NUM_PREC_RADIX, "
+            " CASE is_nullable WHEN 'YES' THEN 1 "
+            " WHEN 'NO' THEN 0 "
+            " ELSE 2 end AS NULLABLE, "
+            " REMARKS, "
+            " column_default AS COLUMN_DEF, "
+            " CAST(CASE regexp_replace(data_type, '^_.', 'ARRAY') "
+            " WHEN 'text' THEN 12 "
+            " WHEN 'bit' THEN -7 "
+            " WHEN 'bool' THEN -7 "
+            " WHEN 'boolean' THEN -7 "
+            " WHEN 'varchar' THEN 12 "
+            " WHEN 'character varying' THEN 12 "
+            " WHEN 'char' THEN 1 "
+            " WHEN 'character' THEN 1 "
+            " WHEN 'nchar' THEN 1 "
+            " WHEN 'bpchar' THEN 1 "
+            " WHEN 'nvarchar' THEN 12 "
+            " WHEN '\"char\"' THEN 1 "
+            " WHEN 'date' THEN 91 "
+            " WHEN 'timestamp' THEN 93 "
+            " WHEN 'timestamp without time zone' THEN 93 "
+            " WHEN 'timestamp with time zone' THEN 2014 "
+            " WHEN 'smallint' THEN 5 "
+            " WHEN 'int2' THEN 5 "
+            " WHEN 'integer' THEN 4 "
+            " WHEN 'int' THEN 4 "
+            " WHEN 'int4' THEN 4 "
+            " WHEN 'bigint' THEN -5 "
+            " WHEN 'int8' THEN -5 "
+            " WHEN 'decimal' THEN 3 "
+            " WHEN 'real' THEN 7 "
+            " WHEN 'float4' THEN 7 "
+            " WHEN 'double precision' THEN 8 "
+            " WHEN 'float8' THEN 8 "
+            " WHEN 'float' THEN 6 "
+            " WHEN 'numeric' THEN 2 "
+            " WHEN 'timestamptz' THEN 2014 "
+            " WHEN 'bytea' THEN -2 "
+            " WHEN 'oid' THEN -5 "
+            " WHEN 'name' THEN 12 "
+            " WHEN 'ARRAY' THEN 2003 "
+            " WHEN 'geometry' THEN -4 "
+            " WHEN 'super' THEN -16 "
+            " ELSE 1111 END AS SMALLINT) AS SQL_DATA_TYPE, "
+            " CAST(NULL AS SMALLINT) AS SQL_DATETIME_SUB, "
+            " CASE data_type "
+            " WHEN 'int4' THEN 10 "
+            " WHEN 'bit' THEN 1 "
+            " WHEN 'bool' THEN 1 "
+            " WHEN 'boolean' THEN 1 "
+            " WHEN 'varchar' THEN character_maximum_length "
+            " WHEN 'character varying' THEN character_maximum_length "
+            " WHEN 'char' THEN character_maximum_length "
+            " WHEN 'character' THEN character_maximum_length "
+            " WHEN 'nchar' THEN character_maximum_length "
+            " WHEN 'bpchar' THEN character_maximum_length "
+            " WHEN 'nvarchar' THEN character_maximum_length "
+            " WHEN 'date' THEN 13 "
+            " WHEN 'timestamp' THEN 29 "
+            " WHEN 'timestamp without time zone' THEN 29 "
+            " WHEN 'smallint' THEN 5 "
+            " WHEN 'int2' THEN 5 "
+            " WHEN 'integer' THEN 10 "
+            " WHEN 'int' THEN 10 "
+            " WHEN 'int4' THEN 10 "
+            " WHEN 'bigint' THEN 19 "
+            " WHEN 'int8' THEN 19 "
+            " WHEN 'decimal' THEN numeric_precision "
+            " WHEN 'real' THEN 8 "
+            " WHEN 'float4' THEN 8 "
+            " WHEN 'double precision' THEN 17 "
+            " WHEN 'float8' THEN 17 "
+            " WHEN 'float' THEN 17 "
+            " WHEN 'numeric' THEN numeric_precision "
+            " WHEN '_float4' THEN 8 "
+            " WHEN 'timestamptz' THEN 35 "
+            " WHEN 'timestamp with time zone' THEN 35 "
+            " WHEN 'oid' THEN 10 "
+            " WHEN '_int4' THEN 10 "
+            " WHEN '_int2' THEN 5 "
+            " WHEN 'geometry' THEN NULL "
+            " WHEN 'super' THEN NULL "
+            " ELSE   2147483647 "
+            " END AS CHAR_OCTET_LENGTH, "
+            " ordinal_position AS ORDINAL_POSITION, "
+            " is_nullable AS IS_NULLABLE, "
+            " NULL AS SCOPE_CATALOG, "
+            " NULL AS SCOPE_SCHEMA, "
+            " NULL AS SCOPE_TABLE, "
+            " data_type as SOURCE_DATA_TYPE, "
+            " CASE WHEN left(column_default, 10) = '\"identity\"' THEN 'YES' "
+            " WHEN left(column_default, 16) = 'default_identity' THEN 'YES' "
+            " ELSE 'NO' END AS IS_AUTOINCREMENT, "
+            " IS_AUTOINCREMENT AS IS_GENERATEDCOLUMN "
+            " FROM PG_CATALOG.svv_all_columns "
+            " WHERE true "
+        )
+
+        sql += self._get_catalog_filter_conditions(catalog, False, None)
+        sql += self.__build_universal_schema_columns_query_filters(
+            schema_pattern, tablename_pattern, columnname_pattern
+        )
+
+        sql += " ORDER BY TABLE_CAT, TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION "
         return sql
 
     def __build_external_schema_columns_query(
@@ -1562,11 +1931,13 @@ class Cursor:
             " FROM svv_external_columns"
             " WHERE true "
         )
-        if schema_pattern is not None:
+        sql += self._get_catalog_filter_conditions(catalog, True, None)
+
+        if schema_pattern is not None and schema_pattern != "":
             sql += " AND schemaname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
-        if tablename_pattern is not None:
+        if tablename_pattern is not None and tablename_pattern != "":
             sql += " AND tablename LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
-        if columnname_pattern is not None:
+        if columnname_pattern is not None and columnname_pattern != "":
             sql += " AND columnname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
 
         sql += " ORDER BY table_schem,table_name,ORDINAL_POSITION "
@@ -1574,16 +1945,21 @@ class Cursor:
         return sql
 
     def __schema_pattern_match(self: "Cursor", schema_pattern: typing.Optional[str]) -> str:
-        if schema_pattern is not None:
-            sql: str = "select 1 from svv_external_schemas where schemaname like {schema}".format(
-                schema=self.__escape_quotes(schema_pattern)
-            )
-            self.execute(sql)
-            schemas: tuple = self.fetchall()
-            if len(schemas) > 0:
-                return "EXTERNAL_SCHEMA_QUERY"
+        if self._c is None:
+            raise InterfaceError("connection is closed")
+        if schema_pattern is not None and schema_pattern != "":
+            if self._c.is_single_database_metadata is True:
+                sql: str = "select 1 from svv_external_schemas where schemaname like {schema}".format(
+                    schema=self.__escape_quotes(schema_pattern)
+                )
+                self.execute(sql)
+                schemas: tuple = self.fetchall()
+                if schemas is not None and len(schemas) > 0:
+                    return "EXTERNAL_SCHEMA_QUERY"
+                else:
+                    return "LOCAL_SCHEMA_QUERY"
             else:
-                return "LOCAL_SCHEMA_QUERY"
+                return "NO_SCHEMA_UNIVERSAL_QUERY"
         else:
             return "NO_SCHEMA_UNIVERSAL_QUERY"
 

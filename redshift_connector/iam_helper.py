@@ -64,6 +64,7 @@ def set_iam_properties(
     force_lowercase: bool,
     allow_db_user_override: bool,
     client_protocol_version: int,
+    database_metadata_current_db_only: bool,
 ) -> None:
     if info is None:
         raise InterfaceError("Invalid connection property setting. info must be specified")
@@ -128,6 +129,7 @@ def set_iam_properties(
     info.application_name = application_name
     info.replication = replication
     info.client_protocol_version = client_protocol_version
+    info.database_metadata_current_db_only = database_metadata_current_db_only
 
     # Idp parameters
     info.idp_host = idp_host

@@ -103,7 +103,7 @@ pg_to_py_encodings: typing.Dict[str, typing.Optional[str]] = {
     "unicode": "utf-8",  # Needed for Amazon Redshift
 }
 
-table_type_clauses: dict = {
+table_type_clauses: typing.Dict[str, typing.Optional[typing.Dict[str, str]]] = {
     "TABLE": {
         "SCHEMAS": "c.relkind = 'r' AND n.nspname !~ '^pg_' AND n.nspname <> 'information_schema'",
         "NOSCHEMAS": "c.relkind = 'r' AND c.relname !~ '^pg_'",
@@ -158,4 +158,5 @@ table_type_clauses: dict = {
         "NOSCHEMAS": "c.relkind = 'S' AND c.relname ~ '^pg_temp_' ",
     },
     "EXTERNAL TABLE": None,
+    "SHARED TABLE": None,
 }

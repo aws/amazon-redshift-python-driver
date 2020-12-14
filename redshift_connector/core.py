@@ -364,6 +364,7 @@ class Connection:
         application_name: typing.Optional[str] = None,
         replication: typing.Optional[str] = None,
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
+        database_metadata_current_db_only: bool = True,
     ):
 
         self.merge_socket_read = False
@@ -384,6 +385,8 @@ class Connection:
         self.max_prepared_statements: int = int(max_prepared_statements)
         self._run_cursor: Cursor = Cursor(self, paramstyle="named")
         self._client_protocol_version: int = client_protocol_version
+        self._database = database
+        self._database_metadata_current_db_only: bool = database_metadata_current_db_only
 
         if user is None:
             raise InterfaceError("The 'user' connection parameter cannot be None")
@@ -564,6 +567,18 @@ class Connection:
             self._client_protocol_version = ClientProtocolVersion.BASE_SERVER
 
         self.in_transaction = False
+
+    @property
+    def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
+        if (b"datashare_enabled", str("on").encode()) in self.parameter_statuses:
+            return True
+        else:
+            # if we don't receive this param from the server, we do not support
+            return False
+
+    @property
+    def is_single_database_metadata(self):
+        return self._database_metadata_current_db_only or not self._is_multi_databases_catalog_enable_in_server
 
     def handle_ERROR_RESPONSE(self: "Connection", data, ps):
         msg: typing.Dict[str, str] = dict(
