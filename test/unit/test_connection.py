@@ -1,4 +1,5 @@
 import typing
+from collections import deque
 from decimal import Decimal
 
 import pytest  # type: ignore
@@ -265,3 +266,47 @@ def test_handle_ROW_DESCRIPTION_missing_row_desc_raises():
 
     with pytest.raises(InterfaceError, match="Prepared Statement is missing row description"):
         mock_connection.handle_ROW_DESCRIPTION(b"\x00", mock_cursor)
+
+
+test_is_multidatabases_catalog_enable_in_server_data: typing.List[typing.Tuple[typing.Optional[str], bool]] = [
+    ("on", True),
+    ("off", False),
+    ("garbage", False),
+    (None, False),
+]
+
+
+@pytest.mark.parametrize("_input", test_is_multidatabases_catalog_enable_in_server_data)
+def test_is_multidatabases_catalog_enable_in_server(_input):
+    param_status, exp_val = _input
+    mock_connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses: deque = deque()
+
+    if param_status is not None:
+        mock_connection.parameter_statuses.append((b"datashare_enabled", param_status.encode()))
+
+    assert mock_connection._is_multi_databases_catalog_enable_in_server == exp_val
+
+
+test_is_single_database_metadata_data: typing.List[typing.Tuple[typing.Optional[str], bool, bool]] = [
+    ("on", True, True),
+    ("on", False, False),
+    ("off", True, True),
+    ("off", False, True),
+    (None, True, True),
+    (None, False, True),
+]
+
+
+@pytest.mark.parametrize("_input", test_is_single_database_metadata_data)
+def test_is_single_database_metadata(_input):
+    param_status, database_metadata_current_db_only_val, exp_val = _input
+
+    mock_connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses: deque = deque()
+    mock_connection._database_metadata_current_db_only = database_metadata_current_db_only_val
+
+    if param_status is not None:
+        mock_connection.parameter_statuses.append((b"datashare_enabled", param_status.encode()))
+
+    assert mock_connection.is_single_database_metadata == exp_val

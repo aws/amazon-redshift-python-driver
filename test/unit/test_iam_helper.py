@@ -79,6 +79,7 @@ def get_set_iam_properties_args(**kwargs):
         "force_lowercase": True,
         "allow_db_user_override": True,
         "client_protocol_version": ClientProtocolVersion.BASE_SERVER,
+        "database_metadata_current_db_only": True,
         **kwargs,
     }
 
