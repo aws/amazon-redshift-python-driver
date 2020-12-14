@@ -311,6 +311,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         # 2275: (FC_BINARY, text_recv),  # cstring
         # 2950: (FC_BINARY, uuid_recv),  # uuid
         # 3802: (FC_TEXT, json_in),  # jsonb
+        4000: (FC_TEXT, text_recv),  # SUPER
     },
 )
 
