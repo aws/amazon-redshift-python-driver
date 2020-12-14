@@ -9,9 +9,8 @@ if typing.TYPE_CHECKING:
     from redshift_connector import Connection
 
 SCHEMA_NAME: str = "datatype_integration"
-root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CREATE_FILE_PATH: str = "{root}/datatype/datatype_test_stmts.sql".format(root=root_path)
-TEARDOWN_FILE_PATH: str = "{root}/datatype/datatype_teardown_stmts.sql".format(root=root_path)
+CREATE_FILE_PATH: str = "datatype_test_stmts.sql"
+TEARDOWN_FILE_PATH: str = "datatype_teardown_stmts.sql"
 """
 This file generates a sql file that creates db resources used for testing datatype support.
 The file generated is run directly with psql to bypass redshift_connector.
