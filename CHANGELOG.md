@@ -2,6 +2,33 @@ Changelog
 =========
 
 
+v2.0.872 (2020-12-14)
+---------------------
+- Fix(test,datatype): setup/teardown sql script path. [Brooke White]
+- Chore(test): ignore InsecureRequestWarning. [Brooke White]
+- Test(idp): integration and unit tests for adfs, azure, okta. [Brooke
+  White]
+- Test(datashare): skip datashare tests for now. [Brooke White]
+- Test(datatype): handle data from server. [Brooke White]
+- Feat(datatype): support timetz. [Brooke White]
+- Feat(datatype): support super. [Brooke White]
+- Feat(connection): add ssl_insecure parameter default to True. [Brooke
+  White]
+- Test(datashare): connection args, cursor metadata methods. [Brooke
+  White]
+- Feat(connection): add datashare support, disabled by default. [Brooke
+  White]
+- Docs: remove log args from connection parameter, explain logging
+  usage. [Brooke White]
+- Fix(logging): remove logging configuration from connect(), suppress
+  log stderr output by default. [Brooke White]
+- Perf(imports): use lazy-imports for idp plugins. [Brooke White]
+- Chore: correct mypy errors. [Brooke White]
+- Feat(Connection): add initializer parameter for server protocol
+  version, default to extended metadata. [Brooke White]
+- Release v2.0.711. [Brooke White]
+
+
 v2.0.711 (2020-11-25)
 ---------------------
 - Refactor(cursor): use prepared statements in class methods. [Brooke
