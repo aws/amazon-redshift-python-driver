@@ -39,7 +39,9 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
         headers: typing.Dict[str, str] = okta_headers
         payload: typing.Dict[str, typing.Optional[str]] = {"username": self.user_name, "password": self.password}
         try:
-            response: "requests.Response" = requests.post(url, data=json.dumps(payload), headers=headers)
+            response: "requests.Response" = requests.post(
+                url, data=json.dumps(payload), headers=headers, verify=self.do_verify_ssl_cert()
+            )
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             _logger.error("Request for authentication from Okta was unsuccessful. {}".format(str(e)))
@@ -76,7 +78,7 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             host=self.idp_host, app_name=self.app_name, app_id=self.app_id, session_token=okta_session_token
         )
         try:
-            response: "requests.Response" = requests.get(url)
+            response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             _logger.error("Request for SAML assertion from Okta was unsuccessful. {}".format(str(e)))

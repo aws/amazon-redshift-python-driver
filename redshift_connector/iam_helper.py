@@ -65,6 +65,7 @@ def set_iam_properties(
     allow_db_user_override: bool,
     client_protocol_version: int,
     database_metadata_current_db_only: bool,
+    ssl_insecure: typing.Optional[bool],
 ) -> None:
     if info is None:
         raise InterfaceError("Invalid connection property setting. info must be specified")
@@ -90,6 +91,8 @@ def set_iam_properties(
         raise InterfaceError(
             "Invalid connection property setting. IAM must be enabled when using credentials " "via identity provider"
         )
+    elif (info.iam is False) and (ssl_insecure is not None):
+        raise InterfaceError("Invalid connection property setting. IAM must be enabled when using ssl_insecure")
     elif (info.iam is True) and (credentials_provider is None):
         raise InterfaceError(
             "Invalid connection property setting. " "Credentials provider cannot be None when IAM is enabled"
@@ -147,6 +150,9 @@ def set_iam_properties(
     info.db_groups = db_groups
     info.force_lowercase = force_lowercase
     info.allow_db_user_override = allow_db_user_override
+
+    if ssl_insecure is not None:
+        info.sslInsecure = ssl_insecure
 
     # Azure specified parameters
     info.client_id = client_id

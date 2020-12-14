@@ -115,6 +115,15 @@ def test_invalid_db_group(idp_arg):
         redshift_connector.connect(**idp_arg)
 
 
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+@pytest.mark.parametrize("ssl_insecure_val", [True, False])
+def test_ssl_insecure_is_used(idp_arg, ssl_insecure_val):
+    idp_arg["ssl_insecure"] = ssl_insecure_val
+
+    with redshift_connector.connect(**idp_arg):
+        pass
+
+
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
 def testSslAndIam(idp_arg):
     idp_arg["ssl"] = False

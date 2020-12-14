@@ -111,6 +111,7 @@ def connect(
     allow_db_user_override: bool = False,
     client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
     database_metadata_current_db_only: bool = True,
+    ssl_insecure: typing.Optional[bool] = None,
 ) -> Connection:
 
     info: RedshiftProperty = RedshiftProperty()
@@ -153,6 +154,7 @@ def connect(
         allow_db_user_override=allow_db_user_override,
         client_protocol_version=client_protocol_version,
         database_metadata_current_db_only=database_metadata_current_db_only,
+        ssl_insecure=ssl_insecure,
     )
 
     return Connection(

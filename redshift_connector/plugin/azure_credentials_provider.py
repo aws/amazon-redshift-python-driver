@@ -69,7 +69,9 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         }
 
         try:
-            response: "requests.Response" = requests.post(url, data=payload, headers=headers)
+            response: "requests.Response" = requests.post(
+                url, data=payload, headers=headers, verify=self.do_verify_ssl_cert()
+            )
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             _logger.error("Request for authentication from Azure was unsuccessful. {}".format(str(e)))

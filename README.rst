@@ -144,6 +144,8 @@ Connection Parameters
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | cluster_identifier      | String. The cluster identifier of the Amazon Redshift Cluster                              | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| ssl_insecure            | Bool. Specifies if IDP hosts server certificate will be verified                           | True          | No       |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | db_user                 | String. The user ID to use with Amazon Redshift                                            | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | db_groups               | String. A comma-separated list of existing database group names that the DbUser joins for  | None          | No       |

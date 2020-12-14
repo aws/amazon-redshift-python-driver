@@ -46,6 +46,9 @@ class SamlCredentialsProvider(ABC):
         self.region = info.region
         self.principal = info.principal
 
+    def do_verify_ssl_cert(self: "SamlCredentialsProvider") -> bool:
+        return not self.sslInsecure
+
     def get_credentials(self: "SamlCredentialsProvider") -> CredentialsHolder:
         key: str = self.get_cache_key()
         if key not in self.cache or self.cache[key].is_expired():

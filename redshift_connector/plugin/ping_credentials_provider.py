@@ -32,7 +32,7 @@ class PingCredentialsProvider(SamlCredentialsProvider):
             host=self.idp_host, port=str(self.idpPort), sp_id=self.partner_sp_id
         )
         try:
-            response: "requests.Response" = requests.get(url)
+            response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             _logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
@@ -90,7 +90,7 @@ class PingCredentialsProvider(SamlCredentialsProvider):
         if action and action.startswith("/"):
             url = "https://{host}:{port}{action}".format(host=self.idp_host, port=str(self.idpPort), action=action)
         try:
-            response = requests.post(url, data=payload)
+            response = requests.post(url, data=payload, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             _logger.error("Request to refresh credentials was unsuccessful. {}".format(str(e)))

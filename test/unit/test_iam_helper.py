@@ -80,6 +80,7 @@ def get_set_iam_properties_args(**kwargs):
         "allow_db_user_override": True,
         "client_protocol_version": ClientProtocolVersion.BASE_SERVER,
         "database_metadata_current_db_only": True,
+        "ssl_insecure": None,
         **kwargs,
     }
 
@@ -142,6 +143,14 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
     (
         {"iam": True, "ssl": True},
         "Invalid connection property setting. Credentials provider cannot be None when IAM is enabled",
+    ),
+    (
+        {"iam": False, "ssl_insecure": False},
+        "Invalid connection property setting. IAM must be enabled when using ssl_insecure",
+    ),
+    (
+        {"iam": False, "ssl_insecure": True},
+        "Invalid connection property setting. IAM must be enabled when using ssl_insecure",
     ),
 ]
 
