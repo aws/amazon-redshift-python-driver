@@ -219,6 +219,26 @@ def time_in(data: bytes, offset: int, length: int) -> time:
     return time(hour, minute, int(sec), int((sec - int(sec)) * 1000000))
 
 
+def timetz_in(data: bytes, offset: int, length: int) -> time:
+    hour: int = int(data[offset : offset + 2])
+    minute: int = int(data[offset + 3 : offset + 5])
+    sec: Decimal = Decimal(data[offset + 6 : offset + 8].decode(_client_encoding))
+    microsec: int = int((sec - int(sec)) * 1000000)
+
+    if length != 8:
+        idx_tz: int = offset + 8
+        # if microsec present, they start with '.'
+        if data[idx_tz : idx_tz + 1] == b".":
+            end_microseconds: int = length + offset
+            for idx in range(idx_tz + 1, len(data)):
+                if data[idx] == 43 or data[idx] == 45:  # +/- char indicates start of tz offset
+                    end_microseconds = idx
+                    break
+
+            microsec += int(data[idx_tz + 1 : end_microseconds])
+    return time(hour, minute, int(sec), microsec, tzinfo=Timezone.utc)
+
+
 def date_in(data: bytes, offset: int, length: int):
     d = data[offset : offset + length].decode(_client_encoding)
     try:
@@ -307,6 +327,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         # 1186: (FC_BINARY, interval_recv_integer),
         # 1231: (FC_TEXT, array_in),  # NUMERIC[]
         # 1263: (FC_BINARY, array_recv),  # cstring[]
+        1266: (FC_TEXT, timetz_in),  # timetz
         1700: (FC_TEXT, numeric_in),  # NUMERIC
         # 2275: (FC_BINARY, text_recv),  # cstring
         # 2950: (FC_BINARY, uuid_recv),  # uuid
