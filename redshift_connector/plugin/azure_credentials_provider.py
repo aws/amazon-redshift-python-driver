@@ -2,8 +2,6 @@ import base64
 import logging
 import typing
 
-import requests
-
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.credential_provider_constants import azure_headers
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
@@ -53,6 +51,8 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
     #  Method to initiate a POST request to grab the SAML Assertion from Microsoft Azure
     #  and convert it to a SAML Response.
     def azure_oauth_based_authentication(self: "AzureCredentialsProvider") -> str:
+        import requests
+
         # endpoint to connect with Microsoft Azure to get SAML Assertion token
         url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
         # headers to pass with POST request

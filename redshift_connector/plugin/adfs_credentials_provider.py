@@ -2,9 +2,6 @@ import logging
 import re
 import typing
 
-import bs4  # type: ignore
-import requests
-
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 
@@ -26,6 +23,9 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
         pass
 
     def form_based_authentication(self: "AdfsCredentialsProvider") -> str:
+        import bs4  # type: ignore
+        import requests
+
         url: str = "https://{host}:{port}/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices".format(
             host=self.idp_host, port=str(self.idpPort)
         )

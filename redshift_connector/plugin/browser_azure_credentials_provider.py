@@ -4,9 +4,6 @@ import logging
 import random
 import socket
 import typing
-import webbrowser
-
-import requests
 
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.credential_provider_constants import azure_headers
@@ -99,6 +96,8 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
     # Initiates the request to the IDP and gets the response body
     # Get Base 64 encoded saml assertion from the response body
     def fetch_saml_response(self: "BrowserAzureCredentialsProvider", token):
+        import requests
+
         url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
         # headers to pass with POST request
         headers: typing.Dict[str, str] = azure_headers
@@ -203,6 +202,8 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
     # Opens the default browser with the authorization request to the IDP
     def open_browser(self: "BrowserAzureCredentialsProvider", state: str) -> None:
+        import webbrowser
+
         url: str = (
             "https://login.microsoftonline.com/{tenant}"
             "/oauth2/authorize"

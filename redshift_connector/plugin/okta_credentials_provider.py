@@ -2,9 +2,6 @@ import json
 import logging
 import typing
 
-import bs4  # type: ignore
-import requests
-
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.credential_provider_constants import okta_headers
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
@@ -35,6 +32,8 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
 
     # Authenticates users credentials via Okta, return Okta session token.
     def okta_authentication(self: "OktaCredentialsProvider") -> str:
+        import requests
+
         # HTTP Post request to Okta API for session token
         url: str = "https://{host}/api/v1/authn".format(host=self.idp_host)
         headers: typing.Dict[str, str] = okta_headers
@@ -70,6 +69,9 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
 
     # Retrieves SAML assertion from Okta containing AWS roles.
     def handle_saml_assertion(self: "OktaCredentialsProvider", okta_session_token: str) -> str:
+        import bs4  # type: ignore
+        import requests
+
         url: str = "https://{host}/home/{app_name}/{app_id}?onetimetoken={session_token}".format(
             host=self.idp_host, app_name=self.app_name, app_id=self.app_id, session_token=okta_session_token
         )

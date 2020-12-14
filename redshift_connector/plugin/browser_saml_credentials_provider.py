@@ -4,7 +4,6 @@ import re
 import socket
 import typing
 import urllib.parse
-import webbrowser
 
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
@@ -92,6 +91,8 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
 
     # Opens the default browser with the authorization request to the web service.
     def open_browser(self: "BrowserSamlCredentialsProvider") -> None:
+        import webbrowser
+
         url: typing.Optional[str] = self.login_url
         if url is None:
             raise InterfaceError("the login_url could not be empty")

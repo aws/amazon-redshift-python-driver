@@ -5,9 +5,6 @@ import re
 import typing
 from abc import ABC, abstractmethod
 
-import boto3  # type: ignore
-import bs4  # type: ignore
-
 from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.credential_provider_constants import SAML_RESP_NAMESPACES
@@ -70,6 +67,9 @@ class SamlCredentialsProvider(ABC):
         return credentials
 
     def refresh(self: "SamlCredentialsProvider") -> None:
+        import boto3  # type: ignore
+        import bs4  # type: ignore
+
         try:
             # get SAML assertion from specific identity provider
             saml_assertion = self.get_saml_assertion()
@@ -78,7 +78,6 @@ class SamlCredentialsProvider(ABC):
             raise InterfaceError(e)
         # decode SAML assertion into xml format
         doc: bytes = base64.b64decode(saml_assertion)
-
         soup = bs4.BeautifulSoup(doc, "xml")
         attrs = soup.findAll("Attribute")
         # extract RoleArn adn PrincipleArn from SAML assertion
@@ -180,6 +179,8 @@ class SamlCredentialsProvider(ABC):
             raise InterfaceError("Missing required property: idp_host")
 
     def read_metadata(self: "SamlCredentialsProvider", doc: bytes) -> CredentialsHolder.IamMetadata:
+        import bs4  # type: ignore
+
         try:
             soup = bs4.BeautifulSoup(doc, "xml")
             attrs: typing.Any = []

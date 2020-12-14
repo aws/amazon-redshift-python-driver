@@ -2,9 +2,6 @@ import logging
 import typing
 from enum import Enum
 
-import boto3  # type: ignore
-import botocore  # type: ignore
-
 from redshift_connector.config import ClientProtocolVersion
 from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.error import InterfaceError
@@ -233,6 +230,9 @@ def set_iam_credentials(info: RedshiftProperty) -> None:
 # Calls the AWS SDK methods to return temporary credentials.
 # The expiration date is returned as the local time set by the client machines OS.
 def set_cluster_credentials(cred_provider: SamlCredentialsProvider, info: RedshiftProperty) -> None:
+    import boto3  # type: ignore
+    import botocore  # type: ignore
+
     try:
         credentials: CredentialsHolder = cred_provider.get_credentials()
         client = boto3.client(

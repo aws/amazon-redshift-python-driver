@@ -2,9 +2,6 @@ import logging
 import re
 import typing
 
-import bs4  # type: ignore
-import requests
-
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
@@ -23,6 +20,9 @@ class PingCredentialsProvider(SamlCredentialsProvider):
 
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "PingCredentialsProvider") -> str:
+        import bs4  # type: ignore
+        import requests
+
         self.check_required_parameters()
 
         if self.partner_sp_id is None:
