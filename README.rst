@@ -131,11 +131,7 @@ Connection Parameters
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | idp_response_timeout    | Int. The timeout for retrieving SAML assertion from IdP                                    | 120           | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
-| listen_port                | Int. The listen port IdP will send the SAML assertion to                                | 7890          | No       |
-+-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
-| log_level               | Int. The level of logging enabled, increasing in granularity (values [0,4] are valid)      | 0             | No       |
-+-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
-| log_path                | String. The file path to the log file                                                      | 'driver.log'  | No       |
+| listen_port             | Int. The listen port IdP will send the SAML assertion to                                   | 7890          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | max_prepared_statements | Int. The maximum number of prepared statements that can be open at once                    | 1000          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
@@ -171,6 +167,12 @@ Connection Parameters
 | app_name                | String. The name of the IdP application used for authentication                            | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 
+Logging
+~~~~~~~~~~~~
+``redshift_connector`` uses logging for providing detailed error messages regarding IdP authentication. A do-nothing handler is enabled by default as to prevent logs from being output to ``sys.stderr``.
+
+Enable logging in your application to view logs output by ``redshift_connector`` as described in
+the `documentation for Python logging module <https://docs.python.org/3/library/logging.html#/>`_.
 
 Getting Help
 ~~~~~~~~~~~~
