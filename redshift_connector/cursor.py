@@ -112,7 +112,7 @@ class Cursor:
             return None
         columns: typing.List[typing.Optional[typing.Tuple]] = []
         for col in row_desc:
-            columns.append((col["name"], col["type_oid"], None, None, None, None, None))
+            columns.append((col["label"], col["type_oid"], None, None, None, None, None))
         return columns
 
     ##

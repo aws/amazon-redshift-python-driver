@@ -5,6 +5,7 @@ from enum import Enum
 import boto3  # type: ignore
 import botocore  # type: ignore
 
+from redshift_connector.config import ClientProtocolVersion
 from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin import (
@@ -65,6 +66,7 @@ def set_iam_properties(
     db_groups: typing.List[str],
     force_lowercase: bool,
     allow_db_user_override: bool,
+    client_protocol_version: int,
 ) -> None:
     if info is None:
         raise InterfaceError("Invalid connection property setting. info must be specified")
@@ -108,6 +110,13 @@ def set_iam_properties(
     if password is None:
         raise InterfaceError("Invalid connection property setting. password must be specified")
 
+    if client_protocol_version not in ClientProtocolVersion.list():
+        raise InterfaceError(
+            "Invalid connection property setting. client_protocol_version must be in: {}".format(
+                ClientProtocolVersion.list()
+            )
+        )
+
     # basic driver parameters
     info.user_name = user
     info.host = host
@@ -121,6 +130,7 @@ def set_iam_properties(
     info.tcp_keepalive = tcp_keepalive
     info.application_name = application_name
     info.replication = replication
+    info.client_protocol_version = client_protocol_version
 
     # Idp parameters
     info.idp_host = idp_host

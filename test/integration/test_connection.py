@@ -7,6 +7,7 @@ import sys
 import pytest  # type: ignore
 
 import redshift_connector
+from redshift_connector.config import ClientProtocolVersion
 
 conf = configparser.ConfigParser()
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -181,3 +182,18 @@ def test_scram_sha_256(db_kwargs):
     # Should only raise an exception saying db doesn't exist
     with pytest.raises(redshift_connector.ProgrammingError, match="3D000"):
         redshift_connector.connect(**db_kwargs)
+
+
+@pytest.mark.parametrize("_input", ClientProtocolVersion.list()[:-1])
+def test_client_protocol_version_is_used(db_kwargs, _input):
+    db_kwargs["client_protocol_version"] = _input
+
+    with redshift_connector.connect(**db_kwargs) as conn:
+        assert conn._client_protocol_version == _input
+
+
+def test_client_protocol_version_invalid_warns_user(db_kwargs):
+    db_kwargs["client_protocol_version"] = max(ClientProtocolVersion.list()) + 1
+
+    with pytest.warns(UserWarning):
+        redshift_connector.Connection(**db_kwargs)

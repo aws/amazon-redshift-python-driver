@@ -2,6 +2,7 @@ import logging
 import os
 import typing
 
+from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
 from redshift_connector.core import BINARY, Connection, Cursor
 from redshift_connector.error import (
     ArrayContentNotHomogenousError,
@@ -110,6 +111,7 @@ def connect(
     db_groups: typing.List[str] = list(),
     force_lowercase: bool = False,
     allow_db_user_override: bool = False,
+    client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
     log_level: int = 0,
     log_path: str = log_path,
 ) -> Connection:
@@ -163,6 +165,7 @@ def connect(
         db_groups=db_groups,
         force_lowercase=force_lowercase,
         allow_db_user_override=allow_db_user_override,
+        client_protocol_version=client_protocol_version,
     )
 
     return Connection(
@@ -180,6 +183,7 @@ def connect(
         tcp_keepalive=info.tcp_keepalive,
         application_name=info.application_name,
         replication=info.replication,
+        client_protocol_version=info.client_protocol_version,
     )
 
 

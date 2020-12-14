@@ -5,12 +5,14 @@ import pytest  # type: ignore
 
 from redshift_connector import (
     Connection,
+    Cursor,
     Error,
     IntegrityError,
     InterfaceError,
     ProgrammingError,
 )
 from redshift_connector.config import (
+    ClientProtocolVersion,
     max_int2,
     max_int4,
     max_int8,
@@ -166,3 +168,100 @@ def test_inspect_int(_input):
     input_val, expected_type = _input
     mock_connection = Connection.__new__(Connection)
     assert mock_connection.inspect_int(input_val) == expected_type
+
+
+test_row_description_extended_metadata = [
+    (
+        b"\x00\x01proname\x00\x00\x00\x04\xe7\x00\x01\x00\x00\x00\x13\x00\x80\xff\xff\xff\xff\x00\x00pg_catalog\x00pg_proc\x00proname\x00dev\x00\x10\x01",
+        [
+            {
+                "table_oid": 1255,
+                "column_attrnum": 1,
+                "type_oid": 19,
+                "type_size": 128,
+                "type_modifier": -1,
+                "format": 0,
+                "label": b"proname",
+                "schema_name": b"pg_catalog",
+                "table_name": b"pg_proc",
+                "column_name": b"proname",
+                "catalog_name": b"dev",
+                "nullable": 1,
+                "autoincrement": 0,
+                "read_only": 0,
+                "searchable": 1,
+                "pg8000_fc": 1,
+            }
+        ],
+    ),
+]
+
+
+@pytest.mark.parametrize("_input", test_row_description_extended_metadata)
+@pytest.mark.parametrize("protocol", [ClientProtocolVersion.EXTENDED_RESULT_METADATA])
+def test_handle_ROW_DESCRIPTION_extended_metadata(_input, protocol):
+    data, exp_result = _input
+    mock_connection = Connection.__new__(Connection)
+    mock_connection._client_protocol_version = protocol
+    mock_cursor = Cursor.__new__(Cursor)
+    mock_cursor.ps = {"row_desc": []}
+
+    mock_connection.handle_ROW_DESCRIPTION(data, mock_cursor)
+    assert mock_cursor.ps is not None
+    assert "row_desc" in mock_cursor.ps
+    assert len(mock_cursor.ps["row_desc"]) == 1
+    assert exp_result[0].items() <= mock_cursor.ps["row_desc"][0].items()
+    assert "func" in mock_cursor.ps["row_desc"][0]
+
+
+test_row_description_base = [
+    (
+        b"\x00\x01proname\x00\x00\x00\x04\xe7\x00\x01\x00\x00\x00\x13\x00\x80\xff\xff\xff\xff\x00\x00pg_catalog\x00pg_proc\x00proname\x00dev\x00\x10\x01",
+        [
+            {
+                "table_oid": 1255,
+                "column_attrnum": 1,
+                "type_oid": 19,
+                "type_size": 128,
+                "type_modifier": -1,
+                "format": 0,
+                "label": b"proname",
+                "pg8000_fc": 1,
+            }
+        ],
+    )
+]
+
+
+@pytest.mark.parametrize("_input", test_row_description_base)
+def test_handle_ROW_DESCRIPTION_base(_input):
+    data, exp_result = _input
+    mock_connection = Connection.__new__(Connection)
+    mock_connection._client_protocol_version = ClientProtocolVersion.BASE_SERVER.value
+    mock_cursor = Cursor.__new__(Cursor)
+    mock_cursor.ps = {"row_desc": []}
+
+    mock_connection.handle_ROW_DESCRIPTION(data, mock_cursor)
+    assert mock_cursor.ps is not None
+    assert "row_desc" in mock_cursor.ps
+    assert len(mock_cursor.ps["row_desc"]) == 1
+    assert exp_result[0].items() <= mock_cursor.ps["row_desc"][0].items()
+    assert "func" in mock_cursor.ps["row_desc"][0]
+
+
+def test_handle_ROW_DESCRIPTION_missing_ps_raises():
+    mock_connection = Connection.__new__(Connection)
+    mock_cursor = Cursor.__new__(Cursor)
+    mock_cursor.ps = None
+
+    with pytest.raises(InterfaceError, match="Cursor is missing prepared statement"):
+        mock_connection.handle_ROW_DESCRIPTION(b"\x00", mock_cursor)
+
+
+def test_handle_ROW_DESCRIPTION_missing_row_desc_raises():
+    mock_connection = Connection.__new__(Connection)
+    mock_cursor = Cursor.__new__(Cursor)
+    mock_cursor.ps = {}
+
+    with pytest.raises(InterfaceError, match="Prepared Statement is missing row description"):
+        mock_connection.handle_ROW_DESCRIPTION(b"\x00", mock_cursor)

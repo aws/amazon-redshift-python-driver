@@ -17,6 +17,8 @@ from warnings import warn
 from scramp import ScramClient  # type: ignore
 
 from redshift_connector.config import (
+    DEFAULT_PROTOCOL_VERSION,
+    ClientProtocolVersion,
     _client_encoding,
     max_int2,
     max_int4,
@@ -98,7 +100,6 @@ if TYPE_CHECKING:
 # POSSIBILITY OF SUCH DAMAGE.
 
 __author__ = "Mathieu Fenniak"
-
 
 ZERO: Timedelta = Timedelta(0)
 BINARY: type = bytes
@@ -321,7 +322,6 @@ IDLE: bytes = b"I"
 IDLE_IN_TRANSACTION: bytes = b"T"
 IDLE_IN_FAILED_TRANSACTION: bytes = b"E"
 
-
 arr_trans: typing.Mapping[int, typing.Optional[str]] = dict(zip(map(ord, "[] 'u"), ["{", "}", None, None, None]))
 
 
@@ -363,6 +363,7 @@ class Connection:
         tcp_keepalive: typing.Optional[bool] = True,
         application_name: typing.Optional[str] = None,
         replication: typing.Optional[str] = None,
+        client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
     ):
 
         self.merge_socket_read = False
@@ -382,6 +383,7 @@ class Connection:
         self.parameter_statuses: deque = deque(maxlen=100)
         self.max_prepared_statements: int = int(max_prepared_statements)
         self._run_cursor: Cursor = Cursor(self, paramstyle="named")
+        self._client_protocol_version: int = client_protocol_version
 
         if user is None:
             raise InterfaceError("The 'user' connection parameter cannot be None")
@@ -391,6 +393,7 @@ class Connection:
             "database": database,
             "application_name": application_name,
             "replication": replication,
+            "client_protocol_version": str(self._client_protocol_version),
         }
 
         for k, v in tuple(init_params.items()):
@@ -550,6 +553,15 @@ class Connection:
             self.message_types[code](self._read(data_len - 4), None)
         if self.error is not None:
             raise self.error
+
+        # if we didn't receive a server_protocol_version from the server, default to
+        # using BASE_SERVER as the server is likely lacking this functionality due to
+        # being out of date
+        if (
+            self._client_protocol_version > ClientProtocolVersion.BASE_SERVER
+            and not (b"server_protocol_version", str(self._client_protocol_version).encode()) in self.parameter_statuses
+        ):
+            self._client_protocol_version = ClientProtocolVersion.BASE_SERVER
 
         self.in_transaction = False
 
@@ -845,24 +857,37 @@ class Connection:
     # get the metadata of each row in database
     # and store these metadata into ps dictionary
     def handle_ROW_DESCRIPTION(self: "Connection", data, cursor: Cursor) -> None:
+        if cursor.ps is None:
+            raise InterfaceError("Cursor is missing prepared statement")
+        elif "row_desc" not in cursor.ps:
+            raise InterfaceError("Prepared Statement is missing row description")
+
         count: int = h_unpack(data)[0]
         idx = 2
         for i in range(count):
-            name = data[idx : data.find(NULL_BYTE, idx)]
-            idx += len(name) + 1
+            column_label = data[idx : data.find(NULL_BYTE, idx)]
+            idx += len(column_label) + 1
+
             field: typing.Dict = dict(
                 zip(
                     ("table_oid", "column_attrnum", "type_oid", "type_size", "type_modifier", "format"),
                     ihihih_unpack(data, idx),
                 )
             )
-            field["name"] = name
+            field["label"] = column_label
             idx += 18
 
-            if cursor.ps is None:
-                raise InterfaceError("Cursor is missing prepared statement")
-            elif "row_desc" not in cursor.ps:
-                raise InterfaceError("Prepared Statement is missing row description")
+            if self._client_protocol_version >= ClientProtocolVersion.EXTENDED_RESULT_METADATA:
+                for entry in ("schema_name", "table_name", "column_name", "catalog_name"):
+                    field[entry] = data[idx : data.find(NULL_BYTE, idx)]
+                    idx += len(field[entry]) + 1
+
+                temp: int = h_unpack(data, idx)[0]
+                field["nullable"] = temp & 0x1
+                field["autoincrement"] = (temp >> 4) & 0x1
+                field["read_only"] = (temp >> 8) & 0x1
+                field["searchable"] = (temp >> 12) & 0x1
+                idx += 2
 
             cursor.ps["row_desc"].append(field)
             field["pg8000_fc"], field["func"] = pg_types[field["type_oid"]]
@@ -1178,6 +1203,18 @@ class Connection:
         if key == b"client_encoding":
             encoding = value.decode("ascii").lower()
             _client_encoding = pg_to_py_encodings.get(encoding, encoding)
+        elif key == b"server_protocol_version":
+            # when a mismatch occurs between the client's requested protocol version, and the server's response,
+            # warn the user and follow server
+            if self._client_protocol_version != int(value):
+                warn(
+                    "Server indicated {} transfer protocol will be used rather than protocol requested by client: {}".format(
+                        ClientProtocolVersion.get_name(int(value)),
+                        ClientProtocolVersion.get_name(self._client_protocol_version),
+                    ),
+                    stacklevel=3,
+                )
+                self._client_protocol_version = int(value)
         elif key == b"server_version":
             self._server_version: LooseVersion = LooseVersion(value.decode("ascii"))
             if self._server_version < LooseVersion("8.2.0"):

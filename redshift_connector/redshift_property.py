@@ -1,6 +1,8 @@
 import typing
 from typing import TYPE_CHECKING
 
+from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
+
 if TYPE_CHECKING:
     from redshift_connector.iam_helper import SSLMode
 
@@ -71,6 +73,8 @@ class RedshiftProperty:
     max_prepared_statements: int = 1000
     # Use this property to enable or disable TCP keepalives. The following values are possible:
     tcp_keepalive: bool = True
+    # client's requested transfer protocol version. See config.py for supported protocols
+    client_protocol_version: int = DEFAULT_PROTOCOL_VERSION
     # application name
     application_name: typing.Optional[str] = None
     # Used to run in streaming replication mode. If your server character encoding is not ascii or utf8,

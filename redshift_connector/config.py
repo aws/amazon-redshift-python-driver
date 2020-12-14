@@ -3,10 +3,31 @@ import typing
 from calendar import timegm
 from datetime import datetime as Datetime
 from datetime import timezone as Timezone
+from enum import IntEnum
 
 FC_TEXT: int = 0
 FC_BINARY: int = 1
 _client_encoding: str = "utf8"
+
+
+class ClientProtocolVersion(IntEnum):
+    BASE_SERVER = 0
+    EXTENDED_RESULT_METADATA = 1
+    BINARY = 2
+
+    @classmethod
+    def list(cls) -> typing.List[int]:
+        return list(map(lambda p: p.value, cls))  # type: ignore
+
+    @classmethod
+    def get_name(cls, i: int) -> str:
+        try:
+            return ClientProtocolVersion(i).name
+        except ValueError:
+            return str(i)
+
+
+DEFAULT_PROTOCOL_VERSION: int = ClientProtocolVersion.EXTENDED_RESULT_METADATA.value
 
 min_int2: int = -(2 ** 15)
 max_int2: int = 2 ** 15

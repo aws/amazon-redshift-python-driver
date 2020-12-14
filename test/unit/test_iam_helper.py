@@ -4,6 +4,7 @@ import pytest  # type: ignore
 from pytest_mock import mocker
 
 from redshift_connector import InterfaceError, RedshiftProperty, set_iam_properties
+from redshift_connector.config import ClientProtocolVersion
 from redshift_connector.iam_helper import set_iam_credentials
 from redshift_connector.plugin import (
     AdfsCredentialsProvider,
@@ -77,6 +78,7 @@ def get_set_iam_properties_args(**kwargs):
         "db_groups": None,
         "force_lowercase": True,
         "allow_db_user_override": True,
+        "client_protocol_version": ClientProtocolVersion.BASE_SERVER,
         **kwargs,
     }
 
@@ -115,6 +117,19 @@ def test_set_iam_properties_enforce_min_ssl_mode(ssl_param):
 
     set_iam_properties(**all_params)
     assert all_params["info"].sslmode == expected_mode
+
+
+client_protocol_version_values: typing.List[int] = ClientProtocolVersion.list()
+
+
+@pytest.mark.parametrize("_input", client_protocol_version_values)
+def test_set_iam_properties_enforce_min_ssl_mode(_input):
+    keywords: typing.Dict = {"client_protocol_version": _input}
+    all_params: typing.Dict = get_set_iam_properties_args(**keywords)
+    assert all_params["client_protocol_version"] == _input
+
+    set_iam_properties(**all_params)
+    assert all_params["info"].client_protocol_version == _input
 
 
 multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
@@ -164,6 +179,7 @@ def make_redshift_property() -> RedshiftProperty:
     rp.auto_create = False
     rp.region = "us-west-1"
     rp.principal = "arn:aws:iam::123456789012:user/Development/product_1234/*"
+    rp.client_protocol_version = ClientProtocolVersion.BASE_SERVER
     return rp
 
 
