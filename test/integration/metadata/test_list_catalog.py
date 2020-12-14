@@ -45,10 +45,10 @@ shutdown_stmts: typing.Tuple[str, ...] = (
 
 
 # @pytest.fixture(scope="session", autouse=True)
-# def list_catalog_config(request, datashare_db_kwargs):
+# def list_catalog_config(request, db_kwargs):
 #     filterwarnings("ignore", "DB-API extension cursor.next()")
 #     filterwarnings("ignore", "DB-API extension cursor.__iter__()")
-#     with redshift_connector.connect(**datashare_db_kwargs) as con:
+#     with redshift_connector.connect(**db_kwargs) as con:
 #         con.paramstyle = "format"
 #         with con.cursor() as cursor:
 #             for stmt in startup_stmts:
@@ -56,7 +56,7 @@ shutdown_stmts: typing.Tuple[str, ...] = (
 #
 #     def fin():
 #         try:
-#             with redshift_connector.connect(**datashare_db_kwargs) as con:
+#             with redshift_connector.connect(**db_kwargs) as con:
 #                 with con.cursor() as cursor:
 #                     for stmt in shutdown_stmts:
 #                         cursor.execute(stmt)
@@ -138,11 +138,12 @@ def get_schemas_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, t
     return result
 
 
+@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_schemas_test_data())
-def test_get_schemas(mocker, _input, datashare_db_kwargs):
+def test_get_schemas(mocker, _input, db_kwargs):
     database_metadata_current_db_only_val, _args = _input
-    datashare_db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
-    with redshift_connector.connect(**datashare_db_kwargs) as conn:
+    db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
+    with redshift_connector.connect(**db_kwargs) as conn:
         assert conn.is_single_database_metadata is database_metadata_current_db_only_val
 
         with conn.cursor() as cursor:
@@ -259,11 +260,12 @@ def get_tables_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, ty
     return result
 
 
+@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_tables_test_data())
-def test_get_tables(mocker, _input, datashare_db_kwargs):
+def test_get_tables(mocker, _input, db_kwargs):
     database_metadata_current_db_only_val, _args = _input
-    datashare_db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
-    with redshift_connector.connect(**datashare_db_kwargs) as conn:
+    db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
+    with redshift_connector.connect(**db_kwargs) as conn:
         assert conn.is_single_database_metadata is database_metadata_current_db_only_val
 
         with conn.cursor() as cursor:
@@ -468,11 +470,12 @@ def get_columns_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, t
     return result
 
 
+@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_columns_test_data())
-def test_get_columns(mocker, _input, datashare_db_kwargs):
+def test_get_columns(mocker, _input, db_kwargs):
     database_metadata_current_db_only_val, _args = _input
-    datashare_db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
-    with redshift_connector.connect(**datashare_db_kwargs) as conn:
+    db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
+    with redshift_connector.connect(**db_kwargs) as conn:
         assert conn.is_single_database_metadata is database_metadata_current_db_only_val
 
         with conn.cursor() as cursor:

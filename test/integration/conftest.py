@@ -39,20 +39,6 @@ def db_kwargs():
     return db_connect
 
 
-@pytest.fixture(scope="session")
-def datashare_db_kwargs():
-    db_connect = {
-        "database": conf.get("datashare-database", "database"),
-        "host": conf.get("datashare-database", "host"),
-        "user": conf.get("datashare-database", "user"),
-        "password": conf.get("datashare-database", "password"),
-        "ssl": conf.getboolean("datashare-database", "ssl"),
-        "sslmode": conf.get("datashare-database", "sslmode"),
-    }
-
-    return db_connect
-
-
 @pytest.fixture(scope="class")
 def okta_idp():
     db_connect = {
