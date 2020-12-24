@@ -1,7 +1,12 @@
+name: Traffic Analyzer
+
 on:
   schedule: 
     # runs once a week on sunday
     - cron: "55 23 * * 0"
+  
+  repository_dispatch:
+    types: do-something
     
 jobs:
   # This workflow contains a single job called "traffic"
