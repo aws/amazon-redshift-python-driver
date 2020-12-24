@@ -5,8 +5,13 @@ on:
     # runs once a week on sunday
     - cron: "55 23 * * 0"
   
-  repository_dispatch:
-    types: do-something
+  workflow_dispatch:
+    # Inputs the workflow accepts.
+    inputs:
+      name:
+        # Friendly description to be shown in the UI instead of 'name'
+        description: 'Push to Kick off Traffic Analyzer'
+
     
 jobs:
   # This workflow contains a single job called "traffic"
