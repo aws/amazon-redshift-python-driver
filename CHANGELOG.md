@@ -2,6 +2,33 @@ Changelog
 =========
 
 
+v2.0.873 (2021-01-25)
+---------------------
+- Docs(auth): IAM credential authentication. [Brooke White]
+- Test(auth): IAM credential authentication. [Brooke White]
+- Feat(auth): support IAM credential authentication. [Brooke White]
+- Test(datatype): mark for manual execution. [Brooke White]
+- Docs: add conda installation instructions, shields. [Brooke White]
+- Test(datatype): handle geometry. [Brooke White]
+- Feat(datatype): support geometry. [Brooke White]
+- Refctor(mypy): correct type errors. [Brooke White]
+- Chore: add mypy pre-commit hook. [Brooke White]
+- Fix(test, datatype): Fix datatype test table generation. [Brooke
+  White]
+- Revert "chore: init traffic action" [Brooke White]
+
+  This reverts commit e73cf79799a6c04a6eaefbac77314b87388d77d0.
+- Revert "chore: add manual trigger to traffic workflow" [Brooke White]
+
+  This reverts commit 4209b703dbdf93f40310a2a05846d1e1fa1afcaf.
+- Revert "chore: update traffic analyzer display name" [Brooke White]
+
+  This reverts commit 77a9c1de1f6ce54266ff67bc6aa894d3b4910240.
+- Chore: update traffic analyzer display name. [Brooke White]
+- Chore: add manual trigger to traffic workflow. [Brooke White]
+- Chore: init traffic action. [Brooke White]
+
+
 v2.0.872 (2020-12-14)
 ---------------------
 - Fix(test,datatype): setup/teardown sql script path. [Brooke White]
@@ -26,14 +53,12 @@ v2.0.872 (2020-12-14)
 - Chore: correct mypy errors. [Brooke White]
 - Feat(Connection): add initializer parameter for server protocol
   version, default to extended metadata. [Brooke White]
-- Release v2.0.711. [Brooke White]
 
 
 v2.0.711 (2020-11-25)
 ---------------------
 - Refactor(cursor): use prepared statements in class methods. [Brooke
   White]
-- Release v2.0.659. [Brooke White]
 
 
 v2.0.659 (2020-11-23)
