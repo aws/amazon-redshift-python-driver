@@ -4,6 +4,7 @@ import pytest  # type: ignore
 from pytest_mock import mocker
 
 from redshift_connector import InterfaceError, RedshiftProperty, set_iam_properties
+from redshift_connector.auth import AWSCredentialsProvider
 from redshift_connector.config import ClientProtocolVersion
 from redshift_connector.iam_helper import set_iam_credentials
 from redshift_connector.plugin import (
@@ -40,7 +41,7 @@ def mock_all_provider_get_credentials(mocker):
         mocker.patch("redshift_connector.plugin.{}.get_credentials".format(provider), return_value=None)
 
 
-def get_set_iam_properties_args(**kwargs):
+def get_set_iam_properties_args(**kwargs) -> typing.Dict[str, typing.Any]:
     return {
         "info": RedshiftProperty(),
         "user": "awsuser",
@@ -80,6 +81,10 @@ def get_set_iam_properties_args(**kwargs):
         "allow_db_user_override": True,
         "client_protocol_version": ClientProtocolVersion.BASE_SERVER,
         "database_metadata_current_db_only": True,
+        "access_key_id": None,
+        "secret_access_key": None,
+        "session_token": None,
+        "profile": None,
         "ssl_insecure": None,
         **kwargs,
     }
@@ -138,19 +143,75 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
     ({"ssl": False, "iam": True}, "Invalid connection property setting. SSL must be enabled when using IAM"),
     (
         {"iam": False, "credentials_provider": "anything"},
-        "Invalid connection property setting. IAM must be enabled when using credentials via identity provider",
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": False, "profile": "default"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": False, "access_key_id": "my_key"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": False, "secret_access_key": "shh it's a secret"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": False, "session_token": "my_session"},
+        "Invalid connection property setting",
     ),
     (
         {"iam": True, "ssl": True},
-        "Invalid connection property setting. Credentials provider cannot be None when IAM is enabled",
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "access_key_id": "my_key", "credentials_provider": "OktaCredentialsProvider"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "secret_access_key": "my_secret", "credentials_provider": "OktaCredentialsProvider"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "session_token": "token", "credentials_provider": "OktaCredentialsProvider"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "profile": "default", "credentials_provider": "OktaCredentialsProvider"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "profile": "default", "access_key_id": "my_key"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "profile": "default", "secret_access_key": "my_secret"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "profile": "default", "session_token": "token"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "secret_access_key": "my_secret"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "session_token": "token"},
+        "Invalid connection property setting",
+    ),
+    (
+        {"iam": True, "ssl": True, "access_key_id": "my_key", "password": ""},
+        "Invalid connection property setting",
     ),
     (
         {"iam": False, "ssl_insecure": False},
-        "Invalid connection property setting. IAM must be enabled when using ssl_insecure",
+        "Invalid connection property setting",
     ),
     (
         {"iam": False, "ssl_insecure": True},
-        "Invalid connection property setting. IAM must be enabled when using ssl_insecure",
+        "Invalid connection property setting",
     ),
 ]
 
@@ -213,3 +274,50 @@ def test_set_iam_properties_provider_assigned(mocker, provider):
     assert spy.call_count == 1
     # ensure call to add_Parameter was made on the expected Provider class
     assert isinstance(spy.call_args[0][0], expectedProvider) is True
+
+
+valid_aws_credential_args: typing.List[typing.Dict[str, str]] = [
+    {"profile": "default"},
+    {"access_key_id": "myAccessKey", "secret_access_key": "mySecret"},
+    {"access_key_id": "myAccessKey", "password": "myHiddenSecret"},
+    {"access_key_id": "myAccessKey", "secret_access_key": "mySecret", "session_token": "mySession"},
+]
+
+
+@pytest.mark.parametrize("test_input", valid_aws_credential_args)
+def test_set_iam_properties_via_aws_credentials(mocker, test_input):
+    # spy = mocker.spy("redshift_connector", "set_iam_credentials")
+    info_obj: typing.Dict[str, typing.Any] = get_set_iam_properties_args(**test_input)
+    info_obj["ssl"] = True
+    info_obj["iam"] = True
+
+    mocker.patch("redshift_connector.iam_helper.set_iam_credentials", return_value=None)
+    set_iam_properties(**info_obj)
+
+    for aws_cred_key, aws_cred_val in enumerate(test_input):
+        if aws_cred_key == "profile":
+            assert info_obj["info"].profile == aws_cred_val
+        if aws_cred_key == "access_key_id":
+            assert info_obj["info"].access_key_id == aws_cred_val
+        if aws_cred_key == "secret_access_key":
+            assert info_obj["info"].secret_access_key == aws_cred_val
+        if aws_cred_key == "password":
+            assert info_obj["info"].password == aws_cred_val
+        if aws_cred_key == "session_token":
+            assert info_obj["info"].session_token == aws_cred_val
+
+
+def test_set_iam_credentials_via_aws_credentials(mocker):
+    redshift_property: RedshiftProperty = RedshiftProperty()
+    redshift_property.profile = "profile_val"
+    redshift_property.access_key_id = "access_val"
+    redshift_property.secret_access_key = "secret_val"
+    redshift_property.session_token = "session_val"
+
+    mocker.patch("redshift_connector.iam_helper.set_cluster_credentials", return_value=None)
+    spy = mocker.spy(AWSCredentialsProvider, "add_parameter")
+
+    set_iam_credentials(redshift_property)
+    assert spy.called is True
+    assert spy.call_count == 1
+    assert spy.call_args[0][1] == redshift_property

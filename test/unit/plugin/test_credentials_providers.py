@@ -38,8 +38,7 @@ def test_ssl_and_iam_invalid_should_fail(idp_arg):
     idp_arg["credentials_provider"] = "OktacredentialSProvider"
     with pytest.raises(
         redshift_connector.InterfaceError,
-        match="Invalid connection property setting. IAM must be enabled when using credentials "
-        "via identity provider",
+        match="Invalid connection property setting",
     ):
         redshift_connector.connect(**idp_arg)
 
@@ -48,6 +47,6 @@ def test_ssl_and_iam_invalid_should_fail(idp_arg):
     idp_arg["credentials_provider"] = None
     with pytest.raises(
         redshift_connector.InterfaceError,
-        match="Invalid connection property setting. " "Credentials provider cannot be None when IAM is enabled",
+        match="Invalid connection property setting",
     ):
         redshift_connector.connect(**idp_arg)
