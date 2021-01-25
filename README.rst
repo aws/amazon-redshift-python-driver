@@ -74,6 +74,58 @@ Basic Example
     print(result)
     >> (['One Hundred Years of Solitude', 'Gabriel García Márquez'], ['A Brief History of Time', 'Stephen Hawking'])
 
+Example using IAM Credentials
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+IAM Credentials can be supplied directly to ``connect(...)`` using an AWS profile as shown below:
+
+.. code-block:: python
+
+    import redshift_connector
+
+    # Connects to Redshift cluster using IAM credentials from default profile defined in ~/.aws/credentials
+    conn = redshift_connector.connect(
+        iam=True,
+        database='dev',
+        db_user='awsuser',
+        password='',
+        user='',
+        cluster_identifier='examplecluster',
+        profile='default'
+     )
+
+.. code-block:: bash
+
+    # ~/.aws/credentials
+    [default]
+    aws_access_key_id="my_aws_access_key_id"
+    aws_secret_access_key="my_aws_secret_access_key"
+    aws_session_token="my_aws_session_token"
+
+    # ~/.aws/config
+    [default]
+    region=us-west-2
+
+If a region is not provided in `~/.aws/config` or you would like to override its value, `region` may be passed to ``connect(...)``.
+
+Alternatively, IAM credentials can be supplied directly to ``connect(...)`` using AWS credentials as shown below:
+
+.. code-block:: python
+
+    import redshift_connector
+
+    # Connects to Redshift cluster using IAM credentials from default profile defined in ~/.aws/credentials
+    conn = redshift_connector.connect(
+        iam=True,
+        database='dev',
+        db_user='awsuser',
+        password='',
+        user='',
+        cluster_identifier='examplecluster',
+        access_key_id="my_aws_access_key_id",
+        secret_access_key="my_aws_secret_access_key",
+        session_token="my_aws_session_token",
+        region="us-east-2"
+     )
 
 Integration with pandas
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -177,6 +229,17 @@ Connection Parameters
 | region                  | String. The AWS region where the cluster is located                                        | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 | app_name                | String. The name of the IdP application used for authentication                            | None          | No       |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| access_key_id           | String. The The access key for the IAM role or IAM user configured for IAM database        | None          | No       |
+|                         | authentication                                                                             |               |          |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| secret_access_key_id    | String. The The secret access key for the IAM role or IAM user configured for IAM database | None          | No       |
+|                         | authentication                                                                             |               |          |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| session_token           | String. The The access key for the IAM role or IAM user configured for IAM database.       | None          | No       |
+|                         | authentication. Not required unless temporary AWS credentials are being used.              |               |          |
++-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
+| profile                 | String. The name of a profile in a AWS credentials file that contains AWS credentials.     | None          | No       |
 +-------------------------+--------------------------------------------------------------------------------------------+---------------+----------+
 
 Logging
