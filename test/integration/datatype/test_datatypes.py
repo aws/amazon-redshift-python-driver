@@ -9,6 +9,7 @@ from test.integration.datatype._generate_test_datatype_tables import (
     datatype_test_setup,
     datatype_test_teardown,
     get_table_name,
+    redshift_test_data,
     test_data,
 )
 
@@ -64,3 +65,23 @@ def test_datatype_recv_support(db_kwargs, datatype):
                     assert isclose(results[ridx][1].microsecond, exp_row[-1].microsecond, rel_tol=1e1)
                 else:
                     assert results[ridx][1] == exp_row[-1]
+
+
+redshift_datatype_testcases: typing.List[typing.Tuple] = []
+for datatype in redshift_test_data:
+    for test_case in redshift_test_data[datatype]:
+        redshift_datatype_testcases.append((datatype, test_case))
+
+
+@pytest.mark.parametrize("_input", redshift_datatype_testcases)
+def test_redshift_specific_recv_support(db_kwargs, _input):
+    datatype, data = _input
+    test_val, exp_val = data
+
+    with redshift_connector.connect(**db_kwargs) as con:
+        with con.cursor() as cursor:
+            cursor.execute("select {}".format(test_val))
+            results: typing.Tuple = cursor.fetchall()
+            assert len(results) == 1
+            assert len(results[0]) == 1
+            assert results[0][0] == exp_val
