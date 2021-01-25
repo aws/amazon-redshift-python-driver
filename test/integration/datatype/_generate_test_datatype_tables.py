@@ -1,5 +1,5 @@
 import os
-import sys
+import pathlib
 import typing
 from datetime import date, datetime, time, timezone
 from decimal import Decimal
@@ -9,8 +9,8 @@ if typing.TYPE_CHECKING:
     from redshift_connector import Connection
 
 SCHEMA_NAME: str = "datatype_integration"
-CREATE_FILE_PATH: str = "datatype_test_stmts.sql"
-TEARDOWN_FILE_PATH: str = "datatype_teardown_stmts.sql"
+CREATE_FILE_PATH: str = "{}/datatype_test_stmts.sql".format(pathlib.Path().absolute())
+TEARDOWN_FILE_PATH: str = "{}/datatype_teardown_stmts.sql".format(pathlib.Path().absolute())
 """
 This file generates a sql file that creates db resources used for testing datatype support.
 The file generated is run directly with psql to bypass redshift_connector.
