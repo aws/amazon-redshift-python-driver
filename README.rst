@@ -2,7 +2,15 @@
 redshift_connector
 =======================================================
 
-redshift_connector is the Amazon Redshift connector for
+|Python Version| |PyPi|
+
+.. |PyPi| image:: https://img.shields.io/pypi/v/redshift_connector.svg?maxAge=432000&style=flat-square
+   :target: https://pypi.org/project/redshift_connector/
+
+.. |Python Version| image:: https://img.shields.io/badge/python->=3.5-brightgreen.svg
+   :target: https://pypi.org/project/redshift_connector/
+
+``redshift_connector`` is the Amazon Redshift connector for
 Python. Easy integration with `pandas <https://github.com/pandas-dev/pandas>`_ and `numpy <https://github.com/numpy/numpy>`_, as well as support for numerous Amazon Redshift specific features help you get the most out of your data
 
 Supported Amazon Redshift features include:
@@ -17,18 +25,20 @@ This pure Python connector implements `Python Database API Specification 2.0 <ht
 
 Getting Started
 ---------------
-The easiest way to get started with redshift_connector is via `pip <https://pip.pypa.io/en/stable/>`_
 
-``pip install redshift_connector``
++----------------------------------------------------------------+--------------------+-----------------------------------------------------+
+| Source                                                         | Downloads          | Installation Command                                |
++================================================================+====================+=====================================================+
+| `PyPi <https://pypi.org/project/redshift-connector/>`_         |  |PyPi Downloads|  | ``pip install redshift_connector``                  |
++----------------------------------------------------------------+--------------------+-----------------------------------------------------+
+| `Conda <https://anaconda.org/conda-forge/redshift_connector>`_ |  |Conda Downloads| | ``conda install -c conda-forge redshift_connector`` |
++----------------------------------------------------------------+--------------------+-----------------------------------------------------+
 
-For `pandas <https://github.com/pandas-dev/pandas>`_ and `numpy <https://github.com/numpy/numpy>`_ support, install as shown below:
-
-``pip install 'redshift_connector[full]'``
-
-Note: redshift_connector requires Python >= 3.5
+.. |PyPi Downloads| image:: https://pepy.tech/badge/redshift_connector
+.. |Conda Downloads| image:: https://img.shields.io/conda/dn/conda-forge/redshift_connector.svg
 
 
-You can install from source by cloning this repository.
+Additionally, you may install from source by cloning this repository.
 
 .. code-block:: sh
 
