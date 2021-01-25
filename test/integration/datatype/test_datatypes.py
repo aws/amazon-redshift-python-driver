@@ -35,6 +35,7 @@ def create_datatype_test_resources(request):
     request.addfinalizer(fin)
 
 
+@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("datatype", Datatypes.list())
 def test_datatype_recv_support(db_kwargs, datatype):
     table_name: str = get_table_name(datatype)
@@ -73,6 +74,7 @@ for datatype in redshift_test_data:
         redshift_datatype_testcases.append((datatype, test_case))
 
 
+@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", redshift_datatype_testcases)
 def test_redshift_specific_recv_support(db_kwargs, _input):
     datatype, data = _input
