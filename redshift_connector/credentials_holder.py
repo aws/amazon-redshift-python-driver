@@ -1,10 +1,105 @@
 import datetime
 import typing
+from abc import ABC, abstractmethod
+
+if typing.TYPE_CHECKING:
+    import boto3  # type: ignore
 
 
-# credentials class used to store credentials
-# and metadata from SAML assertion
-class CredentialsHolder:
+class ABCCredentialsHolder(ABC):
+    """
+    Abstract base class used to store credentials for establishing a connection to an Amazon Redshift cluster.
+    """
+
+    @abstractmethod
+    def get_session_credentials(self: "ABCCredentialsHolder"):
+        """
+        A dictionary mapping end-user specified AWS credential value to :func:`boto3.client` parameters.
+
+        Returns
+        _______
+        A dictionary mapping parameter names to end-user specified values: `typing.Dict[str,str]`
+        """
+        pass
+
+    @property
+    def has_associated_session(self: "ABCCredentialsHolder") -> bool:
+        """
+         A boolean value indicating if the current class stores AWS credentials in a :class:`boto3.Session`.
+
+         Returns
+         -------
+        `True` if the current class provides a :class:`boto3.Session` object, otherwise `False` : `bool`
+        """
+        return False
+
+
+class ABCAWSCredentialsHolder(ABC):
+    """
+    Abstract base class used to store AWS credentials provided by user.
+    """
+
+    def __init__(self: "ABCAWSCredentialsHolder", session: "boto3.Session"):
+        self.boto_session = session
+
+    @property
+    def has_associated_session(self: "ABCAWSCredentialsHolder") -> bool:
+        return True
+
+    def get_boto_session(self: "ABCAWSCredentialsHolder") -> "boto3.Session":
+        """
+        The :class:`boto3.Session` created using the end-user's AWS Credentials.
+        Returns
+        -------
+        A boto3 session created with the end-user's AWS Credentials: :class:`boto3.Session`
+        """
+        return self.boto_session
+
+
+class AWSDirectCredentialsHolder(ABCAWSCredentialsHolder):
+    """
+    Credential class used to store AWS credentials provided in :func:`~redshift_connector.connect`.
+    """
+
+    def __init__(
+        self, access_key_id: str, secret_access_key: str, session_token: typing.Optional[str], session: "boto3.Session"
+    ):
+        super().__init__(session)
+        self.access_key_id: str = access_key_id
+        self.secret_access_key: str = secret_access_key
+        self.session_token: typing.Optional[str] = session_token
+        self._session: "boto3.Session" = session
+
+    def get_session_credentials(self: "AWSDirectCredentialsHolder") -> typing.Dict[str, str]:
+        creds: typing.Dict[str, str] = {
+            "aws_access_key_id": self.access_key_id,
+            "aws_secret_access_key": self.secret_access_key,
+        }
+
+        if self.session_token is not None:
+            creds["aws_session_token"] = self.session_token
+
+        return creds
+
+
+class AWSProfileCredentialsHolder(ABCAWSCredentialsHolder):
+    """
+    Credential class used to store AWS Credentials provided in environment IAM credentials.
+    """
+
+    def __init__(self, profile: str, session: "boto3.Session"):
+        super().__init__(session)
+        self.profile = profile
+
+    def get_session_credentials(self: "AWSProfileCredentialsHolder") -> typing.Dict[str, str]:
+        return {"profile": self.profile}
+
+
+class CredentialsHolder(ABCCredentialsHolder):
+    """
+    credentials class used to store credentials and metadata from SAML assertion.
+    """
+
     def __init__(self: "CredentialsHolder", credentials: typing.Dict[str, typing.Any]) -> None:
         self.metadata: "CredentialsHolder.IamMetadata" = CredentialsHolder.IamMetadata()
         self.credentials: typing.Dict[str, typing.Any] = credentials
@@ -28,6 +123,13 @@ class CredentialsHolder:
     def get_session_token(self: "CredentialsHolder") -> str:
         return typing.cast(str, self.credentials["SessionToken"])
 
+    def get_session_credentials(self: "CredentialsHolder") -> typing.Dict[str, str]:
+        return {
+            "aws_access_key_id": self.get_aws_access_key_id(),
+            "aws_secret_access_key": self.get_aws_secret_key(),
+            "aws_session_token": self.get_session_token(),
+        }
+
     # The date on which the current credentials expire.
     def get_expiration(self: "CredentialsHolder") -> datetime.datetime:
         return self.expiration
@@ -35,8 +137,11 @@ class CredentialsHolder:
     def is_expired(self: "CredentialsHolder") -> bool:
         return datetime.datetime.now() > self.expiration.replace(tzinfo=None)
 
-    # metadata used to store information from SAML assertion
     class IamMetadata:
+        """
+        Metadata used to store information from SAML assertion
+        """
+
         def __init__(self: "CredentialsHolder.IamMetadata") -> None:
             self.auto_create: bool = False
             self.db_user: typing.Optional[str] = None

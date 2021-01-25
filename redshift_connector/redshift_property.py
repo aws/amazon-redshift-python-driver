@@ -25,6 +25,15 @@ class RedshiftProperty:
     app_id: typing.Optional[str] = None
     # The name of the Okta application that you use to authenticate the connection to Redshift.
     app_name: str = "amazon_aws_redshift"
+    # The access key for the IAM role or IAM user configured for IAM database authentication
+    access_key_id: typing.Optional[str] = None
+    # The secret access key for the IAM role or IAM user configured for IAM database authentication
+    secret_access_key: typing.Optional[str] = None
+    # session_token is required only for an IAM role with temporary credentials.
+    # session_token is not used for an IAM user.
+    session_token: typing.Optional[str] = None
+    # The name of a profile in a AWS credentials or config file that contains values for connection options
+    profile: typing.Optional[str] = None
     # The class path to a specific credentials provider plugin class.
     credentials_provider: typing.Optional[str] = None
     # A comma-separated list of existing database group names that the DbUser joins for the current session.

@@ -2,8 +2,14 @@ import logging
 import typing
 from enum import Enum
 
+from redshift_connector.auth.aws_credentials_provider import AWSCredentialsProvider
 from redshift_connector.config import ClientProtocolVersion
-from redshift_connector.credentials_holder import CredentialsHolder
+from redshift_connector.credentials_holder import (
+    ABCAWSCredentialsHolder,
+    AWSDirectCredentialsHolder,
+    AWSProfileCredentialsHolder,
+    CredentialsHolder,
+)
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin import (
     AdfsCredentialsProvider,
@@ -49,6 +55,10 @@ def set_iam_properties(
     app_name: str,
     preferred_role: typing.Optional[str],
     principal_arn: typing.Optional[str],
+    access_key_id: typing.Optional[str],
+    secret_access_key: typing.Optional[str],
+    session_token: typing.Optional[str],
+    profile: typing.Optional[str],
     credentials_provider: typing.Optional[str],
     region: typing.Optional[str],
     cluster_identifier: typing.Optional[str],
@@ -87,18 +97,61 @@ def set_iam_properties(
     else:
         info.iam = iam
 
-    if (info.iam is False) and (credentials_provider is not None):
-        raise InterfaceError(
-            "Invalid connection property setting. IAM must be enabled when using credentials " "via identity provider"
-        )
-    elif (info.iam is False) and (ssl_insecure is not None):
+    if (info.iam is False) and (ssl_insecure is not None):
         raise InterfaceError("Invalid connection property setting. IAM must be enabled when using ssl_insecure")
-    elif (info.iam is True) and (credentials_provider is None):
+    elif (info.iam is False) and any((credentials_provider, access_key_id, secret_access_key, session_token, profile)):
         raise InterfaceError(
-            "Invalid connection property setting. " "Credentials provider cannot be None when IAM is enabled"
+            "Invalid connection property setting. IAM must be enabled when using credential_provider, "
+            "AWS credentials, or AWS profile"
         )
-    else:
-        info.credentials_provider = credentials_provider
+    elif info.iam is True:
+        if not any((credentials_provider, access_key_id, secret_access_key, session_token, profile)):
+            raise InterfaceError(
+                "Invalid connection property setting. Credentials provider, AWS credentials, or AWS profile must be"
+                " provided when IAM is enabled"
+            )
+        elif credentials_provider is not None:
+            if any((access_key_id, secret_access_key, session_token, profile)):
+                raise InterfaceError(
+                    "Invalid connection property setting. It is not valid to provide both Credentials provider and "
+                    "AWS credentials or AWS profile"
+                )
+            else:
+                info.credentials_provider = credentials_provider
+        elif profile is not None:
+            if any((access_key_id, secret_access_key, session_token)):
+                raise InterfaceError(
+                    "Invalid connection property setting. It is not valid to provide any of access_key_id, "
+                    "secret_access_key, or session_token when profile is provided"
+                )
+            else:
+                info.profile = profile
+        elif access_key_id is not None:
+            info.access_key_id = access_key_id
+
+            if secret_access_key is not None:
+                info.secret_access_key = secret_access_key
+            # secret_access_key can be provided in the password field so it is hidden from applications such as
+            # SQL Workbench.
+            elif password != "":
+                info.secret_access_key = password
+            else:
+                raise InterfaceError(
+                    "Invalid connection property setting. "
+                    "secret access key must be provided in either secret_access_key or password field"
+                )
+
+            if session_token is not None:
+                info.session_token = session_token
+        elif secret_access_key is not None:
+            raise InterfaceError(
+                "Invalid connection property setting. access_key_id is required when secret_access_key is " "provided"
+            )
+        elif session_token is not None:
+            raise InterfaceError(
+                "Invalid connection property setting. access_key_id and secret_access_key are  required when "
+                "session_token is provided"
+            )
 
     if user is None:
         raise InterfaceError("Invalid connection property setting. user must be specified")
@@ -173,83 +226,95 @@ def set_iam_properties(
 
 # Helper function to create the appropriate credential providers.
 def set_iam_credentials(info: RedshiftProperty) -> None:
-    provider: typing.Optional[SamlCredentialsProvider] = None
+    provider: typing.Optional[typing.Union[SamlCredentialsProvider, AWSCredentialsProvider]] = None
     # case insensitive comparison
-    if info.credentials_provider is None:
-        return
-    elif info.credentials_provider.lower() == "OktaCredentialsProvider".lower():
-        provider = OktaCredentialsProvider()
-        provider.add_parameter(info)
-    elif info.credentials_provider.lower() == "AzureCredentialsProvider".lower():
-        provider = AzureCredentialsProvider()
-        provider.add_parameter(info)
-    elif info.credentials_provider.lower() == "BrowserAzureCredentialsProvider".lower():
-        provider = BrowserAzureCredentialsProvider()
-        provider.add_parameter(info)
-    elif info.credentials_provider.lower() == "PingCredentialsProvider".lower():
-        provider = PingCredentialsProvider()
-        provider.add_parameter(info)
-    elif info.credentials_provider.lower() == "BrowserSamlCredentialsProvider".lower():
-        provider = BrowserSamlCredentialsProvider()
-        provider.add_parameter(info)
-    elif info.credentials_provider.lower() == "AdfsCredentialsProvider".lower():
-        provider = AdfsCredentialsProvider()
-        provider.add_parameter(info)
-    else:
-        raise InterfaceError("Invalid credentials provider" + info.credentials_provider)
-
-    credentials: CredentialsHolder = provider.get_credentials()
-    metadata: CredentialsHolder.IamMetadata = credentials.get_metadata()
-    if metadata is not None:
-        auto_create: bool = metadata.get_auto_create()
-        db_user: typing.Optional[str] = metadata.get_db_user()
-        saml_db_user: typing.Optional[str] = metadata.get_saml_db_user()
-        profile_db_user: typing.Optional[str] = metadata.get_profile_db_user()
-        db_groups: typing.List[str] = metadata.get_db_groups()
-        force_lowercase: bool = metadata.get_force_lowercase()
-        allow_db_user_override: bool = metadata.get_allow_db_user_override()
-        if auto_create is True:
-            info.auto_create = auto_create
-
-        if force_lowercase is True:
-            info.force_lowercase = force_lowercase
-
-        if allow_db_user_override is True:
-            if saml_db_user is not None:
-                info.db_user = saml_db_user
-            if db_user is not None:
-                info.db_user = db_user
-            if profile_db_user is not None:
-                info.db_user = profile_db_user
+    if info.credentials_provider is not None:
+        if info.credentials_provider.lower() == "OktaCredentialsProvider".lower():
+            provider = OktaCredentialsProvider()
+            provider.add_parameter(info)
+        elif info.credentials_provider.lower() == "AzureCredentialsProvider".lower():
+            provider = AzureCredentialsProvider()
+            provider.add_parameter(info)
+        elif info.credentials_provider.lower() == "BrowserAzureCredentialsProvider".lower():
+            provider = BrowserAzureCredentialsProvider()
+            provider.add_parameter(info)
+        elif info.credentials_provider.lower() == "PingCredentialsProvider".lower():
+            provider = PingCredentialsProvider()
+            provider.add_parameter(info)
+        elif info.credentials_provider.lower() == "BrowserSamlCredentialsProvider".lower():
+            provider = BrowserSamlCredentialsProvider()
+            provider.add_parameter(info)
+        elif info.credentials_provider.lower() == "AdfsCredentialsProvider".lower():
+            provider = AdfsCredentialsProvider()
+            provider.add_parameter(info)
         else:
-            if db_user is not None:
-                info.db_user = db_user
-            if profile_db_user is not None:
-                info.db_user = profile_db_user
-            if saml_db_user is not None:
-                info.db_user = saml_db_user
+            raise InterfaceError("Invalid credentials provider" + info.credentials_provider)
+    else:  # indicates AWS Credentials will be used
+        provider = AWSCredentialsProvider()
+        provider.add_parameter(info)
 
-        if (len(info.db_groups) == 0) and (len(db_groups) > 0):
-            info.db_groups = db_groups
+    if isinstance(provider, SamlCredentialsProvider):
+        credentials: CredentialsHolder = provider.get_credentials()
+        metadata: CredentialsHolder.IamMetadata = credentials.get_metadata()
+        if metadata is not None:
+            auto_create: bool = metadata.get_auto_create()
+            db_user: typing.Optional[str] = metadata.get_db_user()
+            saml_db_user: typing.Optional[str] = metadata.get_saml_db_user()
+            profile_db_user: typing.Optional[str] = metadata.get_profile_db_user()
+            db_groups: typing.List[str] = metadata.get_db_groups()
+            force_lowercase: bool = metadata.get_force_lowercase()
+            allow_db_user_override: bool = metadata.get_allow_db_user_override()
+            if auto_create is True:
+                info.auto_create = auto_create
+
+            if force_lowercase is True:
+                info.force_lowercase = force_lowercase
+
+            if allow_db_user_override is True:
+                if saml_db_user is not None:
+                    info.db_user = saml_db_user
+                if db_user is not None:
+                    info.db_user = db_user
+                if profile_db_user is not None:
+                    info.db_user = profile_db_user
+            else:
+                if db_user is not None:
+                    info.db_user = db_user
+                if profile_db_user is not None:
+                    info.db_user = profile_db_user
+                if saml_db_user is not None:
+                    info.db_user = saml_db_user
+
+            if (len(info.db_groups) == 0) and (len(db_groups) > 0):
+                info.db_groups = db_groups
 
     set_cluster_credentials(provider, info)
 
 
 # Calls the AWS SDK methods to return temporary credentials.
 # The expiration date is returned as the local time set by the client machines OS.
-def set_cluster_credentials(cred_provider: SamlCredentialsProvider, info: RedshiftProperty) -> None:
+def set_cluster_credentials(
+    cred_provider: typing.Union[SamlCredentialsProvider, AWSCredentialsProvider], info: RedshiftProperty
+) -> None:
     import boto3  # type: ignore
     import botocore  # type: ignore
 
     try:
-        credentials: CredentialsHolder = cred_provider.get_credentials()
-        client = boto3.client(
-            "redshift",
-            region_name=info.region,
-            aws_access_key_id=credentials.get_aws_access_key_id(),
-            aws_secret_access_key=credentials.get_aws_secret_key(),
-            aws_session_token=credentials.get_session_token(),
-        )
+        credentials_holder: typing.Union[
+            CredentialsHolder, AWSDirectCredentialsHolder, AWSProfileCredentialsHolder
+        ] = cred_provider.get_credentials()
+        session_credentials: typing.Dict[str, str] = credentials_holder.get_session_credentials()
+
+        if info.region is not None:
+            session_credentials["region_name"] = info.region
+
+        # if AWS credentials were used to create a boto3.Session object, use it
+        if credentials_holder.has_associated_session:
+            cached_session: boto3.Session = typing.cast(ABCAWSCredentialsHolder, credentials_holder).get_boto_session()
+            client = cached_session.client(service_name="redshift", region_name=info.region)
+        else:
+            client = boto3.client(service_name="redshift", **session_credentials)
+
         info.host, info.port = client.describe_clusters(ClusterIdentifier=info.cluster_identifier)["Clusters"][0][
             "Endpoint"
         ].values()
