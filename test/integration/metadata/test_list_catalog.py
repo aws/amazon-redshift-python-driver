@@ -76,7 +76,7 @@ class TestListCatalog:
     test_cross_db_schema_pattern: str = "p%"
     test_cross_db_table_pattern: str = "a%"
     test_cross_db_column_pattern: str = "c%"
-    test_table_types: typing.Tuple[str] = ("TABLE", "SHARED TABLE", "VIEW", "EXTERNAL TABLE")
+    test_table_types: typing.Tuple[str, ...] = ("TABLE", "SHARED TABLE", "VIEW", "EXTERNAL TABLE")
 
     test_ext_schema: str = "ext_sales"
     test_ext_schema_table: str = "test"
@@ -163,12 +163,12 @@ def test_get_schemas(mocker, _input, db_kwargs):
             assert len(result[0]) == 2
 
 
-def get_tables_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, typing.Optional[str]]]]:
-    result: typing.List[typing.Tuple[bool, typing.Dict[str, typing.Optional[str]]]] = []
+def get_tables_test_data() -> typing.List[typing.Optional[typing.Tuple[bool, typing.Dict[str, typing.Any]]]]:
+    result: typing.List[typing.Optional[typing.Tuple[bool, typing.Dict[str, typing.Any]]]] = []
     for flip in (True, False):
         TestListCatalog.config_class_consts(flip)
-        arg_data: typing.List[typing.Dict[str, typing.Optional[str]]] = [
-            {"catalog": None, "schema_pattern": None, "table_name_pattern": None, "types": []},
+        arg_data: typing.List[typing.Dict[str, typing.Any]] = [
+            {"catalog": None, "schema_pattern": None, "table_name_pattern": None, "types": tuple()},
             {
                 "catalog": TestListCatalog.test_db,
                 "schema_pattern": TestListCatalog.test_schema,
@@ -197,7 +197,7 @@ def get_tables_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, ty
                 "catalog": TestListCatalog.test_db,
                 "schema_pattern": TestListCatalog.test_schema,
                 "table_name_pattern": TestListCatalog.test_table,
-                "types": [],
+                "types": tuple(),
             },
             {
                 "catalog": None,
@@ -215,15 +215,20 @@ def get_tables_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, ty
                 "catalog": TestListCatalog.test_db,
                 "schema_pattern": TestListCatalog.test_schema,
                 "table_name_pattern": None,
-                "types": [],
+                "types": tuple(),
             },
             {
                 "catalog": None,
                 "schema_pattern": TestListCatalog.test_schema,
                 "table_name_pattern": TestListCatalog.test_table,
-                "types": [],
+                "types": tuple(),
             },
-            {"catalog": None, "schema_pattern": None, "table_name_pattern": TestListCatalog.test_table, "types": []},
+            {
+                "catalog": None,
+                "schema_pattern": None,
+                "table_name_pattern": TestListCatalog.test_table,
+                "types": tuple(),
+            },
             {
                 "catalog": None,
                 "schema_pattern": None,
@@ -252,7 +257,7 @@ def get_tables_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, ty
                 "catalog": None,
                 "schema_pattern": TestListCatalog.test_schema_pattern,
                 "table_name_pattern": TestListCatalog.test_table_pattern,
-                "types": [],
+                "types": tuple(),
             },
         ]
         for test_case in arg_data:

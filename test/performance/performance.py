@@ -1,6 +1,7 @@
 import configparser
 import os
 import time
+import typing
 
 import redshift_connector
 
@@ -9,12 +10,12 @@ root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 conf.read(root_path + "/config.ini")
 
 root_path = os.path.dirname(os.path.abspath(__file__))
-sql = open(root_path + "/test.sql", "r", encoding="utf8")
-sqls = sql.readlines()
-sqls = [sql.replace("\n", "") for sql in sqls]
+sql: typing.TextIO = open(root_path + "/test.sql", "r", encoding="utf8")
+sqls: typing.List[str] = sql.readlines()
+sqls = [_sql.replace("\n", "") for _sql in sqls]
 sql.close()
 
-conn = redshift_connector.connect(
+conn: redshift_connector.Connection = redshift_connector.connect(
     database=conf.get("database", "database"),
     host=conf.get("database", "host"),
     port=conf.getint("database", "port"),
@@ -25,11 +26,11 @@ conn = redshift_connector.connect(
     iam=False,
 )
 
-cursor = conn.cursor()
-for sql in sqls:
-    cursor.execute(sql)
+cursor: redshift_connector.Cursor = conn.cursor()
+for _sql in sqls:
+    cursor.execute(_sql)
 
-result = cursor.fetchall()
+result: typing.Tuple = cursor.fetchall()
 print("fetch {result} rows".format(result=result))
 
 print("start calculate fetch time")

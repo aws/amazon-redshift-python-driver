@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+import typing
 
 from setuptools import find_packages, setup
 from setuptools.command.install import install as InstallCommandBase
@@ -10,8 +11,8 @@ from wheel.bdist_wheel import bdist_wheel as BDistWheelCommandBase
 
 
 class BasePytestCommand(TestCommand):
-    user_options = []
-    test_dir = None
+    user_options: typing.List = []
+    test_dir: typing.Optional[str] = None
 
     def initialize_options(self):
         TestCommand.initialize_options(self)
@@ -34,7 +35,7 @@ class BasePytestCommand(TestCommand):
 
 
 class UnitTestCommand(BasePytestCommand):
-    test_dir = "test/unit"
+    test_dir: str = "test/unit"
 
 
 class IntegrationTestCommand(BasePytestCommand):
@@ -89,7 +90,7 @@ optional_deps = {
 
 setup(
     name="redshift_connector",
-    version=__version__,
+    version=__version__,  # type: ignore
     description="Redshift interface library",
     long_description=long_description,
     long_description_content_type="text/x-rst",

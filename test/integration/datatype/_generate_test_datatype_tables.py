@@ -39,7 +39,7 @@ class Datatypes(Enum):
 
     @classmethod
     def list(cls) -> typing.List["Datatypes"]:
-        return list(map(lambda p: p, cls))
+        return list(map(lambda p: p, cls))  # type: ignore
 
 
 FLOAT_DATATYPES: typing.Tuple[Datatypes, ...] = (Datatypes.float4, Datatypes.float8)
@@ -52,7 +52,7 @@ DATATYPES_WITH_MS: typing.Tuple[Datatypes, ...] = (Datatypes.timetz, Datatypes.t
 # 3) (Optional) the Python value we expect to receive. If this field is missing,
 # we expect to receive the test value back directly.
 
-test_data: typing.Dict[Datatypes, typing.Tuple[typing.Tuple[str, ...], ...]] = {
+test_data: typing.Dict[str, typing.Tuple[typing.Tuple[typing.Any, ...], ...]] = {
     Datatypes.int2.name: (  # smallint
         ("-32768", -32768),  # signed 2 byte int min
         ("-128", -128),
