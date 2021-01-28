@@ -40,7 +40,7 @@ from redshift_connector.redshift_property import RedshiftProperty
 
 from .version import __version__
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+# logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 # Copyright (c) 2007-2009, Mathieu Fenniak
 # Copyright (c) The Contributors
