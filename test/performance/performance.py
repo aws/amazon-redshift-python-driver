@@ -16,13 +16,13 @@ sqls = [_sql.replace("\n", "") for _sql in sqls]
 sql.close()
 
 conn: redshift_connector.Connection = redshift_connector.connect(
-    database=conf.get("database", "database"),
-    host=conf.get("database", "host"),
-    port=conf.getint("database", "port"),
-    user=conf.get("database", "user"),
-    password=conf.get("database", "password"),
+    database=conf.get("ci-cluster", "database"),
+    host=conf.get("ci-cluster", "host"),
+    port=conf.getint("default-test", "port"),
+    user=conf.get("ci-cluster", "test_user"),
+    password=conf.get("ci-cluster", "password"),
     ssl=True,
-    sslmode=conf.get("database", "sslmode"),
+    sslmode=conf.get("default-test", "sslmode"),
     iam=False,
 )
 

@@ -266,7 +266,7 @@ def test_get_schemas(con):
     with con.cursor() as cursor:
         cursor.execute(
             "create schema IF NOT EXISTS schema_test1 authorization {awsuser}".format(
-                awsuser=conf.get("database", "user")
+                awsuser=conf.get("ci-cluster", "test_user")
             )
         )
         res = cursor.get_schemas(schema_pattern="schema_test1")
@@ -281,12 +281,12 @@ def test_get_primary_keys(con):
 
         cursor.execute(
             "create schema IF NOT EXISTS schema_test1 authorization {awsuser}".format(
-                awsuser=conf.get("database", "user")
+                awsuser=conf.get("ci-cluster", "test_user")
             )
         )
         cursor.execute(
             "CREATE TABLE IF NOT EXISTS {database}.schema_test1.test_primary (f1 int primary key, f3 varchar(50) null)".format(
-                database=conf.get("database", "database")
+                database=conf.get("ci-cluster", "database")
             )
         )
         key = cursor.get_primary_keys(schema="schema_test1", table="test_primary")
@@ -301,12 +301,12 @@ def test_get_columns(con):
 
         cursor.execute(
             "create schema IF NOT EXISTS schema_test1 authorization {awsuser}".format(
-                awsuser=conf.get("database", "user")
+                awsuser=conf.get("ci-cluster", "test_user")
             )
         )
         cursor.execute(
             "create table IF NOT EXISTS {database}.schema_test1.table_columns (bookname varchar, author varchar)".format(
-                database=conf.get("database", "database")
+                database=conf.get("ci-cluster", "database")
             )
         )
         columns = cursor.get_columns(schema_pattern="schema_test1", tablename_pattern="table_columns")
@@ -322,13 +322,13 @@ def test_get_tables(con):
 
         cursor.execute(
             "create schema IF NOT EXISTS schema_test1 authorization {awsuser}".format(
-                awsuser=conf.get("database", "user")
+                awsuser=conf.get("ci-cluster", "test_user")
             )
         )
         num = len(cursor.get_tables(schema_pattern="schema_test1", types=["TABLE"]))
         cursor.execute(
             "create table IF NOT EXISTS {database}.schema_test1.book (bookname varchar, author varchar)".format(
-                database=conf.get("database", "database")
+                database=conf.get("ci-cluster", "database")
             )
         )
         new_num = len(cursor.get_tables(schema_pattern="schema_test1", types=["TABLE"]))

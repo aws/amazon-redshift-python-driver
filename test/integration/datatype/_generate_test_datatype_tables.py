@@ -377,10 +377,10 @@ def datatype_test_setup(conf) -> None:
     # execute test sql file
     os.system(
         "PGPASSWORD={password} psql --host={host} --port 5439 --user={user} --dbname={db} -f {file}".format(
-            password=conf.get("database", "password"),
-            host=conf.get("database", "host"),
-            user=conf.get("database", "user"),
-            db=conf.get("database", "database"),
+            password=conf.get("ci-cluster", "password"),
+            host=conf.get("ci-cluster", "host"),
+            user=conf.get("ci-cluster", "test_user"),
+            db=conf.get("ci-cluster", "database"),
             file=CREATE_FILE_PATH,
         )
     )
@@ -396,10 +396,10 @@ def datatype_test_teardown(conf) -> None:
 
     os.system(
         "PGPASSWORD={password} psql --host={host} --port 5439 --user={user} --dbname={db} -f {file}".format(
-            password=conf.get("database", "password"),
-            host=conf.get("database", "host"),
-            user=conf.get("database", "user"),
-            db=conf.get("database", "database"),
+            password=conf.get("ci-cluster", "password"),
+            host=conf.get("ci-cluster", "host"),
+            user=conf.get("ci-cluster", "test_user"),
+            db=conf.get("ci-cluster", "database"),
             file=TEARDOWN_FILE_PATH,
         )
     )

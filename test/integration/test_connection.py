@@ -194,6 +194,7 @@ def test_client_protocol_version_is_used(db_kwargs, _input):
 
 def test_client_protocol_version_invalid_warns_user(db_kwargs):
     db_kwargs["client_protocol_version"] = max(ClientProtocolVersion.list()) + 1
-
+    del db_kwargs["region"]
+    del db_kwargs["cluster_identifier"]
     with pytest.warns(UserWarning):
         redshift_connector.Connection(**db_kwargs)
