@@ -1,10 +1,6 @@
 import typing
-from typing import TYPE_CHECKING
 
 from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
-
-if TYPE_CHECKING:
-    from redshift_connector.iam_helper import SSLMode
 
 
 class RedshiftProperty:

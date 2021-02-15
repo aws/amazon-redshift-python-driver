@@ -17,9 +17,17 @@ from redshift_connector.redshift_property import RedshiftProperty
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-class SSLMode(Enum):
+class SupportedSSLMode(Enum):
     VERIFY_CA: str = "verify-ca"
     VERIFY_FULL: str = "verify-full"
+
+    @staticmethod
+    def default() -> str:
+        return SupportedSSLMode.VERIFY_CA.value
+
+    @staticmethod
+    def list() -> typing.List[str]:
+        return list(map(lambda mode: mode.value, SupportedSSLMode))
 
 
 def dynamic_plugin_import(name: str):
@@ -83,12 +91,15 @@ def set_iam_properties(
     # Make sure that is set to SSL level VERIFY_CA or higher.
     info.ssl = ssl
     if info.ssl is True:
-        if sslmode == SSLMode.VERIFY_CA.value:
-            info.sslmode = SSLMode.VERIFY_CA.value
-        elif sslmode == SSLMode.VERIFY_FULL.value:
-            info.sslmode = SSLMode.VERIFY_FULL.value
+        if sslmode not in SupportedSSLMode.list():
+            info.sslmode = SupportedSSLMode.default()
+            _logger.debug(
+                "A non-supported value: {} was provides for sslmode. Falling back to default value: {}".format(
+                    sslmode, SupportedSSLMode.default()
+                )
+            )
         else:
-            info.sslmode = SSLMode.VERIFY_CA.value
+            info.sslmode = sslmode
     else:
         info.sslmode = ""
 
