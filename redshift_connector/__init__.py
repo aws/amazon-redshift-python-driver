@@ -19,7 +19,7 @@ from redshift_connector.error import (
     ProgrammingError,
     Warning,
 )
-from redshift_connector.iam_helper import set_iam_properties
+from redshift_connector.iam_helper import IamHelper
 from redshift_connector.objects import (
     Binary,
     Date,
@@ -120,7 +120,7 @@ def connect(
 ) -> Connection:
 
     info: RedshiftProperty = RedshiftProperty()
-    set_iam_properties(
+    IamHelper.set_iam_properties(
         info,
         user=user,
         host=host,
