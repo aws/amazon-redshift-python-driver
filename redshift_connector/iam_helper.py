@@ -105,6 +105,10 @@ def set_iam_properties(
             "AWS credentials, or AWS profile"
         )
     elif info.iam is True:
+        if cluster_identifier is None:
+            raise InterfaceError(
+                "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
+            )
         if not any((credentials_provider, access_key_id, secret_access_key, session_token, profile)):
             raise InterfaceError(
                 "Invalid connection property setting. Credentials provider, AWS credentials, or AWS profile must be"
@@ -153,16 +157,10 @@ def set_iam_properties(
                 "session_token is provided"
             )
 
-    if user is None:
-        raise InterfaceError("Invalid connection property setting. user must be specified")
-    if host is None:
-        raise InterfaceError("Invalid connection property setting. host must be specified")
-    if database is None:
-        raise InterfaceError("Invalid connection property setting. database must be specified")
-    if port is None:
-        raise InterfaceError("Invalid connection property setting. port must be specified")
-    if password is None:
-        raise InterfaceError("Invalid connection property setting. password must be specified")
+    if not all((user, host, database, port, password)):
+        raise InterfaceError(
+            "Invalid connection property setting. " "user, password, host, database, port, and password  are required."
+        )
 
     if client_protocol_version not in ClientProtocolVersion.list():
         raise InterfaceError(

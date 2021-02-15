@@ -100,7 +100,7 @@ def test_set_iam_properties_fails_when_info_is_none(missing_param):
     keywords: typing.Dict = {missing_param: None}
     with pytest.raises(InterfaceError) as excinfo:
         set_iam_properties(**get_set_iam_properties_args(**keywords))
-    assert "Invalid connection property setting. {} must be specified".format(missing_param) in str(excinfo.value)
+    assert "Invalid connection property setting" in str(excinfo.value)
 
 
 ssl_mode_descriptions: typing.List[typing.Tuple[typing.Optional[str], str]] = [
@@ -291,6 +291,7 @@ def test_set_iam_properties_via_aws_credentials(mocker, test_input):
     info_obj: typing.Dict[str, typing.Any] = get_set_iam_properties_args(**test_input)
     info_obj["ssl"] = True
     info_obj["iam"] = True
+    info_obj["cluster_identifier"] = "blah"
 
     mocker.patch("redshift_connector.iam_helper.set_iam_credentials", return_value=None)
     set_iam_properties(**info_obj)
