@@ -20,7 +20,7 @@ ALL_IDP: typing.List[str] = ["okta_browser_idp", "azure_browser_idp"] + NON_BROW
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
 def test_credential_provider_dne_should_fail(idp_arg):
     idp_arg["credentials_provider"] = "WrongProvider"
-    with pytest.raises(redshift_connector.InterfaceError, match="Invalid credentials provider" + "WrongProvider"):
+    with pytest.raises(redshift_connector.InterfaceError, match="Invalid credentials provider WrongProvider"):
         redshift_connector.connect(**idp_arg)
 
 

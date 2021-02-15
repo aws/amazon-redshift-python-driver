@@ -138,5 +138,5 @@ def testSslAndIam(idp_arg):
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
 def testWrongCredentialsProvider(idp_arg):
     idp_arg["credentials_provider"] = "WrongProvider"
-    with pytest.raises(redshift_connector.InterfaceError, match="Invalid credentials provider" + "WrongProvider"):
+    with pytest.raises(redshift_connector.InterfaceError, match="Invalid credentials provider WrongProvider"):
         redshift_connector.connect(**idp_arg)

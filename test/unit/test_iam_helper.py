@@ -1,4 +1,5 @@
 import typing
+from test.unit import MockCredentialsProvider
 
 import pytest  # type: ignore
 from pytest_mock import mocker
@@ -321,3 +322,19 @@ def test_set_iam_credentials_via_aws_credentials(mocker):
     assert spy.called is True
     assert spy.call_count == 1
     assert spy.call_args[0][1] == redshift_property
+
+
+def test_dynamically_loading_credential_holder(mocker):
+    external_class_name: str = "test.unit.MockCredentialsProvider"
+    mocker.patch("{}.get_credentials".format(external_class_name))
+    mocker.patch("redshift_connector.iam_helper.set_cluster_credentials", return_value=None)
+    rp: RedshiftProperty = make_redshift_property()
+    rp.credentials_provider = external_class_name
+
+    spy = mocker.spy(MockCredentialsProvider, "add_parameter")
+
+    set_iam_credentials(rp)
+    assert spy.called
+    assert spy.call_count == 1
+    # ensure call to add_Parameter was made on the expected Provider class
+    assert isinstance(spy.call_args[0][0], MockCredentialsProvider) is True
