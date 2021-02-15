@@ -94,3 +94,6 @@ class RedshiftProperty:
     idp_response_timeout: int = 120
     listen_port: int = 7890
     login_url: typing.Optional[str] = None
+    web_identity_token: typing.Optional[str] = None
+    role_session_name: typing.Optional[str] = None
+    role_arn: typing.Optional[str] = None

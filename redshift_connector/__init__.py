@@ -117,6 +117,9 @@ def connect(
     client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
     database_metadata_current_db_only: bool = True,
     ssl_insecure: typing.Optional[bool] = None,
+    web_identity_token: typing.Optional[str] = None,
+    role_session_name: typing.Optional[str] = None,
+    role_arn: typing.Optional[str] = None,
 ) -> Connection:
 
     info: RedshiftProperty = RedshiftProperty()
@@ -164,6 +167,9 @@ def connect(
         client_protocol_version=client_protocol_version,
         database_metadata_current_db_only=database_metadata_current_db_only,
         ssl_insecure=ssl_insecure,
+        web_identity_token=web_identity_token,
+        role_session_name=role_session_name,
+        role_arn=role_arn,
     )
 
     return Connection(

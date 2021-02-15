@@ -90,6 +90,9 @@ class IamHelper:
         client_protocol_version: int,
         database_metadata_current_db_only: bool,
         ssl_insecure: typing.Optional[bool],
+        web_identity_token: typing.Optional[str],
+        role_session_name: typing.Optional[str],
+        role_arn: typing.Optional[str],
     ) -> None:
         """
         Helper function to handle IAM connection properties and ensure required parameters are specified.
@@ -241,6 +244,11 @@ class IamHelper:
         info.login_url = login_url
         info.partner_sp_id = partner_sp_id
 
+        # Jwt idp parameters
+        info.web_identity_token = web_identity_token
+        info.role_session_name = role_session_name
+        info.role_arn = role_arn
+
         if info.iam is True:
             IamHelper.set_iam_credentials(info)
         else:
@@ -253,7 +261,7 @@ class IamHelper:
         """
         klass: typing.Optional[SamlCredentialsProvider] = None
         provider: typing.Union[SamlCredentialsProvider, AWSCredentialsProvider]
-        # case insensitive comparison
+
         if info.credentials_provider is not None:
             try:
                 klass = dynamic_plugin_import(info.credentials_provider)
