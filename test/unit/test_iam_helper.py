@@ -1,13 +1,17 @@
+import datetime
 import typing
 from test.unit import MockCredentialsProvider
+from unittest import mock
+from unittest.mock import MagicMock, call
 
 import pytest  # type: ignore
+from dateutil.tz import tzutc
 from pytest_mock import mocker
 
-from redshift_connector import InterfaceError, RedshiftProperty, set_iam_properties
+from redshift_connector import InterfaceError, RedshiftProperty
 from redshift_connector.auth import AWSCredentialsProvider
 from redshift_connector.config import ClientProtocolVersion
-from redshift_connector.iam_helper import set_iam_credentials
+from redshift_connector.iam_helper import IamHelper
 from redshift_connector.plugin import (
     AdfsCredentialsProvider,
     AzureCredentialsProvider,
@@ -20,12 +24,12 @@ from redshift_connector.plugin import (
 
 @pytest.fixture
 def mock_set_iam_credentials(mocker):
-    mocker.patch("redshift_connector.iam_helper.set_iam_credentials", return_value=None)
+    mocker.patch("redshift_connector.iam_helper.IamHelper.set_iam_credentials", return_value=None)
 
 
 @pytest.fixture
 def mock_set_cluster_credentials(mocker):
-    mocker.patch("redshift_connector.iam_helper.set_cluster_credentials", return_value=None)
+    mocker.patch("redshift_connector.iam_helper.IamHelper.set_cluster_credentials", return_value=None)
 
 
 @pytest.fixture
@@ -99,7 +103,7 @@ required_params: typing.List[str] = ["info", "user", "host", "database", "port",
 def test_set_iam_properties_fails_when_info_is_none(missing_param):
     keywords: typing.Dict = {missing_param: None}
     with pytest.raises(InterfaceError) as excinfo:
-        set_iam_properties(**get_set_iam_properties_args(**keywords))
+        IamHelper.set_iam_properties(**get_set_iam_properties_args(**keywords))
     assert "Invalid connection property setting" in str(excinfo.value)
 
 
@@ -123,7 +127,7 @@ def test_set_iam_properties_enforce_min_ssl_mode(ssl_param):
     all_params: typing.Dict = get_set_iam_properties_args(**keywords)
     assert all_params["sslmode"] == test_input
 
-    set_iam_properties(**all_params)
+    IamHelper.set_iam_properties(**all_params)
     assert all_params["info"].sslmode == expected_mode
 
 
@@ -136,7 +140,7 @@ def test_set_iam_properties_enforce_client_protocol_version(_input):
     all_params: typing.Dict = get_set_iam_properties_args(**keywords)
     assert all_params["client_protocol_version"] == _input
 
-    set_iam_properties(**all_params)
+    IamHelper.set_iam_properties(**all_params)
     assert all_params["info"].client_protocol_version == _input
 
 
@@ -223,7 +227,7 @@ def test_set_iam_properties_enforce_setting_compatibility(mocker, joint_params):
     test_input, expected_exception_msg = joint_params
 
     with pytest.raises(InterfaceError) as excinfo:
-        set_iam_properties(**get_set_iam_properties_args(**test_input))
+        IamHelper.set_iam_properties(**get_set_iam_properties_args(**test_input))
     assert expected_exception_msg in str(excinfo.value)
 
 
@@ -241,6 +245,8 @@ def make_redshift_property() -> RedshiftProperty:
     rp: RedshiftProperty = RedshiftProperty()
     rp.user_name = "mario@luigi.com"
     rp.password = "bowser"
+    rp.db_name = "dev"
+    rp.cluster_identifier = "something"
     rp.idp_host = "8000"
     rp.duration = 100
     rp.preferred_role = "analyst"
@@ -270,7 +276,7 @@ def test_set_iam_properties_provider_assigned(mocker, provider):
 
     spy = mocker.spy(expectedProvider, "add_parameter")
 
-    set_iam_credentials(rp)
+    IamHelper.set_iam_credentials(rp)
     assert spy.called
     assert spy.call_count == 1
     # ensure call to add_Parameter was made on the expected Provider class
@@ -293,8 +299,8 @@ def test_set_iam_properties_via_aws_credentials(mocker, test_input):
     info_obj["iam"] = True
     info_obj["cluster_identifier"] = "blah"
 
-    mocker.patch("redshift_connector.iam_helper.set_iam_credentials", return_value=None)
-    set_iam_properties(**info_obj)
+    mocker.patch("redshift_connector.iam_helper.IamHelper.set_iam_credentials", return_value=None)
+    IamHelper.set_iam_properties(**info_obj)
 
     for aws_cred_key, aws_cred_val in enumerate(test_input):
         if aws_cred_key == "profile":
@@ -316,10 +322,10 @@ def test_set_iam_credentials_via_aws_credentials(mocker):
     redshift_property.secret_access_key = "secret_val"
     redshift_property.session_token = "session_val"
 
-    mocker.patch("redshift_connector.iam_helper.set_cluster_credentials", return_value=None)
+    mocker.patch("redshift_connector.iam_helper.IamHelper.set_cluster_credentials", return_value=None)
     spy = mocker.spy(AWSCredentialsProvider, "add_parameter")
 
-    set_iam_credentials(redshift_property)
+    IamHelper.set_iam_credentials(redshift_property)
     assert spy.called is True
     assert spy.call_count == 1
     assert spy.call_args[0][1] == redshift_property
@@ -328,14 +334,155 @@ def test_set_iam_credentials_via_aws_credentials(mocker):
 def test_dynamically_loading_credential_holder(mocker):
     external_class_name: str = "test.unit.MockCredentialsProvider"
     mocker.patch("{}.get_credentials".format(external_class_name))
-    mocker.patch("redshift_connector.iam_helper.set_cluster_credentials", return_value=None)
+    mocker.patch("redshift_connector.iam_helper.IamHelper.set_cluster_credentials", return_value=None)
     rp: RedshiftProperty = make_redshift_property()
     rp.credentials_provider = external_class_name
 
     spy = mocker.spy(MockCredentialsProvider, "add_parameter")
 
-    set_iam_credentials(rp)
+    IamHelper.set_iam_credentials(rp)
     assert spy.called
     assert spy.call_count == 1
     # ensure call to add_Parameter was made on the expected Provider class
     assert isinstance(spy.call_args[0][0], MockCredentialsProvider) is True
+
+
+def test_get_credentials_cache_key():
+    rp: RedshiftProperty = RedshiftProperty()
+    rp.db_user = "2"
+    rp.db_name = "1"
+    rp.db_groups = ["4", "3", "5"]
+    rp.cluster_identifier = "6"
+    rp.auto_create = False
+
+    res_cache_key: str = IamHelper.get_credentials_cache_key(rp)
+    assert res_cache_key is not None
+    assert res_cache_key == "2;1;3,4,5;6;False"
+
+
+def test_get_credentials_cache_key_no_db_groups():
+    rp: RedshiftProperty = RedshiftProperty()
+    rp.db_user = "2"
+    rp.db_name = "1"
+    rp.cluster_identifier = "6"
+    rp.auto_create = False
+
+    res_cache_key: str = IamHelper.get_credentials_cache_key(rp)
+    assert res_cache_key is not None
+    assert res_cache_key == "2;1;;6;False"
+
+
+@mock.patch("boto3.client.get_cluster_credentials")
+@mock.patch("boto3.client.describe_clusters")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_caches_credentials(
+    mock_boto_client, mock_describe_clusters, mock_get_cluster_credentials
+):
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_holder.has_associated_session = False
+
+    rp: RedshiftProperty = make_redshift_property()
+
+    IamHelper.credentials_cache.clear()
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+    assert len(IamHelper.credentials_cache) == 1
+
+    assert mock_boto_client.called is True
+    mock_boto_client.assert_has_calls(
+        [
+            call().get_cluster_credentials(
+                AutoCreate=rp.auto_create,
+                ClusterIdentifier=rp.cluster_identifier,
+                DbGroups=rp.db_groups,
+                DbName=rp.db_name,
+                DbUser=rp.db_user,
+            )
+        ]
+    )
+
+
+@mock.patch("boto3.client.get_cluster_credentials")
+@mock.patch("boto3.client.describe_clusters")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_uses_cache_if_possible(
+    mock_boto_client, mock_describe_clusters, mock_get_cluster_credentials
+):
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_holder.has_associated_session = False
+
+    rp: RedshiftProperty = make_redshift_property()
+    # mock out the boto3 response temporary credentials stored from prior auth
+    mock_cred_obj: typing.Dict[str, typing.Union[str, datetime.datetime]] = {
+        "DbUser": "xyz",
+        "DbPassword": "turtle",
+        "Expiration": datetime.datetime(9999, 1, 1, tzinfo=tzutc()),
+    }
+    # populate the cache
+    IamHelper.credentials_cache.clear()
+    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] = mock_cred_obj
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+    assert len(IamHelper.credentials_cache) == 1
+    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] is mock_cred_obj
+    assert mock_boto_client.called is True
+
+    assert rp.user_name == mock_cred_obj["DbUser"]
+    assert rp.password == mock_cred_obj["DbPassword"]
+
+    assert (
+        call().get_cluster_credentials(
+            AutoCreate=rp.auto_create,
+            ClusterIdentifier=rp.cluster_identifier,
+            DbGroups=rp.db_groups,
+            DbName=rp.db_name,
+            DbUser=rp.db_user,
+        )
+        not in mock_boto_client.mock_calls
+    )
+
+
+@mock.patch("boto3.client.get_cluster_credentials")
+@mock.patch("boto3.client.describe_clusters")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_refreshes_stale_credentials(
+    mock_boto_client, mock_describe_clusters, mock_get_cluster_credentials
+):
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_holder.has_associated_session = False
+
+    rp: RedshiftProperty = make_redshift_property()
+    # mock out the boto3 response temporary credentials stored from prior auth (now stale)
+    mock_cred_obj: typing.Dict[str, typing.Union[str, datetime.datetime]] = {
+        "DbUser": "xyz",
+        "DbPassword": "turtle",
+        "Expiration": datetime.datetime(1, 1, 1, tzinfo=tzutc()),
+    }
+    # populate the cache
+    IamHelper.credentials_cache.clear()
+    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] = mock_cred_obj
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+    assert len(IamHelper.credentials_cache) == 1
+    # ensure new temporary credentials have been replaced in cache
+    assert IamHelper.get_credentials_cache_key(rp) in IamHelper.credentials_cache
+    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] is not mock_cred_obj
+    assert mock_boto_client.called is True
+
+    mock_boto_client.assert_has_calls(
+        [
+            call().get_cluster_credentials(
+                AutoCreate=rp.auto_create,
+                ClusterIdentifier=rp.cluster_identifier,
+                DbGroups=rp.db_groups,
+                DbName=rp.db_name,
+                DbUser=rp.db_user,
+            )
+        ]
+    )

@@ -140,3 +140,23 @@ def testWrongCredentialsProvider(idp_arg):
     idp_arg["credentials_provider"] = "WrongProvider"
     with pytest.raises(redshift_connector.InterfaceError, match="Invalid credentials provider WrongProvider"):
         redshift_connector.connect(**idp_arg)
+
+
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+def use_cached_temporary_credentials(idp_arg):
+    # ensure nothing is in the credential cache
+    redshift_connector.IamHelper.credentials_cache.clear()
+
+    with redshift_connector.connect(**idp_arg):
+        pass
+
+    assert len(redshift_connector.IamHelper.credentials_cache) == 1
+    first_cred_cache_entry = redshift_connector.IamHelper.credentials_cache.popitem()
+
+    with redshift_connector.connect(**idp_arg):
+        pass
+
+    # we should have used the temporary credentials retrieved in first AWS API call, verify cache still
+    # holds these
+    assert len(redshift_connector.IamHelper.credentials_cache) == 1
+    assert first_cred_cache_entry == redshift_connector.IamHelper.credentials_cache.popitem()
