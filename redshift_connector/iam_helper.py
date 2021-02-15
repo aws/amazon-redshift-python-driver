@@ -11,15 +11,7 @@ from redshift_connector.credentials_holder import (
     CredentialsHolder,
 )
 from redshift_connector.error import InterfaceError
-from redshift_connector.plugin import (
-    AdfsCredentialsProvider,
-    AzureCredentialsProvider,
-    BrowserAzureCredentialsProvider,
-    BrowserSamlCredentialsProvider,
-    OktaCredentialsProvider,
-    PingCredentialsProvider,
-    SamlCredentialsProvider,
-)
+from redshift_connector.plugin import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -28,6 +20,14 @@ _logger: logging.Logger = logging.getLogger(__name__)
 class SSLMode(Enum):
     VERIFY_CA: str = "verify-ca"
     VERIFY_FULL: str = "verify-full"
+
+
+def dynamic_plugin_import(name: str):
+    components = name.split(".")
+    mod = __import__(components[0])
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+    return mod
 
 
 # Helper function to handle IAM connection properties. If any IAM related connection property
@@ -226,29 +226,27 @@ def set_iam_properties(
 
 # Helper function to create the appropriate credential providers.
 def set_iam_credentials(info: RedshiftProperty) -> None:
-    provider: typing.Optional[typing.Union[SamlCredentialsProvider, AWSCredentialsProvider]] = None
+    klass: typing.Optional[SamlCredentialsProvider] = None
+    provider: typing.Union[SamlCredentialsProvider, AWSCredentialsProvider]
     # case insensitive comparison
     if info.credentials_provider is not None:
-        if info.credentials_provider.lower() == "OktaCredentialsProvider".lower():
-            provider = OktaCredentialsProvider()
-            provider.add_parameter(info)
-        elif info.credentials_provider.lower() == "AzureCredentialsProvider".lower():
-            provider = AzureCredentialsProvider()
-            provider.add_parameter(info)
-        elif info.credentials_provider.lower() == "BrowserAzureCredentialsProvider".lower():
-            provider = BrowserAzureCredentialsProvider()
-            provider.add_parameter(info)
-        elif info.credentials_provider.lower() == "PingCredentialsProvider".lower():
-            provider = PingCredentialsProvider()
-            provider.add_parameter(info)
-        elif info.credentials_provider.lower() == "BrowserSamlCredentialsProvider".lower():
-            provider = BrowserSamlCredentialsProvider()
-            provider.add_parameter(info)
-        elif info.credentials_provider.lower() == "AdfsCredentialsProvider".lower():
-            provider = AdfsCredentialsProvider()
-            provider.add_parameter(info)
-        else:
-            raise InterfaceError("Invalid credentials provider" + info.credentials_provider)
+        try:
+            klass = dynamic_plugin_import(info.credentials_provider)
+            provider = klass()  # type: ignore
+            provider.add_parameter(info)  # type: ignore
+        except (AttributeError, ModuleNotFoundError):
+            _logger.debug("Failed to load user defined plugin: {}".format(info.credentials_provider))
+            try:
+                klass = dynamic_plugin_import("redshift_connector.plugin.{}".format(info.credentials_provider))
+                provider = klass()  # type: ignore
+                provider.add_parameter(info)  # type: ignore
+            except (AttributeError, ModuleNotFoundError):
+                _logger.debug(
+                    "Failed to load pre-defined IdP plugin from redshift_connector.plugin: {}".format(
+                        info.credentials_provider
+                    )
+                )
+                raise InterfaceError("Invalid credentials provider " + info.credentials_provider)
     else:  # indicates AWS Credentials will be used
         provider = AWSCredentialsProvider()
         provider.add_parameter(info)

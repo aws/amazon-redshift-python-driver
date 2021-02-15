@@ -1,6 +1,7 @@
 import logging
 import typing
 
+from redshift_connector import plugin
 from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
 from redshift_connector.core import BINARY, Connection, Cursor
 from redshift_connector.error import (
