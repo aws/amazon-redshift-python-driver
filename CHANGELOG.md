@@ -2,6 +2,27 @@ Changelog
 =========
 
 
+v2.0.874 (2021-02-15)
+---------------------
+- Docs(connection): update connection parameters. [Brooke White]
+- Refactor(tests): modify config for use with CI. [Brooke White]
+- Test(IdP, JwtCredentialsProvider): JWT SSO IdP support. [Brooke White]
+- Feat(IdP, JwtCredentialsProvider): support JWT SSO IdP. [Brooke White]
+- Test(idp): cached temporary AWS credentials used if present and valid.
+  [Brooke White]
+- Feat(idp): cache temporary aws credentials to reduce calls to AWS API.
+  [Brooke White]
+- Refactor(adfs_credentials_provider): explicitly specify lxml as parser
+  for server response. [Brooke White]
+- Refactor(iam_helper): simplify validation of sslmode connection
+  parameter. [Brooke White]
+- Fix(connection): require cluster_identifier when IAM is enabled.
+  [Brooke White]
+- Test(IdP): dynamic loading and use of external IdP plugin. [Brooke
+  White]
+- Feat(IdP): support dynamically loaded IdP plugins. [Brooke White]
+
+
 v2.0.873 (2021-01-25)
 ---------------------
 - Docs(auth): IAM credential authentication. [Brooke White]
