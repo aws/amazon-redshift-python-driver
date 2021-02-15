@@ -15,11 +15,14 @@ from redshift_connector.iam_helper import IamHelper
 from redshift_connector.plugin import (
     AdfsCredentialsProvider,
     AzureCredentialsProvider,
+    BasicJwtCredentialsProvider,
     BrowserAzureCredentialsProvider,
     BrowserSamlCredentialsProvider,
     OktaCredentialsProvider,
     PingCredentialsProvider,
 )
+
+from .helpers import make_redshift_property
 
 
 @pytest.fixture
@@ -91,6 +94,9 @@ def get_set_iam_properties_args(**kwargs) -> typing.Dict[str, typing.Any]:
         "session_token": None,
         "profile": None,
         "ssl_insecure": None,
+        "web_identity_token": None,
+        "role_arn": None,
+        "role_session_name": None,
         **kwargs,
     }
 
@@ -238,27 +244,8 @@ valid_credential_providers: typing.List[typing.Tuple[str, typing.Any]] = [
     ("PingCredentialsProvider", PingCredentialsProvider),
     ("BrowserSamlCredentialsProvider", BrowserSamlCredentialsProvider),
     ("AdfsCredentialsProvider", AdfsCredentialsProvider),
+    ("BasicJwtCredentialsProvider", BasicJwtCredentialsProvider),
 ]
-
-
-def make_redshift_property() -> RedshiftProperty:
-    rp: RedshiftProperty = RedshiftProperty()
-    rp.user_name = "mario@luigi.com"
-    rp.password = "bowser"
-    rp.db_name = "dev"
-    rp.cluster_identifier = "something"
-    rp.idp_host = "8000"
-    rp.duration = 100
-    rp.preferred_role = "analyst"
-    rp.sslInsecure = False
-    rp.db_user = "primary"
-    rp.db_groups = ["employees"]
-    rp.force_lowercase = True
-    rp.auto_create = False
-    rp.region = "us-west-1"
-    rp.principal = "arn:aws:iam::123456789012:user/Development/product_1234/*"
-    rp.client_protocol_version = ClientProtocolVersion.BASE_SERVER
-    return rp
 
 
 def mock_add_parameter():

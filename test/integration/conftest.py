@@ -145,6 +145,48 @@ def adfs_idp():
     return db_connect
 
 
+@pytest.fixture(scope="class")
+def jwt_google_idp():
+    db_connect = {
+        "database": conf.get("database", "database"),
+        "host": conf.get("database", "host"),
+        "port": conf.getint("database", "port"),
+        "db_user": conf.get("database", "user"),
+        "ssl": conf.getboolean("database", "ssl"),
+        "sslmode": conf.get("database", "sslmode"),
+        "iam": conf.getboolean("jwt-google-idp", "iam"),
+        "user": conf.get("database", "user"),
+        "password": conf.get("jwt-google-idp", "password"),
+        "credentials_provider": conf.get("jwt-google-idp", "credentials_provider"),
+        "region": conf.get("jwt-google-idp", "region"),
+        "cluster_identifier": conf.get("jwt-google-idp", "cluster_identifier"),
+        "web_identity_token": conf.get("jwt-google-idp", "web_identity_token"),
+        "preferred_role": conf.get("jwt-google-idp", "preferred_role"),
+    }
+    return db_connect
+
+
+@pytest.fixture(scope="class")
+def jwt_azure_v2_idp():
+    db_connect = {
+        "database": conf.get("database", "database"),
+        "host": conf.get("database", "host"),
+        "port": conf.getint("database", "port"),
+        "db_user": conf.get("database", "user"),
+        "ssl": conf.getboolean("database", "ssl"),
+        "sslmode": conf.get("database", "sslmode"),
+        "iam": conf.getboolean("jwt-azure-v2-idp", "iam"),
+        "user": conf.get("database", "user"),
+        "password": conf.get("jwt-azure-v2-idp", "password"),
+        "credentials_provider": conf.get("jwt-azure-v2-idp", "credentials_provider"),
+        "region": conf.get("jwt-azure-v2-idp", "region"),
+        "cluster_identifier": conf.get("jwt-azure-v2-idp", "cluster_identifier"),
+        "web_identity_token": conf.get("jwt-azure-v2-idp", "web_identity_token"),
+        "preferred_role": conf.get("jwt-azure-v2-idp", "preferred_role"),
+    }
+    return db_connect
+
+
 @pytest.fixture
 def con(request, db_kwargs):
     conn = redshift_connector.connect(**db_kwargs)

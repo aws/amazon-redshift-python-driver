@@ -1,7 +1,16 @@
 import configparser
 import os
 import typing
-from test import azure_browser_idp, idp_arg, okta_browser_idp, okta_idp
+from test import (
+    adfs_idp,
+    azure_browser_idp,
+    azure_idp,
+    idp_arg,
+    jwt_azure_v2_idp,
+    jwt_google_idp,
+    okta_browser_idp,
+    okta_idp,
+)
 
 import pytest  # type: ignore
 
@@ -12,9 +21,14 @@ root_path = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file_
 conf.read(root_path + "/config.ini")
 
 
-NON_BROWSER_IDP: typing.List[str] = ["okta_idp"]
+NON_BROWSER_IDP: typing.List[str] = ["okta_idp", "azure_idp", "adfs_idp"]
 
-ALL_IDP: typing.List[str] = ["okta_browser_idp", "azure_browser_idp"] + NON_BROWSER_IDP
+ALL_IDP: typing.List[str] = [
+    "okta_browser_idp",
+    "azure_browser_idp",
+    "jwt_google_idp",
+    "jwt_azure_v2_idp",
+] + NON_BROWSER_IDP
 
 
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
