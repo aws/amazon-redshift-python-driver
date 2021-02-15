@@ -49,7 +49,7 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             raise InterfaceError(e)
 
         try:
-            soup = bs4.BeautifulSoup(response.text)
+            soup = bs4.BeautifulSoup(response.text, features="lxml")
         except Exception as e:
             _logger.error("An error occurred while parsing response: {}".format(str(e)))
             raise InterfaceError(e)
@@ -89,7 +89,7 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             raise InterfaceError(e)
 
         try:
-            soup = bs4.BeautifulSoup(response.text)
+            soup = bs4.BeautifulSoup(response.text, features="lxml")
         except Exception as e:
             _logger.error("An error occurred while parsing response: {}".format(str(e)))
             raise InterfaceError(e)
