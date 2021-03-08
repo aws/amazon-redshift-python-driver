@@ -6,10 +6,12 @@ from test import (
     azure_browser_idp,
     azure_idp,
     idp_arg,
+    jumpcloud_browser_idp,
     jwt_azure_v2_idp,
     jwt_google_idp,
     okta_browser_idp,
     okta_idp,
+    ping_browser_idp,
 )
 
 import pytest  # type: ignore
@@ -26,6 +28,8 @@ NON_BROWSER_IDP: typing.List[str] = ["okta_idp", "azure_idp", "adfs_idp"]
 ALL_IDP: typing.List[str] = [
     "okta_browser_idp",
     "azure_browser_idp",
+    "jumpcloud_browser_idp",
+    "ping_browser_idp",
     "jwt_google_idp",
     "jwt_azure_v2_idp",
 ] + NON_BROWSER_IDP

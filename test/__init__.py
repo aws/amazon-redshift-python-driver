@@ -8,4 +8,5 @@ from test.integration import (
     jwt_google_idp,
     okta_browser_idp,
     okta_idp,
+    ping_browser_idp,
 )

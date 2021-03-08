@@ -106,6 +106,18 @@ def jumpcloud_browser_idp():
 
 
 @pytest.fixture(scope="class")
+def ping_browser_idp():
+    db_connect = {
+        "iam": conf.getboolean("ping-one-idp", "iam"),
+        "credentials_provider": conf.get("ping-one-idp", "credentials_provider"),
+        "login_url": conf.get("ping-one-idp", "login_url"),
+        "listen_port": conf.getint("ping-one-idp", "listen_port"),
+        "idp_response_timeout": conf.getint("ping-one-idp", "idp_response_timeout"),
+    }
+    return {**_get_default_connection_args(), **db_connect}
+
+
+@pytest.fixture(scope="class")
 def azure_idp():
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user"),
