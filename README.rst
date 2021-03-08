@@ -74,6 +74,18 @@ Basic Example
     print(result)
     >> (['One Hundred Years of Solitude', 'Gabriel García Márquez'], ['A Brief History of Time', 'Stephen Hawking'])
 
+Enabling autocommit
+~~~~~~~~~~~~~~~~~~~
+**Following the DB-API specification, autocommit is off by default**. It can be turned on by using the autocommit property of the connection.
+
+.. code-block:: py3
+
+    # Make sure we're not in a transaction
+    con.rollback()
+    con.autocommit = True
+    con.run("VACUUM")
+    con.autocommit = False
+
 Example using IAM Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 IAM Credentials can be supplied directly to ``connect(...)`` using an AWS profile as shown below:
