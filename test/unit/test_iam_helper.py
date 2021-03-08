@@ -271,10 +271,16 @@ def test_set_iam_properties_provider_assigned(mocker, provider):
 
 
 valid_aws_credential_args: typing.List[typing.Dict[str, str]] = [
-    {"profile": "default"},
-    {"access_key_id": "myAccessKey", "secret_access_key": "mySecret"},
-    {"access_key_id": "myAccessKey", "password": "myHiddenSecret"},
-    {"access_key_id": "myAccessKey", "secret_access_key": "mySecret", "session_token": "mySession"},
+    {"user": "", "password": "", "profile": "default"},
+    {"user": "", "password": "", "access_key_id": "myAccessKey", "secret_access_key": "mySecret"},
+    {"user": "", "secret_access_key": "", "access_key_id": "myAccessKey", "password": "myHiddenSecret"},
+    {
+        "user": "",
+        "password": "",
+        "access_key_id": "myAccessKey",
+        "secret_access_key": "mySecret",
+        "session_token": "mySession",
+    },
 ]
 
 
