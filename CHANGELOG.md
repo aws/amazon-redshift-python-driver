@@ -2,6 +2,17 @@ Changelog
 =========
 
 
+v2.0.875 (2021-03-08)
+---------------------
+- Fix(requirements): invalid version specifiers. [Brooke White]
+- Docs(autocommit): Provide autocommit usage example. [Brooke White]
+- Test(auth): add manual authentication tests. [Brooke White]
+- Test(iam_helper): update test cases without user and password. [Brooke
+  White]
+- Fix(credentials): user, password are not required when using AWS
+  credentials or AWS profile. [Brooke White]
+
+
 v2.0.874 (2021-02-15)
 ---------------------
 - Docs(connection): update connection parameters. [Brooke White]
