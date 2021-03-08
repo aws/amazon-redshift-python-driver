@@ -185,10 +185,12 @@ class IamHelper:
                 )
 
         if not all((user, host, database, port, password)):
-            raise InterfaceError(
-                "Invalid connection property setting. "
-                "user, password, host, database, port, and password  are required."
-            )
+            if (profile is None) and (access_key_id is None):
+                raise InterfaceError(
+                    "Invalid connection property setting. "
+                    "user, password, host, database and port are required "
+                    "when not using AWS credentials and AWS profile"
+                )
 
         if client_protocol_version not in ClientProtocolVersion.list():
             raise InterfaceError(
