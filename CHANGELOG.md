@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+v2.0.876 (2021-03-10)
+---------------------
+- Fix(dependency): bump max boto3, botocore version. [Brooke White]
+- Chore(dependency): bump lxml>=4.6.2. [Brooke White]
+
+
 v2.0.875 (2021-03-08)
 ---------------------
 - Fix(requirements): invalid version specifiers. [Brooke White]
