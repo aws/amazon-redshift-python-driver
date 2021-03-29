@@ -61,8 +61,8 @@ Basic Example
      )
 
     cursor: redshift_connector.Cursor = conn.cursor()
-    cursor.execute("create Temp table book(bookname varchar,author‎ varchar)")
-    cursor.executemany("insert into book (bookname, author‎) values (%s, %s)",
+    cursor.execute("create Temp table book(bookname varchar,author varchar)")
+    cursor.executemany("insert into book (bookname, author) values (%s, %s)",
                         [
                             ('One Hundred Years of Solitude', 'Gabriel García Márquez'),
                             ('A Brief History of Time', 'Stephen Hawking')
@@ -178,8 +178,8 @@ Integration with pandas
 .. code-block:: python
 
     import pandas
-    cursor.execute("create Temp table book(bookname varchar,author‎ varchar)")
-    cursor.executemany("insert into book (bookname, author‎) values (%s, %s)",
+    cursor.execute("create Temp table book(bookname varchar,author varchar)")
+    cursor.executemany("insert into book (bookname, author) values (%s, %s)",
                        [
                            ('One Hundred Years of Solitude', 'Gabriel García Márquez'),
                            ('A Brief History of Time', 'Stephen Hawking')
@@ -188,7 +188,7 @@ Integration with pandas
     cursor.execute("select * from book")
     result: pandas.DataFrame = cursor.fetch_dataframe()
     print(result)
-    >>                         bookname                 author‎
+    >>                         bookname                 author
     >> 0  One Hundred Years of Solitude  Gabriel García Márquez
     >> 1        A Brief History of Time         Stephen Hawking
 
