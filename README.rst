@@ -287,6 +287,53 @@ Connection Parameters
 | role_arn                          | str  | The Amazon Resource Name (ARN) of the role that the caller is assuming. This parameter is used by JwtCredentialsProvider. For this provider, this is a mandatory parameter.                                                                                                                                                                                           | None                 | No       |
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------+----------+
 
+Supported Datatypes
+~~~~~~~~~~~~~~~~~~~
+``redshift_connector`` supports the following Amazon Redshift datatypes. ``redshift_connector`` will attempt to treat unsupported datatypes as strings.
+Incoming data from Amazon Redshift is treated as follows:
+
++--------------------------+-------------------+
+| Amazon Redshift Datatype | Python Datatype   |
++==========================+===================+
+| BOOLEAN                  | bool              |
++--------------------------+-------------------+
+| INT8                     | int               |
++--------------------------+-------------------+
+| INT4                     | int               |
++--------------------------+-------------------+
+| INT2                     | int               |
++--------------------------+-------------------+
+| VARCHAR                  | str               |
++--------------------------+-------------------+
+| OID                      | int               |
++--------------------------+-------------------+
+| XID                      | int               |
++--------------------------+-------------------+
+| JSON                     | dict              |
++--------------------------+-------------------+
+| FLOAT4                   | float             |
++--------------------------+-------------------+
+| FLOAT8                   | float             |
++--------------------------+-------------------+
+| CHAR                     | str               |
++--------------------------+-------------------+
+| DATE                     | datetime.date     |
++--------------------------+-------------------+
+| TIME                     | datetime.time     |
++--------------------------+-------------------+
+| TIMETZ                   | datetime.time     |
++--------------------------+-------------------+
+| TIMESTAMP                | datetime.datetime |
++--------------------------+-------------------+
+| TIMESTAMPTZ              | datetime.datetime |
++--------------------------+-------------------+
+| NUMERIC                  | decimal.Decimal   |
++--------------------------+-------------------+
+| GEOMETRY                 | str               |
++--------------------------+-------------------+
+| SUPER                    | str               |
++--------------------------+-------------------+
+
 Logging
 ~~~~~~~~~~~~
 ``redshift_connector`` uses logging for providing detailed error messages regarding IdP authentication. A do-nothing handler is enabled by default as to prevent logs from being output to ``sys.stderr``.
