@@ -117,6 +117,10 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             response = requests.post(url, data=payload, headers=headers, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
+            if "response" in vars():
+                _logger.debug("fetch_saml_response https response: {}".format(response.text))  # type: ignore
+            else:
+                _logger.debug("fetch_saml_response could not receive https response due to an error")
             _logger.error("Request for authentication from Microsoft was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:

@@ -74,6 +74,12 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
+            if "response" in vars():
+                _logger.debug(
+                    "azure_oauth_based_authentication https response: {}".format(response.text)  # type: ignore
+                )
+            else:
+                _logger.debug("azure_oauth_based_authentication could not receive https response due to an error")
             _logger.error("Request for authentication from Azure was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:

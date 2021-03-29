@@ -35,6 +35,10 @@ class PingCredentialsProvider(SamlCredentialsProvider):
             response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
+            if "response" in vars():
+                _logger.debug("get_saml_assertion https response: {}".format(response.text))  # type: ignore
+            else:
+                _logger.debug("get_saml_assertion could not receive https response due to an error")
             _logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:

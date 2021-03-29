@@ -44,6 +44,10 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
+            if "response" in vars():
+                _logger.debug("okta_authentication https response: {}".format(response.text))  # type: ignore
+            else:
+                _logger.debug("okta_authentication could not receive https response due to an error")
             _logger.error("Request for authentication from Okta was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
