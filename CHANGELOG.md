@@ -2,6 +2,21 @@ Changelog
 =========
 
 
+v2.0.877 (2021-03-29)
+---------------------
+- Fix(dependency): bump requests, beautifulsoup4, pytz. [Brooke White]
+- Docs: add docstrings for methods directly used methods. [Brooke White]
+- Docs(installation): clarify installation methods. [Brooke White]
+- Fix(docs): remove pesky \u200e from usage examples. [Brooke White]
+- Refactor(IdP): log error response of SAML request. [Brooke White]
+- Chore: add dev dependency docutils. [Brooke White]
+- Docs(datatype): supported Amazon Redshift datatypes and Python
+  datatype counterpart. [Brooke White]
+- Docs(cursor, paramstyle): add explanation and examples. [Brooke White]
+- Fix(docs, connection-parameters): replace section header. [Brooke
+  White]
+
+
 v2.0.876 (2021-03-10)
 ---------------------
 - Fix(dependency): bump max boto3, botocore version. [Brooke White]
