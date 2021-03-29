@@ -26,8 +26,12 @@ This pure Python connector implements `Python Database API Specification 2.0 <ht
 Getting Started
 ---------------
 
+
+Install from Binary
+~~~~~~~~~~~~~~~~~~~
+
 +----------------------------------------------------------------+--------------------+-----------------------------------------------------+
-| Source                                                         | Downloads          | Installation Command                                |
+| Package Manager                                                | Downloads          | Installation Command                                |
 +================================================================+====================+=====================================================+
 | `PyPi <https://pypi.org/project/redshift-connector/>`_         |  |PyPi Downloads|  | ``pip install redshift_connector``                  |
 +----------------------------------------------------------------+--------------------+-----------------------------------------------------+
@@ -38,7 +42,9 @@ Getting Started
 .. |Conda Downloads| image:: https://img.shields.io/conda/dn/conda-forge/redshift_connector.svg
 
 
-Additionally, you may install from source by cloning this repository.
+Install from Source
+~~~~~~~~~~~~~~~~~~~
+You may install from source by cloning this repository.
 
 .. code-block:: sh
 
