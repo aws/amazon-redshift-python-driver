@@ -10,6 +10,12 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class PingCredentialsProvider(SamlCredentialsProvider):
+    """
+    Identity Provider Plugin providing single sign-on access to an Amazon Redshift cluster using PingOne,
+    See `Amazon Redshift docs  <https://docs.aws.amazon.com/redshift/latest/mgmt/options-for-providing-iam-credentials.html#setup-pingfederate-identity-provider>`_
+    for setup instructions.
+    """
+
     def __init__(self: "PingCredentialsProvider") -> None:
         super().__init__()
         self.partner_sp_id: typing.Optional[str] = None

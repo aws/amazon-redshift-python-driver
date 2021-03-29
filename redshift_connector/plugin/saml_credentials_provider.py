@@ -14,6 +14,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class SamlCredentialsProvider(ABC):
+    """
+    Generic Identity Provider Plugin providing single sign-on access to an Amazon Redshift cluster using an identity provider of your choice.
+    """
+
     def __init__(self: "SamlCredentialsProvider") -> None:
         self.user_name: typing.Optional[str] = None
         self.password: typing.Optional[str] = None

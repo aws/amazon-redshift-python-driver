@@ -366,7 +366,42 @@ class Connection:
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
         database_metadata_current_db_only: bool = True,
     ):
+        """
+        Creates a :class:`Connection` to an Amazon Redshift cluster. For more information on establishing a connection to an Amazon Redshift cluster using `federated API access <https://aws.amazon.com/blogs/big-data/federated-api-access-to-amazon-redshift-using-an-amazon-redshift-connector-for-python/>`_ see our examples page.
+        This is the underlying :class:`Connection` constructor called from :func:`redshift_connector.connect`.
 
+        Parameters
+        ----------
+        user : str
+            The username to use for authentication with the Amazon Redshift cluster.
+        password : str
+            The password to use for authentication with the Amazon Redshift cluster.
+        database : str
+            The name of the database instance to connect to.
+        host : str
+            The hostname of the Amazon Redshift cluster.
+        port : int
+            The port number of the Amazon Redshift cluster. Default value is 5439.
+        source_address : Optional[str]
+        unix_sock : Optional[str]
+        ssl : bool
+            Is SSL enabled. Default value is ``True``. SSL must be enabled when authenticating using IAM.
+        sslmode : str
+            The security of the connection to the Amazon Redshift cluster. 'verify-ca' and 'verify-full' are supported.
+        timeout : Optional[int]
+            The number of seconds before the connection to the server will timeout. By default there is no timeout.
+        max_prepared_statements : int
+        tcp_keepalive : Optional[bool]
+            Is `TCP keepalive <https://en.wikipedia.org/wiki/Keepalive#TCP_keepalive>`_ used. The default value is ``True``.
+        application_name : Optional[str]
+            Sets the application name. The default value is None.
+        replication : Optional[str]
+            Used to run in `streaming replication mode <https://www.postgresql.org/docs/12/protocol-replication.html>`_.
+        client_protocol_version : int
+            The requested server protocol version. The default value is 1 representing `EXTENDED_RESULT_METADATA`. If the requested server protocol cannot be satisfied, a warning will be displayed to the user.
+        database_metadata_current_db_only : bool
+            Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
+        """
         self.merge_socket_read = False
 
         _client_encoding = "utf8"
@@ -684,6 +719,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        A Cursor object associated with the current Connection: :class:`Cursor`
         """
         return Cursor(self)
 
@@ -691,7 +730,14 @@ class Connection:
     def description(self: "Connection") -> typing.Optional[typing.List]:
         return self._run_cursor._getDescription()
 
-    def run(self: "Connection", sql, stream=None, **params):
+    def run(self: "Connection", sql, stream=None, **params) -> typing.Tuple[typing.Any, ...]:
+        """
+        Executes an sql statement, and returns the results as a `tuple`.
+
+        Returns
+        -------
+        Result of executing an sql statement:tuple[Any, ...]
+        """
         self._run_cursor.execute(sql, params, stream=stream)
         return tuple(self._run_cursor._cached_rows)
 
@@ -700,6 +746,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        None:None
         """
         self.execute(self._cursor, "commit", None)
 
@@ -708,6 +758,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        None:None
         """
         if not self.in_transaction:
             return
@@ -718,6 +772,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        None:None
         """
         try:
             # Byte1('X') - Identifies the message as a terminate message.
@@ -908,6 +966,19 @@ class Connection:
             field["pg8000_fc"], field["func"] = pg_types[field["type_oid"]]
 
     def execute(self: "Connection", cursor: Cursor, operation: str, vals) -> None:
+        """
+        Executes a database operation. Parameters may be provided as a sequence, or as a mapping, depending upon the value of `redshift_connector.paramstyle`.
+
+        Parameters
+        ----------
+        cursor : :class:`Cursor`
+        operation : str The SQL statement to execute.
+        vals : If `redshift_connector.paramstyle` is `qmark`, `numeric`, or `format` this argument should be an array of parameters to bind into the statement. If `redshift_connector.paramstyle` is `named` the argument should be a `dict` mapping of parameters. If `redshift_connector.paramstyle` is `pyformat`, the argument value may be either an array or mapping.
+
+        Returns
+        -------
+        None:None
+        """
         if vals is None:
             vals = ()
 
@@ -1332,12 +1403,16 @@ class Connection:
 
         return (array_oid, fc, send_array)
 
-    def xid(self: "Connection", format_id, global_transaction_id, branch_qualifier):
+    def xid(self: "Connection", format_id, global_transaction_id, branch_qualifier) -> typing.Tuple:
         """Create a Transaction IDs (only global_transaction_id is used in pg)
         format_id and branch_qualifier are not used in postgres
         global_transaction_id may be any string identifier supported by
-        postgres returns a tuple
-        (format_id, global_transaction_id, branch_qualifier)"""
+        postgres.
+
+        Returns
+        -------
+        (format_id, global_transaction_id, branch_qualifier):typing.Tuple
+        """
         return (format_id, global_transaction_id, branch_qualifier)
 
     def tpc_begin(self: "Connection", xid) -> None:
@@ -1352,6 +1427,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        None:None
         """
         self._xid = xid
         if self.autocommit:
@@ -1367,6 +1446,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        None:None
         """
         if self._xid is None or len(self._xid) < 2:
             raise InterfaceError("Malformed Transaction Id")
@@ -1391,6 +1474,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        None:None
         """
         if xid is None:
             xid = self._xid
@@ -1423,6 +1510,10 @@ class Connection:
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        None:None
         """
         if xid is None:
             xid = self._xid
@@ -1443,12 +1534,16 @@ class Connection:
             self.autocommit = previous_autocommit_mode
         self._xid = None
 
-    def tpc_recover(self: "Connection"):
+    def tpc_recover(self: "Connection") -> typing.List[typing.Tuple[typing.Any, ...]]:
         """Returns a list of pending transaction IDs suitable for use with
         .tpc_commit(xid) or .tpc_rollback(xid).
 
         This function is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        Returns
+        -------
+        List of pending transaction IDs:List[tuple[Any, ...]]
         """
         try:
             previous_autocommit_mode: bool = self.autocommit

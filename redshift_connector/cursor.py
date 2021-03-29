@@ -77,6 +77,16 @@ class Cursor:
     """
 
     def __init__(self: "Cursor", connection: "Connection", paramstyle=None) -> None:
+        """
+        A cursor object is returned by the :meth:`~Connection.cursor` method of a connection.
+
+        Parameters
+        ----------
+        connection : :class:`Connection`
+            The :class:`Connection` object to associate with this :class:`Cursor`
+        paramstyle : Optional[str]
+            The DB-API paramstyle to use with this :class:`Cursor`
+        """
         self._c: typing.Optional["Connection"] = connection
         self.arraysize: int = 1
         self.ps: typing.Optional[typing.Dict[str, typing.Any]] = None
@@ -128,10 +138,10 @@ class Cursor:
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
 
-        :param operation:
+        :param operation: str
             The SQL statement to execute.
 
-        :param args:
+        :param args: typing.Union[typing.Mapping, typing.Dict, list]
             If :data:`paramstyle` is ``qmark``, ``numeric``, or ``format``,
             this argument should be an array of parameters to bind into the
             statement.  If :data:`paramstyle` is ``named``, the argument should
@@ -146,6 +156,11 @@ class Cursor:
             object, and for COPY TO it must be writable.
 
             .. versionadded:: 1.9.11
+
+        Returns
+        -------
+        The Cursor object used for executing the specified database operation: :class:`Cursor`
+
         """
         if self._c is None:
             raise InterfaceError("Cursor closed")
@@ -171,12 +186,16 @@ class Cursor:
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
 
-        :param operation:
+        :param operation: str
             The SQL statement to execute
         :param parameter_sets:
             A sequence of parameters to execute the statement with. The values
             in the sequence should be sequences or mappings of parameters, the
             same as the args argument of the :meth:`execute` method.
+
+        Returns
+        -------
+        The Cursor object used for executing the specified database operation: :class:`Cursor`
         """
         rowcounts: typing.List[int] = []
         for parameters in param_sets:
@@ -192,9 +211,9 @@ class Cursor:
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
 
-        :returns:
-            A row as a sequence of field values, or ``None`` if no more rows
-            are available.
+        Returns
+        -------
+        A row as a sequence of field values, or ``None`` if no more rows are available:typing.Optional[typing.List]
         """
         try:
             return next(self)
@@ -220,7 +239,8 @@ class Cursor:
 
             A sequence, each entry of which is a sequence of field values
             making up a row.  If no more rows are available, an empty sequence
-            will be returned.
+            will be returned.:typing.Tuple
+
         """
         try:
             return tuple(islice(self, self.arraysize if num is None else num))
@@ -236,7 +256,7 @@ class Cursor:
         :returns:
 
             A sequence, each entry of which is a sequence of field values
-            making up a row.
+            making up a row.:tuple
         """
         try:
             return tuple(self)
@@ -248,6 +268,13 @@ class Cursor:
 
         This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
+
+        A row as a sequence of field values, or ``None`` if no more rows
+            are available.
+
+        Returns
+        -------
+        None:None
         """
         self._c = None
 
@@ -284,7 +311,17 @@ class Cursor:
                 raise StopIteration()
 
     def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> typing.Optional["pandas.DataFrame"]:
-        """Return a dataframe of the last query results."""
+        """
+        Fetches a user defined number of rows of a query result as a :class:`pandas.DataFrame`.
+
+        Parameters
+        ----------
+        num : Optional[int] The number of rows to retrieve. If unspecified, all rows will be retrieved
+
+        Returns
+        -------
+        A `pandas.DataFrame` containing field values making up a row. A column label, derived from the row description of the table, is provided.:typing.Optional["pandas.Dataframe"]
+        """
         try:
             import pandas
         except ModuleNotFoundError:
@@ -340,7 +377,18 @@ class Cursor:
         return result[0] == 1 if result is not None else False
 
     def write_dataframe(self: "Cursor", df: "pandas.DataFrame", table: str) -> None:
-        """write same structure dataframe into Redshift database"""
+        """
+        Inserts a :class:`pandas.DataFrame` into an table within the current database.
+
+        Parameters
+        ----------
+        df : :class:`pandas.DataFrame` Contains row values to insert into `table`
+        table : str Name of an existing table in the current Amazon Redshift database to insert the values in `df`
+
+        Returns
+        -------
+        None: None
+        """
         try:
             import pandas
         except ModuleNotFoundError:
@@ -360,7 +408,17 @@ class Cursor:
             self.executemany(sql, arrays)
 
     def fetch_numpy_array(self: "Cursor", num: typing.Optional[int] = None) -> "numpy.ndarray":
-        """Return a numpy array of the last query results."""
+        """
+        Fetches a user defined number of rows of a query result as a :class:`numpy.ndarray`.
+
+        Parameters
+        ----------
+        num : int The number of rows to retrieve from the result set.
+
+        Returns
+        -------
+        A `numpy.ndarray` containing the results of a query executed::class:`numpy.ndarray`
+        """
         try:
             import numpy
         except ModuleNotFoundError:
@@ -556,6 +614,10 @@ class Cursor:
         """
         Redshift does not support multiple catalogs from a single connection, so to reduce confusion we only return the
         current catalog.
+
+        Returns
+        -------
+        A tuple containing the name of the current catalog: tuple
         """
         if self._c is None:
             raise InterfaceError("connection is closed")
@@ -579,7 +641,20 @@ class Cursor:
         table_name_pattern: typing.Optional[str] = None,
         types: list = [],
     ) -> tuple:
-        """Returns the unique public tables which are user-defined within the system"""
+        """
+        Returns the unique public tables which are user-defined within the system.
+
+        Parameters
+        ----------
+        catalog : Optional[str] The name of the catalog
+        schema_pattern : Optional[str] A valid pattern for desired schemas
+        table_name_pattern : Optional[str] A valid pattern for desired table names
+        types : Optional[list[str]] A list of `str` containing table types. By default table types is not used as a filter.
+
+        Returns
+        -------
+        A tuple containing unique public tables which are user-defined within the system: tuple
+        """
         if self._c is None:
             raise InterfaceError("connection is closed")
 
@@ -854,7 +929,20 @@ class Cursor:
         tablename_pattern: typing.Optional[str] = None,
         columnname_pattern: typing.Optional[str] = None,
     ) -> tuple:
-        """Returns a list of all columns in a specific table in Amazon Redshift database"""
+        """
+        Returns a list of all columns in a specific table in Amazon Redshift database.
+
+        Parameters
+        ----------
+        catalog : Optional[str] The name of the catalog
+        schema_pattern : Optional[str] A valid pattern for desired schemas
+        table_name_pattern : Optional[str] A valid pattern for desired table names
+        column_name_pattern : Optional[str] A valid pattern for desired column names
+
+        Returns
+        -------
+        A tuple containing all columns in a specific table in Amazon Redshift database: tuple
+        """
         if self._c is None:
             raise InterfaceError("connection is closed")
 

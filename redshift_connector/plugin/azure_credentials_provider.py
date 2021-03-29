@@ -12,6 +12,12 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 #  Class to get SAML Response from Microsoft Azure using OAuth 2.0 API
 class AzureCredentialsProvider(SamlCredentialsProvider):
+    """
+    Identity Provider Plugin providing single sign-on  access to an Amazon Redshift cluster using Azure,
+    See `Amazon Redshift docs  <https://docs.amazonaws.cn/en_us/redshift/latest/mgmt/options-for-providing-iam-credentials.html#setup-azure-ad-identity-provider/>`_
+    for setup instructions.
+    """
+
     def __init__(self: "AzureCredentialsProvider") -> None:
         super().__init__()
         self.idp_tenant: typing.Optional[str] = None

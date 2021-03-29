@@ -9,6 +9,12 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class AdfsCredentialsProvider(SamlCredentialsProvider):
+    """
+    Identity Provider Plugin providing federated access to an Amazon Redshift cluster using Active Directory Federation
+    Services, See `AWS Big Data Blog <https://aws.amazon.com/blogs/big-data/federate-access-to-your-amazon-redshift-cluster-with-active-directory-federation-services-ad-fs-part-1/>`_
+    for setup instructions.
+    """
+
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "AdfsCredentialsProvider") -> typing.Optional[str]:
         if self.idp_host == "" or self.idp_host is None:

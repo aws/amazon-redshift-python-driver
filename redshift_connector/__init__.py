@@ -121,7 +121,85 @@ def connect(
     role_session_name: typing.Optional[str] = None,
     role_arn: typing.Optional[str] = None,
 ) -> Connection:
+    """
+    Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
 
+    Parameters
+    ----------
+    user : str
+        The username to use for authentication with the Amazon Redshift cluster.
+    password : str
+        The password to use for authentication with the Amazon Redshift cluster.
+    database : str
+        The name of the database instance to connect to.
+    host : str
+        The hostname of the Amazon Redshift cluster.
+    port : int
+        The port number of the Amazon Redshift cluster. Default value is 5439.
+    source_address : typing.Optional[str]
+    unix_sock : Optional[str]
+    ssl : bool
+        Is SSL enabled. Default value is ``True``. SSL must be enabled when authenticating using IAM.
+    sslmode : str
+        The security of the connection to the Amazon Redshift cluster. 'verify-ca' and 'verify-full' are supported.
+    timeout : Optional[int]
+        The number of seconds before the connection to the server will timeout. By default there is no timeout.
+    max_prepared_statements : int
+    tcp_keepalive : Optional[bool]
+        Is `TCP keepalive <https://en.wikipedia.org/wiki/Keepalive#TCP_keepalive>`_ used. The default value is ``True``.
+    application_name : Optional[str]
+        Sets the application name. The default value is None.
+    replication : Optional[str]
+        Used to run in `streaming replication mode <https://www.postgresql.org/docs/12/protocol-replication.html>`_.
+    idp_host : Optional[str]
+        The hostname of the IdP.
+    db_user : str
+        The user ID to use with Amazon Redshift
+    app_id : Optional[str]
+    app_name : str
+        The name of the identity provider (IdP) application used for authentication.
+    preferred_role : str
+        The IAM role preferred for the current connection.
+    principal_arn : Optional[str]
+    credentials_provider : str
+        The class name of the IdP that will be used for authenticating with the Amazon Redshift cluster.
+    region : str
+        The AWS region where the Amazon Redshift cluster is located.
+    cluster_identifier : str
+        The cluster identifier of the Amazon Redshift cluster.
+    iam : bool
+        If IAM authentication is enabled. Default value is False. IAM must be True when authenticating using an IdP.
+    client_id : str
+        The client id from Azure IdP.
+    idp_tenant : str
+        The IdP tenant.
+    client_secret : str
+        The client secret from Azure IdP.
+    partner_sp_id : Optional[str]
+    idp_response_timeout : int
+        The timeout for retrieving SAML assertion from IdP. Default value is `120`.
+    listen_port : int
+        The listen port the IdP will send the SAML assertion to. Default value is `7890`.
+    login_url : str
+        The SSO url for the IdP.
+    auto_create :bool
+        Indicates whether the user should be created if they do not exist. Default value is `False`.
+    db_groups : str
+        A comma-separated list of existing database group names that the `db_user` joins for the current session.
+    force_lowercase :
+    allow_db_user_override : bool
+        Specifies if the driver uses the `db_user` value from the SAML assertion. TDefault value is `False`.
+    client_protocol_version : int
+         The requested server protocol version. The default value is 1 representing `EXTENDED_RESULT_METADATA`. If the requested server protocol cannot be satisfied, a warning will be displayed to the user.
+    database_metadata_current_db_only : bool
+        Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
+    ssl_insecure : bool
+        Specifies if IdP host's server certificate will be verified. Default value is True
+
+    Returns
+    -------
+    A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
+    """
     info: RedshiftProperty = RedshiftProperty()
     IamHelper.set_iam_properties(
         info,
@@ -209,6 +287,9 @@ This property is part of the `DBAPI 2.0 specification
 """
 
 paramstyle: str = "format"
+"""
+String property stating the type of parameter marker formatting expected by the interface; This value defaults to "format", in which parameters are marked in this format "WHERE name=%s"
+"""
 
 # I have no idea what this would be used for by a client app.  Should it be
 # TEXT, VARCHAR, CHAR?  It will only compare against row_description's
@@ -259,4 +340,5 @@ __all__: typing.Any = [
     "PGTsvector",
     "PGText",
     "PGVarchar",
+    "__version__",
 ]

@@ -14,6 +14,10 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 #  Class to get SAML Response
 class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
+    """
+    Generic Identity Provider Browser Plugin providing multi-factor authentication access to an Amazon Redshift cluster using an identity provider of your choice.
+    """
+
     def __init__(self: "BrowserSamlCredentialsProvider") -> None:
         super().__init__()
         self.login_url: typing.Optional[str] = None
