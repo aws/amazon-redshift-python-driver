@@ -86,6 +86,40 @@ Enabling autocommit
     con.run("VACUUM")
     con.autocommit = False
 
+
+Configuring cursor paramstyle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The paramstyle for a cursor can be modified via ``cursor.paramstyle``. The default paramstyle used is ``format``. Valid values for ``paramstyle`` include ``qmark, numeric, named, format, pyformat``.
+
+.. code-block:: python
+
+    # qmark
+    redshift_connector.paramstyle = 'qmark'
+    sql = 'insert into foo(bar, jar) VALUES(?, ?)'
+    cursor.execute(sql, (1, "hello world"))
+
+    # numeric
+    redshift_connector.paramstyle = 'numeric'
+    sql = 'insert into foo(bar, jar) VALUES(:1, :2)'
+    cursor.execute(sql, (1, "hello world"))
+
+    # named
+    redshift_connector.paramstyle = 'numeric'
+    sql = 'insert into foo(bar, jar) VALUES(:p1, :p2)'
+    cursor.execute(sql, p1=1, p2="hello world")
+
+    # format
+    redshift_connector.paramstyle = 'format'
+    sql = 'insert into foo(bar, jar) VALUES(%s, %s)'
+    cursor.execute(sql, (1, "hello world"))
+
+    # pyformat
+    redshift_connector.paramstyle = 'pyformat'
+    sql = 'insert into foo(bar, jar) VALUES(%(bar)s, %(jar)s)'
+    cursor.execute(sql, {"bar": 1, "jar": "hello world"})
+
+
+
 Example using IAM Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 IAM Credentials can be supplied directly to ``connect(...)`` using an AWS profile as shown below:
