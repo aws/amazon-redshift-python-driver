@@ -486,10 +486,7 @@ class Connection:
                     # ssl_context = ssl.create_default_context()
 
                     path = os.path.abspath(__file__)
-                    if os.name == "nt":
-                        path = "\\".join(path.split("\\")[:-1]) + "\\files\\redshift-ca-bundle.crt"
-                    else:
-                        path = "/".join(path.split("/")[:-1]) + "/files/redshift-ca-bundle.crt"
+                    path = "/".join(path.split("/")[:-1]) + "/files/redshift-ca-bundle.crt"
 
                     ssl_context: SSLContext = SSLContext()
                     ssl_context.verify_mode = CERT_REQUIRED
