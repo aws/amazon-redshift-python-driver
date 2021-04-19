@@ -2,6 +2,39 @@ Changelog
 =========
 
 
+v2.0.878 (2021-04-19)
+---------------------
+
+Fix
+~~~
+- Running code in windows environment (#30) [HuaHsin Lu]
+
+  * running code in windows environment
+
+  I was getting file not found error, as it turned out the path to the redshift-ca-bundle.crt was incorrectly constructed on MS Windows platform
+
+  * Revert "running code in windows environment"
+
+  This reverts commit efcf32bf7bc97fc7657a05d1e5a7fcdc20c6a17c.
+
+  * docs: running code in MS Windows
+
+Other
+~~~~~
+- Chore: apply pre-commit. [Brooke White]
+- Test(idp, JwtCredentialsProvider): derive db_user from jwt response.
+  [Brooke White]
+- Fix(idp, JwtCredentialsProvider): derive db_user from jwt token.
+  [Brooke White]
+- Test(connection, startup): support new startup message properties.
+  [Brooke White]
+- Fix(connection, startup): support new startup message properties.
+  [Brooke White]
+- Dev(pre-commit): bump hook versions. [Brooke White]
+- Fix(idp, ping): utilize sessions for retrieving SAML (#29) [Dalton
+  Conley, Dalton Conley]
+
+
 v2.0.877 (2021-03-29)
 ---------------------
 - Fix(dependency): bump requests, beautifulsoup4, pytz. [Brooke White]
