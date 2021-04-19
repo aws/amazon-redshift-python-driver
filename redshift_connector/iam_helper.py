@@ -146,6 +146,11 @@ class IamHelper:
                         "Invalid connection property setting. It is not valid to provide both Credentials provider and "
                         "AWS credentials or AWS profile"
                     )
+                elif not isinstance(credentials_provider, str):
+                    raise InterfaceError(
+                        "Invalid connection property setting. It is not valid to provide a non-string value to "
+                        "credentials_provider."
+                    )
                 else:
                     info.credentials_provider = credentials_provider
             elif profile is not None:
@@ -272,9 +277,11 @@ class IamHelper:
             except (AttributeError, ModuleNotFoundError):
                 _logger.debug("Failed to load user defined plugin: {}".format(info.credentials_provider))
                 try:
-                    klass = dynamic_plugin_import("redshift_connector.plugin.{}".format(info.credentials_provider))
+                    predefined_idp: str = "redshift_connector.plugin.{}".format(info.credentials_provider)
+                    klass = dynamic_plugin_import(predefined_idp)
                     provider = klass()  # type: ignore
                     provider.add_parameter(info)  # type: ignore
+                    info.credentials_provider = predefined_idp
                 except (AttributeError, ModuleNotFoundError):
                     _logger.debug(
                         "Failed to load pre-defined IdP plugin from redshift_connector.plugin: {}".format(

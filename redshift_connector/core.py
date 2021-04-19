@@ -47,6 +47,7 @@ from redshift_connector.utils import (
     FC_BINARY,
     NULL,
     NULL_BYTE,
+    DriverInfo,
     array_check_dimensions,
     array_dim_lengths,
     array_find_first_element,
@@ -347,6 +348,16 @@ class Connection:
         warn("DB-API extension connection.%s used" % error.__name__, stacklevel=3)
         return error
 
+    @property
+    def client_os_version(self: "Connection") -> str:
+        from platform import platform as CLIENT_PLATFORM
+
+        try:
+            os_version: str = CLIENT_PLATFORM()
+        except:
+            os_version = "unknown"
+        return os_version
+
     def __init__(
         self: "Connection",
         user: str,
@@ -365,6 +376,7 @@ class Connection:
         replication: typing.Optional[str] = None,
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
         database_metadata_current_db_only: bool = True,
+        credentials_provider: typing.Optional[str] = None,
     ):
         """
         Creates a :class:`Connection` to an Amazon Redshift cluster. For more information on establishing a connection to an Amazon Redshift cluster using `federated API access <https://aws.amazon.com/blogs/big-data/federated-api-access-to-amazon-redshift-using-an-amazon-redshift-connector-for-python/>`_ see our examples page.
@@ -401,6 +413,8 @@ class Connection:
             The requested server protocol version. The default value is 1 representing `EXTENDED_RESULT_METADATA`. If the requested server protocol cannot be satisfied, a warning will be displayed to the user.
         database_metadata_current_db_only : bool
             Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
+        credentials_provider : Optional[str]
+            The class-path of the IdP plugin used for authentication with Amazon Redshift.
         """
         self.merge_socket_read = False
 
@@ -432,7 +446,12 @@ class Connection:
             "application_name": application_name,
             "replication": replication,
             "client_protocol_version": str(self._client_protocol_version),
+            "driver_version": DriverInfo.driver_full_name(),
+            "os_version": self.client_os_version,
         }
+
+        if credentials_provider:
+            init_params["plugin_name"] = credentials_provider
 
         for k, v in tuple(init_params.items()):
             if isinstance(v, str):

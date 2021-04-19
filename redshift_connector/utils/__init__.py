@@ -6,6 +6,7 @@ from .array_util import (
     array_has_null,
     walk_array,
 )
+from .driver_info import DriverInfo
 from .type_utils import (
     FC_BINARY,
     NULL,

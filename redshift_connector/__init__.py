@@ -38,6 +38,7 @@ from redshift_connector.pg_types import (
     PGVarchar,
 )
 from redshift_connector.redshift_property import RedshiftProperty
+from redshift_connector.utils import DriverInfo
 
 from .version import __version__
 
@@ -267,6 +268,7 @@ def connect(
         replication=info.replication,
         client_protocol_version=info.client_protocol_version,
         database_metadata_current_db_only=database_metadata_current_db_only,
+        credentials_provider=info.credentials_provider,
     )
 
 
