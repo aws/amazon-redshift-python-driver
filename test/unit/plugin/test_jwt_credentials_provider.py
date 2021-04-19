@@ -1,4 +1,5 @@
 import base64
+import json
 import typing
 from test.unit.helpers import make_redshift_property
 from unittest.mock import MagicMock, patch
@@ -21,12 +22,13 @@ def make_jwtcredentialsprovider() -> JwtCredentialsProvider:
 
 def test_make_jwtcredentialsprovider():
     jwtcp: JwtCredentialsProvider = make_jwtcredentialsprovider()
-    assert hasattr(jwtcp, "role_arn")
     assert jwtcp.role_arn is None
-    assert hasattr(jwtcp, "duration")
+    assert jwtcp.jwt is None
+    assert jwtcp.role_session_name is JwtCredentialsProvider.DEFAULT_ROLE_SESSION_NAME
     assert jwtcp.duration is None
-    assert hasattr(jwtcp, "db_groups_filter")
-    assert jwtcp.db_groups_filter is None
+    assert jwtcp.db_user is None
+    assert jwtcp.sts_endpoint is None
+    assert jwtcp.region is None
 
 
 def test_jwtcredentialsprovider_add_parameter():
@@ -37,17 +39,20 @@ def test_jwtcredentialsprovider_add_parameter():
     _duration: int = 1234
     _role: str = "my_role"
     _session: str = "my_session"
+    _region: str = "something"
 
     rp.role_arn = _role
+    rp.web_identity_token = _wit
     rp.role_session_name = _session
     rp.duration = _duration
-    rp.web_identity_token = _wit
+    rp.region = _region
 
     jwtcp.add_parameter(rp)
     assert jwtcp.jwt == _wit
     assert jwtcp.duration == _duration
     assert jwtcp.role_arn == _role
     assert jwtcp.role_session_name == _session
+    assert jwtcp.region == _region
 
 
 cache_key_vals: typing.List[typing.Tuple] = [("a", "b", "c", "d"), ()]
@@ -121,7 +126,7 @@ def test_decode_jwt(_input):
         assert jwtcp.decode_jwt(jwt) == exp_result
 
 
-@pytest.mark.parametrize("_input", ["get_saml_assertion", "do_verify_ssl_cert", "get_form_action", "read_metadata"])
+@pytest.mark.parametrize("_input", ["get_saml_assertion", "do_verify_ssl_cert", "get_form_action"])
 def test_get_saml_assertion_not_implemented(_input):
     jwtcp: JwtCredentialsProvider = make_jwtcredentialsprovider()
     method_to_call = jwtcp.__getattribute__(_input)
@@ -191,6 +196,10 @@ def test_refresh_passes_jwt_to_boto3(mocker):
     mocker.patch(
         "redshift_connector.plugin.jwt_credentials_provider.JwtCredentialsProvider.decode_jwt", return_value=None
     )
+    mocker.patch(
+        "redshift_connector.plugin.jwt_credentials_provider.JwtCredentialsProvider.derive_database_user",
+        return_value="Mouse",
+    )
 
     jwtcp: JwtCredentialsProvider = make_jwtcredentialsprovider()
     mocked_orig_jwt: str = "initial value"
@@ -219,6 +228,62 @@ def test_refresh_passes_jwt_to_boto3(mocker):
     assert len(jwtcp.cache) == 1
     assert jwtcp.get_cache_key() in jwtcp.cache
     assert isinstance(jwtcp.cache[jwtcp.get_cache_key()], CredentialsHolder)
+
+
+test_jwt_resp_data: typing.List[str] = [
+    "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJPbmxpbmUgSldUIEJ1aWxkZXIiLCJpYXQiOjE2MTgyNTgzNjQsImV4cCI6MTY0OTc5NDM2NCwiYXVkIjoid3d3LmV4YW1wbGUuY29tIiwic3ViIjoianJvY2tldEBleGFtcGxlLmNvbSIsIkdpdmVuTmFtZSI6IkpvaG5ueSIsIlN1cm5hbWUiOiJSb2NrZXQiLCJFbWFpbCI6Impyb2NrZXRAZXhhbXBsZS5jb20iLCJSb2xlIjpbIk1hbmFnZXIiLCJQcm9qZWN0IEFkbWluaXN0cmF0b3IiXX0.4lCP0ZgrKo3f6lQ9AtMdFEeDD5fBnszN3Deo18VyJ-o"
+]
+
+
+@pytest.mark.parametrize("encoded_jwt", test_jwt_resp_data)
+def test_decode_jwt_resp(encoded_jwt):
+    bjwtcp: BasicJwtCredentialsProvider = BasicJwtCredentialsProvider()
+
+    decoded = bjwtcp.decode_jwt(encoded_jwt)
+    assert len(decoded) == 3
+    for idx, entry in enumerate(decoded[0:2]):
+        str_entry = entry.decode("utf-8")
+        data = json.loads(str_entry)
+        assert len(data) > 1
+
+        if idx == 0:
+            for exp_key in ("alg", "typ"):
+                assert exp_key in data
+        elif idx == 1:
+            for exp_key in ("iss", "iat", "exp", "aud", "sub", "GivenName", "Surname", "Email", "Role"):
+                assert exp_key in data
+
+
+@pytest.mark.parametrize("db_param", ["DbUser", "upn", "preferred_username", "email"])
+def test_derive_database_user(db_param):
+    data: typing.Dict[str, typing.Union[str, int]] = {
+        "iss": "Online JWT Builder",
+        "iat": 1618258364,
+        "exp": 1649794364,
+        "aud": "www.example.com",
+        "sub": "jrocket@example.com",
+        "GivenName": "Johnny",
+        "Surname": "Rocket",
+        "Role": ["Manager", "Project Administrator"],
+    }
+    DB_USER: str = "mr.bear@forest.com"
+    data[db_param] = DB_USER
+
+    mock_jwt_resp: typing.List[typing.Union[str, bytes]] = ["", json.dumps(data), "mocked resp"]
+
+    bjwtcp: BasicJwtCredentialsProvider = BasicJwtCredentialsProvider()
+    assert bjwtcp.derive_database_user(mock_jwt_resp) == DB_USER
+
+
+@pytest.mark.parametrize(
+    "decoded_data",
+    [[""], ["" * 4], ["", json.dumps({"dbuser": "invalid"}), ""], ["", json.dumps({"Email": "invalid"}), ""]],
+)
+def test_derive_database_user_not_found(decoded_data):
+    bjwtcp: BasicJwtCredentialsProvider = BasicJwtCredentialsProvider()
+
+    with pytest.raises(InterfaceError):
+        bjwtcp.derive_database_user(decoded_data)
 
 
 def test_basic_jwt_credential_provider(mocker):

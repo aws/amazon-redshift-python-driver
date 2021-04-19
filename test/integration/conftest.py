@@ -153,7 +153,7 @@ def jwt_google_idp():
         "password": conf.get("jwt-google-idp", "password"),
         "credentials_provider": conf.get("jwt-google-idp", "credentials_provider"),
         "web_identity_token": conf.get("jwt-google-idp", "web_identity_token"),
-        "preferred_role": conf.get("jwt-google-idp", "preferred_role"),
+        "role_arn": conf.get("jwt-google-idp", "role_arn"),
     }
     return {**_get_default_connection_args(), **db_connect}
 
@@ -166,7 +166,7 @@ def jwt_azure_v2_idp():
         "password": conf.get("jwt-azure-v2-idp", "password"),
         "credentials_provider": conf.get("jwt-azure-v2-idp", "credentials_provider"),
         "web_identity_token": conf.get("jwt-azure-v2-idp", "web_identity_token"),
-        "preferred_role": conf.get("jwt-azure-v2-idp", "preferred_role"),
+        "role_arn": conf.get("jwt-azure-v2-idp", "role_arn"),
     }
     return {**_get_default_connection_args(), **db_connect}
 
