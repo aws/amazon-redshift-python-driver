@@ -32,7 +32,6 @@ class PingCredentialsProvider(SamlCredentialsProvider):
         self.check_required_parameters()
 
         with requests.Session() as session:
-
             if self.partner_sp_id is None:
                 self.partner_sp_id = "urn%3Aamazon%3Awebservices"
 
@@ -47,7 +46,9 @@ class PingCredentialsProvider(SamlCredentialsProvider):
                     _logger.debug("get_saml_assertion https response: {}".format(response.text))  # type: ignore
                 else:
                     _logger.debug("get_saml_assertion could not receive https response due to an error")
-                _logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
+                _logger.error(
+                    "Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e))
+                )
                 raise InterfaceError(e)
             except requests.exceptions.Timeout as e:
                 _logger.error("A timeout occurred when requesting SAML assertion")
