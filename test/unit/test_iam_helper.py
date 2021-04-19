@@ -113,6 +113,14 @@ def test_set_iam_properties_fails_when_info_is_none(missing_param):
     assert "Invalid connection property setting" in str(excinfo.value)
 
 
+@pytest.mark.usefixtures("mock_set_iam_credentials")
+def test_set_iam_properties_fails_when_non_str_credential_provider():
+    keywords: typing.Dict = {"credentials_provider": 1}
+    with pytest.raises(InterfaceError) as excinfo:
+        IamHelper.set_iam_properties(**get_set_iam_properties_args(**keywords))
+    assert "Invalid connection property setting" in str(excinfo.value)
+
+
 ssl_mode_descriptions: typing.List[typing.Tuple[typing.Optional[str], str]] = [
     ("verify-ca", "verify-ca"),
     ("verify-full", "verify-full"),

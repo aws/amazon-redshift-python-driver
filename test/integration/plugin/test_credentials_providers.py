@@ -8,6 +8,7 @@ import botocore
 import pytest  # type: ignore
 
 import redshift_connector
+from redshift_connector import DriverInfo
 
 conf = configparser.ConfigParser()
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
@@ -160,3 +161,24 @@ def use_cached_temporary_credentials(idp_arg):
     # holds these
     assert len(redshift_connector.IamHelper.credentials_cache) == 1
     assert first_cred_cache_entry == redshift_connector.IamHelper.credentials_cache.popitem()
+
+
+@pytest.mark.skip
+# TODO: https://docs.aws.amazon.com/redshift/latest/dg/r_STL_CONNECTION_LOG.html plugin_name column character limit
+# TODO: causes field value cut-off
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+def test_stl_connection_log_contains_plugin_name(idp_arg, db_kwargs):
+    idp_arg["auto_create"] = True
+    with redshift_connector.connect(**idp_arg) as conn:
+        pass
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            # verify stl_connection_log contains driver version as expected
+            cursor.execute(
+                "select top 1 1 from stl_connection_log where driver_version = '{}' and plugin_name = 'redshift_connector.plugin.{}'".format(
+                    DriverInfo.driver_full_name(), idp_arg["credentials_provider"]
+                )
+            )
+            res = cursor.fetchone()
+            assert res is not None
+            assert res[0] == 1

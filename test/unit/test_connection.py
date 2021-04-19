@@ -1,6 +1,7 @@
 import typing
 from collections import deque
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytest  # type: ignore
 
@@ -310,3 +311,16 @@ def test_is_single_database_metadata(_input):
         mock_connection.parameter_statuses.append((b"datashare_enabled", param_status.encode()))
 
     assert mock_connection.is_single_database_metadata == exp_val
+
+
+def test_client_os_version_is_present():
+    mock_connection = Connection.__new__(Connection)
+    assert mock_connection.client_os_version is not None
+    assert isinstance(mock_connection.client_os_version, str)
+
+
+def test_client_os_version_is_not_present():
+    mock_connection = Connection.__new__(Connection)
+
+    with patch("platform.platform", side_effect=Exception("not for you")):
+        assert mock_connection.client_os_version == "unknown"

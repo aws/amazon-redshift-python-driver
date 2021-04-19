@@ -1,12 +1,15 @@
 import configparser
 import os
+import random
 import socket
+import string
 import struct
 import sys
 
 import pytest  # type: ignore
 
 import redshift_connector
+from redshift_connector import DriverInfo
 from redshift_connector.config import ClientProtocolVersion
 
 conf = configparser.ConfigParser()
@@ -198,3 +201,49 @@ def test_client_protocol_version_invalid_warns_user(db_kwargs):
     del db_kwargs["cluster_identifier"]
     with pytest.warns(UserWarning):
         redshift_connector.Connection(**db_kwargs)
+
+
+def test_stl_connection_log_contains_driver_version(db_kwargs):
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            # verify stl_connection_log contains driver version as expected
+            cursor.execute(
+                "select top 1 1 from stl_connection_log where driver_version = '{}'".format(
+                    DriverInfo.driver_full_name()
+                )
+            )
+            res = cursor.fetchone()
+            assert res is not None
+            assert res[0] == 1
+
+
+def test_stl_connection_log_contains_os_version(db_kwargs):
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            # verify stl_connection_log contains driver version as expected
+            cursor.execute(
+                "select top 1 1 from stl_connection_log where driver_version = '{}' and os_version = '{}'".format(
+                    DriverInfo.driver_full_name(), conn.client_os_version
+                )
+            )
+            res = cursor.fetchone()
+            assert res is not None
+            assert res[0] == 1
+
+
+def test_stl_connection_log_contains_application_name(db_kwargs):
+    # make some connection so this unique application name is logged
+    mock_application_name: str = "".join(random.choice(string.ascii_letters) for x in range(10))
+    db_kwargs["application_name"] = mock_application_name
+
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            # verify stl_connection_log contains driver version as expected
+            cursor.execute(
+                "select top 1 1 from stl_connection_log where driver_version = '{}' and application_name = '{}'".format(
+                    DriverInfo.driver_full_name(), mock_application_name
+                )
+            )
+            res = cursor.fetchone()
+            assert res is not None
+            assert res[0] == 1
