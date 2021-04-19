@@ -1,4 +1,5 @@
 import base64
+import json
 import logging
 import re
 import typing
@@ -28,12 +29,13 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
         # optional params
         self.role_session_name = JwtCredentialsProvider.DEFAULT_ROLE_SESSION_NAME
         self.duration: typing.Optional[int] = None
-        # self.db_user: typing.Optional[str] = None
+        self.db_user: typing.Optional[str] = None
         # self.db_groups: typing.Optional[str] = None
-        self.db_groups_filter: typing.Optional[str] = None
+        # self.db_groups_filter: typing.Optional[str] = None
         # self.force_lowercase: typing.Optional[bool] = None
         # self.auto_create: typing.Optional[bool] = None
-        # self.region: typing.Optional[str] = None
+        self.sts_endpoint: typing.Optional[str] = None
+        self.region: typing.Optional[str] = None
 
     @abstractmethod
     def process_jwt(self: "JwtCredentialsProvider", jwt: str) -> str:
@@ -43,9 +45,11 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
         self: "JwtCredentialsProvider",
         info: RedshiftProperty,
     ) -> None:
-        super().add_parameter(info)
-        self.jwt = info.web_identity_token
         self.role_arn = info.role_arn
+        self.jwt = info.web_identity_token
+        self.duration = info.duration
+        # Do not read dbUser from connection, as it derives from token.
+        self.region = info.region
 
         if info.role_session_name is not None:
             self.role_session_name = info.role_session_name
@@ -80,6 +84,8 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
             jwt: str = self.process_jwt(self.jwt)
             decoded_jwt: typing.Optional[typing.List[typing.Union[str, bytes]]] = self.decode_jwt(self.jwt)
 
+            self.db_user = self.derive_database_user(decoded_jwt)
+
             response = client.assume_role_with_web_identity(
                 RoleArn=self.role_arn,
                 RoleSessionName=self.role_session_name,
@@ -89,6 +95,7 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
 
             stscred: typing.Dict[str, typing.Any] = response["Credentials"]
             credentials: CredentialsHolder = CredentialsHolder(stscred)
+            credentials.set_metadata(self.read_metadata())
             key: str = self.get_cache_key()
             self.cache[key] = credentials
 
@@ -127,7 +134,7 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
             return None
 
         # base64(JOSE header).base64(payload).base64(signature)
-        header_payload_sig: typing.List[str] = jwt.split("\\.")
+        header_payload_sig: typing.List[str] = jwt.split(".")
 
         _logger.debug("Encoded JWT Elements: {}".format(header_payload_sig))
 
@@ -135,13 +142,43 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
             decoded_jwt: typing.List[typing.Union[bytes, str]] = []
             # decode the header and payload
             for i in range(2):
-                decoded_jwt.append(base64.b64decode(header_payload_sig[i]))
+                decoded_jwt.append(base64.b64decode(header_payload_sig[i] + "==="))
 
             decoded_jwt.append(header_payload_sig[2])
             _logger.debug("Decoded JWT Elements: {}".format(header_payload_sig))
             return decoded_jwt
         else:
             return None
+
+    def derive_database_user(
+        self: "JwtCredentialsProvider", decoded_jwt: typing.Optional[typing.List[typing.Union[str, bytes]]]
+    ) -> str:
+        database_user: typing.Optional[str] = None
+
+        if decoded_jwt is not None and len(decoded_jwt) == 3:
+            payload: str = typing.cast(str, decoded_jwt[1])
+            claims: typing.Tuple[str, ...] = ("DbUser", "upn", "preferred_username", "email")
+
+            entity_json: typing.Dict = json.loads(payload)
+            user_token_field: typing.Dict = {}
+
+            for claim in claims:
+                user_token_field = entity_json.get(claim, None)
+
+                if user_token_field is not None:
+                    database_user = typing.cast(str, user_token_field)
+
+                    if database_user is not None and database_user != "":
+                        _logger.debug(
+                            "JWT claim: {claim} as database user {user}".format(claim=claim, user=database_user)
+                        )
+                        break
+
+            if database_user is None or database_user == "":
+                raise InterfaceError("No database user claim found in JWT")
+            return database_user
+        else:
+            raise InterfaceError("JWT decoding error")
 
     def get_saml_assertion(self: "SamlCredentialsProvider"):
         raise NotImplementedError
@@ -152,8 +189,11 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
     def get_form_action(self: "SamlCredentialsProvider", soup) -> typing.Optional[str]:
         raise NotImplementedError
 
-    def read_metadata(self: "SamlCredentialsProvider", doc: bytes) -> CredentialsHolder.IamMetadata:
-        raise NotImplementedError
+    def read_metadata(self: "SamlCredentialsProvider", doc: bytes = b"") -> CredentialsHolder.IamMetadata:
+        metadata: CredentialsHolder.IamMetadata = CredentialsHolder.IamMetadata()
+        metadata.set_db_user(typing.cast(str, self.db_user))
+        metadata.set_auto_create("true")
+        return metadata
 
 
 class BasicJwtCredentialsProvider(JwtCredentialsProvider):
