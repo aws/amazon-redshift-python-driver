@@ -9,7 +9,7 @@
 
 ## Testing
 <!--- Please describe in detail how you tested your changes -->
-<!--- Include details of your testing environment, and the tests you ran to -->
+<!--- Include code snippits, details of your testing environment, and the tests you ran to -->
 <!--- see how your change affects other areas of the code, etc. -->
 
 ## Screenshots (if appropriate)
@@ -23,13 +23,13 @@
 <!--- Go over all the following points, and put an `x` in all the boxes that apply -->
 <!--- If you're unsure about any of these, don't hesitate to ask. We're here to help! -->
 <!--- - [ ] I have read the **CONTRIBUTING** document [Currently not accepting contributions]-->
-- [ ] Local run of `python3 setup.py` succeeds
-- [ ] My code follows the code style of this project
+- [ ] Local run of `./build.sh` succeeds
+- [ ] Code changes have been run against the repository's pre-commit hooks
+- [ ] Commit messages follow [Conventional Commit Specification](https://www.conventionalcommits.org/en/v1.0.0/)
 - [ ] I have read the **README** document
 - [ ] I have added tests to cover my changes
-- [ ] All new and existing tests passed
-- [ ] A short description of the change has been added to the **CHANGELOG**
-
+- [ ] I have run all unit tests using `pytest test/unit` and they are passing.
+<!-- Please note: Our developers will work with you to ensure your changes pass our internal integration test suite.
 
 ## License
 <!--- The SDK is released under the Apache 2.0 license (http://aws.amazon.com/apache2.0/), so any code you submit will be released under that license -->
