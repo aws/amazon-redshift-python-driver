@@ -27,7 +27,7 @@ class ClientProtocolVersion(IntEnum):
             return str(i)
 
 
-DEFAULT_PROTOCOL_VERSION: int = ClientProtocolVersion.EXTENDED_RESULT_METADATA.value
+DEFAULT_PROTOCOL_VERSION: int = ClientProtocolVersion.BINARY.value
 
 min_int2: int = -(2 ** 15)
 max_int2: int = 2 ** 15
