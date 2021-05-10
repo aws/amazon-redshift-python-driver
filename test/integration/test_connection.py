@@ -8,6 +8,7 @@ import struct
 import sys
 
 import pytest  # type: ignore
+from pytest_mock import mocker
 
 import redshift_connector
 from redshift_connector import DriverInfo
@@ -209,6 +210,18 @@ def test_client_protocol_version_invalid_logs(db_kwargs, caplog):
     assert "Server indicated {} transfer protocol will be used rather than protocol requested by client: {}".format(
         act_client_protocol, db_kwargs["client_protocol_version"]
     )
+
+
+def test_client_protocol_version_too_large_is_lowered(db_kwargs, mocker):
+    db_kwargs["client_protocol_version"] = max(ClientProtocolVersion.list()) + 1
+    del db_kwargs["region"]
+    del db_kwargs["cluster_identifier"]
+    spy = mocker.spy(redshift_connector.Connection, "_enable_protocol_based_conversion_funcs")
+    with redshift_connector.Connection(**db_kwargs) as con:
+        act_client_protocol: int = con._client_protocol_version
+    assert act_client_protocol < db_kwargs["client_protocol_version"]
+    assert spy.called
+    assert spy.call_count >= 2  # initial call, additional call when server responds with a lower version
 
 
 def test_stl_connection_log_contains_driver_version(db_kwargs):
