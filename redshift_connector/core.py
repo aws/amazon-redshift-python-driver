@@ -416,7 +416,7 @@ class Connection:
         credentials_provider : Optional[str]
             The class-path of the IdP plugin used for authentication with Amazon Redshift.
         """
-        self.merge_socket_read = False
+        self.merge_socket_read = True
 
         _client_encoding = "utf8"
         self._commands_with_count: typing.Tuple[bytes, ...] = (
