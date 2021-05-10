@@ -1,3 +1,4 @@
+import functools
 import re
 import typing
 from collections import deque
@@ -6,7 +7,7 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import redshift_connector
-from redshift_connector.config import table_type_clauses
+from redshift_connector.config import ClientProtocolVersion, table_type_clauses
 from redshift_connector.error import (
     MISSING_MODULE_ERROR_MSG,
     InterfaceError,
@@ -112,6 +113,28 @@ class Cursor:
     def rowcount(self: "Cursor") -> int:
         return self._row_count
 
+    @typing.no_type_check
+    @functools.lru_cache()
+    def truncated_row_desc(self: "Cursor"):
+        _data: typing.List[
+            typing.Optional[typing.Union[typing.Tuple[typing.Callable, int], typing.Tuple[typing.Callable]]]
+        ] = []
+
+        for cidx in range(len(self.ps["row_desc"])):
+            if self._c._client_protocol_version == ClientProtocolVersion.BINARY and self.ps["row_desc"][cidx][
+                "type_oid"
+            ] in (1700,):
+                scale: int
+                if self.ps["row_desc"][cidx]["type_modifier"] != -1:
+                    scale = (self.ps["row_desc"][cidx]["type_modifier"] - 4) & 0xFFFF
+                else:
+                    scale = -4 & 0xFFFF
+                _data.append((self.ps["input_funcs"][cidx], scale))
+            else:
+                _data.append((self.ps["input_funcs"][cidx],))
+
+        return _data
+
     description = property(lambda self: self._getDescription())
 
     def _getDescription(self: "Cursor") -> typing.Optional[typing.List[typing.Optional[typing.Tuple]]]:
@@ -169,6 +192,12 @@ class Cursor:
 
         try:
             self.stream = stream
+
+            # a miniaturized version of the row description is cached to speed up
+            # processing data from server. It needs to be cleared with each statement
+            # execution.
+            self.truncated_row_desc.cache_clear()
+
             # For Redshift, we need to begin transaction and then to process query
             # In the end we can use commit or rollback to end the transaction
             if not self._c.in_transaction and not self._c.autocommit:

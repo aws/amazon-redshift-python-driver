@@ -45,6 +45,7 @@ from redshift_connector.error import (
 )
 from redshift_connector.utils import (
     FC_BINARY,
+    FC_TEXT,
     NULL,
     NULL_BYTE,
     DriverInfo,
@@ -53,9 +54,14 @@ from redshift_connector.utils import (
     array_find_first_element,
     array_flatten,
     array_has_null,
+    array_recv_binary,
+    array_recv_text,
     bh_unpack,
     cccc_unpack,
     ci_unpack,
+    date_in,
+    date_recv_binary,
+    float_array_recv,
     h_pack,
     h_unpack,
     i_pack,
@@ -63,9 +69,16 @@ from redshift_connector.utils import (
     ihihih_unpack,
     ii_pack,
     iii_pack,
+    int_array_recv,
+    numeric_in,
+    numeric_in_binary,
     pg_types,
     py_types,
     q_pack,
+    time_in,
+    time_recv_binary,
+    timetz_in,
+    timetz_recv_binary,
     walk_array,
 )
 
@@ -101,6 +114,7 @@ if TYPE_CHECKING:
 # POSSIBILITY OF SUCH DAMAGE.
 
 __author__ = "Mathieu Fenniak"
+
 
 ZERO: Timedelta = Timedelta(0)
 BINARY: type = bytes
@@ -437,6 +451,10 @@ class Connection:
         self._database = database
         self._database_metadata_current_db_only: bool = database_metadata_current_db_only
 
+        # based on _client_protocol_version value, we must use different conversion functions
+        # for receiving some datatypes
+        self._enable_protocol_based_conversion_funcs()
+
         if user is None:
             raise InterfaceError("The 'user' connection parameter cannot be None")
 
@@ -624,6 +642,34 @@ class Connection:
             self._client_protocol_version = ClientProtocolVersion.BASE_SERVER
 
         self.in_transaction = False
+
+    def _enable_protocol_based_conversion_funcs(self: "Connection"):
+        if self._client_protocol_version == ClientProtocolVersion.BINARY.value:
+            pg_types[1700] = (FC_BINARY, numeric_in_binary)
+            pg_types[1082] = (FC_BINARY, date_recv_binary)
+            pg_types[1083] = (FC_BINARY, time_recv_binary)
+            pg_types[1266] = (FC_BINARY, timetz_recv_binary)
+            pg_types[1002] = (FC_BINARY, array_recv_binary)  # CHAR[]
+            pg_types[1005] = (FC_BINARY, array_recv_binary)  # INT2[]
+            pg_types[1007] = (FC_BINARY, array_recv_binary)  # INT4[]
+            pg_types[1009] = (FC_BINARY, array_recv_binary)  # TEXT[]
+            pg_types[1015] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
+            pg_types[1021] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
+            pg_types[1028] = (FC_BINARY, array_recv_binary)  # OID[]
+            pg_types[1034] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
+        else:  # text protocol
+            pg_types[1700] = (FC_TEXT, numeric_in)
+            pg_types[1083] = (FC_TEXT, time_in)
+            pg_types[1082] = (FC_TEXT, date_in)
+            pg_types[1266] = (FC_TEXT, timetz_in)
+            pg_types[1002] = (FC_TEXT, array_recv_text)  # CHAR[]
+            pg_types[1005] = (FC_TEXT, int_array_recv)  # INT2[]
+            pg_types[1007] = (FC_TEXT, int_array_recv)  # INT4[]
+            pg_types[1009] = (FC_TEXT, array_recv_text)  # TEXT[]
+            pg_types[1015] = (FC_TEXT, array_recv_text)  # VARCHAR[]
+            pg_types[1021] = (FC_TEXT, float_array_recv)  # FLOAT4[]
+            pg_types[1028] = (FC_TEXT, int_array_recv)  # OID[]
+            pg_types[1034] = (FC_TEXT, array_recv_text)  # ACLITEM[]
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
@@ -1244,13 +1290,16 @@ class Connection:
     def handle_DATA_ROW(self: "Connection", data: bytes, cursor: Cursor) -> None:
         data_idx: int = 2
         row: typing.List = []
-        for func in cursor.ps["input_funcs"]:  # type: ignore
+        for desc in cursor.truncated_row_desc():
             vlen: int = i_unpack(data, data_idx)[0]
             data_idx += 4
             if vlen == -1:
                 row.append(None)
+            elif desc[0] == numeric_in_binary:
+                row.append(desc[0](data, data_idx, vlen, desc[1]))
+                data_idx += vlen
             else:
-                row.append(func(data, data_idx, vlen))
+                row.append(desc[0](data, data_idx, vlen))
                 data_idx += vlen
         cursor._cached_rows.append(row)
 

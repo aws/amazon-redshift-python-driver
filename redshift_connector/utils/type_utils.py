@@ -7,6 +7,7 @@ from datetime import time
 from datetime import timedelta as Timedelta
 from datetime import timezone as Timezone
 from decimal import Decimal
+from enum import Enum
 from json import loads
 from struct import Struct
 
@@ -16,8 +17,6 @@ from redshift_connector.config import (
     EPOCH_TZ,
     FC_BINARY,
     FC_TEXT,
-    INFINITY_MICROSECONDS,
-    MINUS_INFINITY_MICROSECONDS,
     _client_encoding,
     timegm,
 )
@@ -37,6 +36,7 @@ def pack_funcs(fmt: str) -> typing.Tuple[typing.Callable, typing.Callable]:
 
 
 i_pack, i_unpack = pack_funcs("i")
+I_pack, I_unpack = pack_funcs("I")
 h_pack, h_unpack = pack_funcs("h")
 q_pack, q_unpack = pack_funcs("q")
 d_pack, d_unpack = pack_funcs("d")
@@ -49,6 +49,7 @@ ihihih_pack, ihihih_unpack = pack_funcs("ihihih")
 ci_pack, ci_unpack = pack_funcs("ci")
 bh_pack, bh_unpack = pack_funcs("bh")
 cccc_pack, cccc_unpack = pack_funcs("cccc")
+qq_pack, qq_unpack = pack_funcs("qq")
 
 
 def text_recv(data: bytes, offset: int, length: int) -> str:
@@ -82,6 +83,10 @@ def int4_recv(data: bytes, offset: int, length: int) -> int:
 
 def int_in(data: bytes, offset: int, length: int) -> int:
     return int(data[offset : offset + length])
+
+
+def oid_recv(data: bytes, offset: int, length: int) -> int:
+    return I_unpack(data, offset)[0]
 
 
 def json_in(data: bytes, offset: int, length: int) -> typing.Dict[str, typing.Any]:
@@ -122,12 +127,12 @@ def timestamp_recv_integer(data: bytes, offset: int, length: int) -> typing.Unio
     try:
         return EPOCH + Timedelta(microseconds=micros)
     except OverflowError:
-        if micros == INFINITY_MICROSECONDS:
-            return "infinity"
-        elif micros == MINUS_INFINITY_MICROSECONDS:
-            return "-infinity"
+        epoch_delta: Timedelta = Timedelta(seconds=EPOCH_SECONDS)
+        d_delta: Timedelta = Timedelta(microseconds=micros)
+        if d_delta < epoch_delta:
+            return Datetime.min
         else:
-            return micros
+            return Datetime.max
 
 
 # data is 64-bit integer representing microseconds since 2000-01-01
@@ -150,12 +155,12 @@ def timestamptz_recv_integer(data: bytes, offset: int, length: int) -> typing.Un
     try:
         return EPOCH_TZ + Timedelta(microseconds=micros)
     except OverflowError:
-        if micros == INFINITY_MICROSECONDS:
-            return "infinity"
-        elif micros == MINUS_INFINITY_MICROSECONDS:
-            return "-infinity"
+        epoch_delta: Timedelta = Timedelta(seconds=EPOCH_SECONDS)
+        d_delta: Timedelta = Timedelta(microseconds=micros)
+        if d_delta < epoch_delta:
+            return Datetime.min
         else:
-            return micros
+            return Datetime.max
 
 
 # def interval_send_integer(v: typing.Union[Interval, Timedelta]) -> bytes:
@@ -193,6 +198,20 @@ trans_tab = dict(zip(map(ord, "{}"), "[]"))
 #     return typing.cast(typing.List, eval(''.join(arr), glbls))
 
 
+def numeric_in_binary(data: bytes, offset: int, length: int, scale: int) -> Decimal:
+    raw_value: int
+
+    if length == 8:
+        raw_value = q_unpack(data, offset)[0]
+    elif length == 16:
+        temp: typing.Tuple[int, int] = qq_unpack(data, offset)
+        raw_value = (temp[0] << 64) | temp[1]
+    else:
+        raise Exception("Malformed column value of type numeric received")
+
+    return Decimal(raw_value).scaleb(-1 * scale)
+
+
 def numeric_in(data: bytes, offset: int, length: int) -> Decimal:
     return Decimal(data[offset : offset + length].decode(_client_encoding))
 
@@ -210,6 +229,29 @@ def numeric_in(data: bytes, offset: int, length: int) -> Decimal:
 #         return Timedelta(days, seconds, micros)
 #     else:
 #         return Interval(microseconds, days, months)
+
+
+def timetz_recv_binary(data: bytes, offset: int, length: int) -> time:
+    return time_recv_binary(data, offset, length).replace(tzinfo=Timezone.utc)
+
+
+# data is 64-bit integer representing microseconds
+def time_recv_binary(data: bytes, offset: int, length: int) -> time:
+    millis: float = q_unpack(data, offset)[0] / 1000
+
+    if length == 12:
+        time_offset: int = i_unpack(data, offset + 8)[0]  # tz lives after time
+        time_offset *= -1000
+        millis -= time_offset
+
+    q, r = divmod(millis, 1000)
+    micros: float = r * 1000  # maximum of six digits of precision for fractional seconds.
+    q, r = divmod(q, 60)
+    seconds: float = r
+    q, r = divmod(q, 60)
+    minutes: float = r
+    hours: float = q
+    return time(hour=int(hours), minute=int(minutes), second=int(seconds), microsecond=int(micros))
 
 
 def time_in(data: bytes, offset: int, length: int) -> time:
@@ -239,45 +281,151 @@ def timetz_in(data: bytes, offset: int, length: int) -> time:
     return time(hour, minute, int(sec), microsec, tzinfo=Timezone.utc)
 
 
-def date_in(data: bytes, offset: int, length: int):
-    d = data[offset : offset + length].decode(_client_encoding)
+def date_recv_binary(data: bytes, offset: int, length: int) -> date:
+    # 86400 seconds per day
+    seconds: float = i_unpack(data, offset)[0] * 86400
+
+    # Julian/Gregorian calendar cutoff point
+    if seconds < -12219292800:  # October 4, 1582 -> October 15, 1582
+        seconds += 864000  # add 10 days worth of seconds
+        if seconds < -14825808000:  # 1500-02-28 -> 1500-03-01
+            extraLeaps: float = (seconds + 14825808000) / 3155760000
+            extraLeaps -= 1
+            extraLeaps -= extraLeaps / 4
+            seconds += extraLeaps * 86400
+
+    microseconds: float = seconds * 1e6
+
+    try:
+        return (EPOCH + Timedelta(microseconds=microseconds)).date()
+    except OverflowError:
+        if Timedelta(microseconds=microseconds) < Timedelta(seconds=EPOCH_SECONDS):
+            return date.min
+        else:
+            return date.max
+    except Exception as e:
+        raise e
+
+
+def date_in(data: bytes, offset: int, length: int) -> date:
+    d: str = data[offset : offset + length].decode(_client_encoding)
+
+    # datetime module does not support BC dates, so return min date
+    if d[-1] == "C":
+        return date.min
     try:
         return date(int(d[:4]), int(d[5:7]), int(d[8:10]))
     except ValueError:
-        return d
+        # likely occurs if a date > datetime.datetime.max
+        return date.max
 
 
-# def array_recv(data: bytes, idx: int, length: int) -> typing.List:
-#     final_idx: int = idx + length
-#     dim, hasnull, typeoid = iii_unpack(data, idx)
-#     idx += 12
-#
-#     # get type conversion method for typeoid
-#     conversion: typing.Callable = pg_types[typeoid][1]
-#
-#     # Read dimension info
-#     dim_lengths: typing.List = []
-#     for i in range(dim):
-#         dim_lengths.append(ii_unpack(data, idx)[0])
-#         idx += 8
-#
-#     # Read all array values
-#     values: typing.List = []
-#     while idx < final_idx:
-#         element_len, = i_unpack(data, idx)
-#         idx += 4
-#         if element_len == -1:
-#             values.append(None)
-#         else:
-#             values.append(conversion(data, idx, element_len))
-#             idx += element_len
-#
-#     # at this point, {{1,2,3},{4,5,6}}::int[][] looks like
-#     # [1,2,3,4,5,6]. go through the dimensions and fix up the array
-#     # contents to match expected dimensions
-#     for length in reversed(dim_lengths[1:]):
-#         values = list(map(list, zip(*[iter(values)] * length)))
-#     return values
+class ArrayState(Enum):
+    InString = 1
+    InEscape = 2
+    InValue = 3
+    Out = 4
+
+
+# parses an array received in text format. currently all elements are returned as strings.
+
+
+def _parse_array(adapter: typing.Optional[typing.Callable], data: bytes, offset: int, length: int) -> typing.List:
+    state: ArrayState = ArrayState.Out
+    stack: typing.List = [[]]
+    val: typing.List[str] = []
+    str_data: str = text_recv(data, offset, length)
+
+    for c in str_data:
+        if state == ArrayState.InValue:
+            if c in ("}", ","):
+                value: typing.Optional[str] = "".join(val)
+                if value == "NULL":
+                    value = None
+                elif adapter is not None:
+                    value = adapter(value)
+                stack[-1].append(value)
+                state = ArrayState.Out
+            else:
+                val.append(c)
+
+        if state == ArrayState.Out:
+            if c == "{":
+                a: typing.List = []
+                stack[-1].append(a)
+                stack.append(a)
+            elif c == "}":
+                stack.pop()
+            elif c == ",":
+                pass
+            elif c == '"':
+                val = []
+                state = ArrayState.InString
+            else:
+                val = [c]
+                state = ArrayState.InValue
+
+        elif state == ArrayState.InString:
+            if c == '"':
+                value = "".join(val)
+                if adapter is not None:
+                    value = adapter(value)  # type: ignore
+                stack[-1].append(value)
+                state = ArrayState.Out
+            elif c == "\\":
+                state = ArrayState.InEscape
+            else:
+                val.append(c)
+        elif state == ArrayState.InEscape:
+            val.append(c)
+            state = ArrayState.InString
+
+    return stack[0][0]
+
+
+def _array_in(adapter: typing.Optional[typing.Callable] = None):
+    def f(data: bytes, offset: int, length: int):
+        return _parse_array(adapter, data, offset, length)
+
+    return f
+
+
+array_recv_text: typing.Callable = _array_in()
+int_array_recv: typing.Callable = _array_in(lambda data: int(data))
+float_array_recv: typing.Callable = _array_in(lambda data: float(data))
+
+
+def array_recv_binary(data: bytes, idx: int, length: int) -> typing.List:
+    final_idx: int = idx + length
+    dim, hasnull, typeoid = iii_unpack(data, idx)
+    idx += 12
+
+    # get type conversion method for typeoid
+    conversion: typing.Callable = pg_types[typeoid][1]
+
+    # Read dimension info
+    dim_lengths: typing.List = []
+    for i in range(dim):
+        dim_lengths.append(ii_unpack(data, idx)[0])
+        idx += 8
+
+    # Read all array values
+    values: typing.List = []
+    while idx < final_idx:
+        (element_len,) = i_unpack(data, idx)
+        idx += 4
+        if element_len == -1:
+            values.append(None)
+        else:
+            values.append(conversion(data, idx, element_len))
+            idx += element_len
+
+    # at this point, {{1,2,3},{4,5,6}}::int[][] looks like
+    # [1,2,3,4,5,6]. go through the dimensions and fix up the array
+    # contents to match expected dimensions
+    for length in reversed(dim_lengths[1:]):
+        values = list(map(list, zip(*[iter(values)] * length)))
+    return values
 
 
 # def inet_in(data: bytes, offset: int, length: int) -> typing.Union[IPv4Address, IPv6Address, IPv4Network, IPv6Network]:
@@ -300,7 +448,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         22: (FC_TEXT, vector_in),  # int2vector
         23: (FC_BINARY, int4_recv),  # int4
         25: (FC_BINARY, text_recv),  # TEXT type
-        26: (FC_TEXT, int_in),  # oid
+        26: (FC_BINARY, oid_recv),  # oid
         28: (FC_TEXT, int_in),  # xid
         114: (FC_TEXT, json_in),  # json
         700: (FC_BINARY, float4_recv),  # float4
@@ -310,25 +458,29 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         # 869: (FC_TEXT, inet_in),  # inet
         # 1000: (FC_BINARY, array_recv),  # BOOL[]
         # 1003: (FC_BINARY, array_recv),  # NAME[]
-        # 1005: (FC_BINARY, array_recv),  # INT2[]
-        # 1007: (FC_BINARY, array_recv),  # INT4[]
-        # 1009: (FC_BINARY, array_recv),  # TEXT[]
-        # 1014: (FC_BINARY, array_recv),  # CHAR[]
-        # 1015: (FC_BINARY, array_recv),  # VARCHAR[]
+        1005: (FC_BINARY, array_recv_binary),  # INT2[]
+        1007: (FC_BINARY, array_recv_binary),  # INT4[]
+        1009: (FC_BINARY, array_recv_binary),  # TEXT[]
+        1002: (FC_BINARY, array_recv_binary),  # CHAR[]
+        # 1014: (FC_BINARY, array_recv_text),  # BPCHAR[]
+        1028: (FC_BINARY, int_array_recv),  # OID[]
+        1033: (FC_BINARY, text_recv),  # ACLITEM
+        1034: (FC_BINARY, array_recv_binary),  # ACLITEM[]
+        1015: (FC_BINARY, array_recv_binary),  # VARCHAR[]
         # 1016: (FC_BINARY, array_recv),  # INT8[]
-        # 1021: (FC_BINARY, array_recv),  # FLOAT4[]
+        1021: (FC_BINARY, array_recv_binary),  # FLOAT4[]
         # 1022: (FC_BINARY, array_recv),  # FLOAT8[]
         1042: (FC_BINARY, text_recv),  # CHAR type
         1043: (FC_BINARY, text_recv),  # VARCHAR type
-        1082: (FC_TEXT, date_in),  # date
-        1083: (FC_TEXT, time_in),
-        1114: (FC_BINARY, timestamp_recv_integer),  # timestamp w/ tz
-        1184: (FC_BINARY, timestamptz_recv_integer),
+        1082: (FC_BINARY, date_recv_binary),  # date
+        1083: (FC_BINARY, time_recv_binary),  # time
+        1114: (FC_BINARY, timestamp_recv_integer),  # timestamp
+        1184: (FC_BINARY, timestamptz_recv_integer),  # timestamptz
+        1266: (FC_BINARY, timetz_recv_binary),  # timetz
         # 1186: (FC_BINARY, interval_recv_integer),
         # 1231: (FC_TEXT, array_in),  # NUMERIC[]
         # 1263: (FC_BINARY, array_recv),  # cstring[]
-        1266: (FC_TEXT, timetz_in),  # timetz
-        1700: (FC_TEXT, numeric_in),  # NUMERIC
+        1700: (FC_BINARY, numeric_in_binary),  # NUMERIC
         # 2275: (FC_BINARY, text_recv),  # cstring
         # 2950: (FC_BINARY, uuid_recv),  # uuid
         3000: (FC_TEXT, text_recv),  # GEOMETRY
