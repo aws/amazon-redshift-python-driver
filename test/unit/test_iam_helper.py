@@ -289,6 +289,7 @@ valid_aws_credential_args: typing.List[typing.Dict[str, str]] = [
         "secret_access_key": "mySecret",
         "session_token": "mySession",
     },
+    {"user": "", "password": "", "credentials_provider": "myCredentialsProvider"},
 ]
 
 

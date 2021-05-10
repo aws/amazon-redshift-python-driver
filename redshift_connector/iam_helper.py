@@ -190,7 +190,7 @@ class IamHelper:
                 )
 
         if not all((user, host, database, port, password)):
-            if (profile is None) and (access_key_id is None):
+            if not any((profile, access_key_id, credentials_provider)):
                 raise InterfaceError(
                     "Invalid connection property setting. "
                     "user, password, host, database and port are required "
