@@ -73,14 +73,32 @@ from redshift_connector.utils import (
     int_array_recv,
     numeric_in,
     numeric_in_binary,
-    pg_types,
-    py_types,
+)
+from redshift_connector.utils import pg_types as PG_TYPES
+from redshift_connector.utils import py_types as PY_TYPES
+from redshift_connector.utils import (
     q_pack,
     time_in,
     time_recv_binary,
     timetz_in,
     timetz_recv_binary,
     walk_array,
+)
+from redshift_connector.utils.type_utils import (
+    BIGINT,
+    DATE,
+    INTEGER,
+    INTEGER_ARRAY,
+    NUMERIC,
+    REAL_ARRAY,
+    SMALLINT,
+    SMALLINT_ARRAY,
+    TEXT_ARRAY,
+    TIME,
+    TIMESTAMP,
+    TIMESTAMPTZ,
+    TIMETZ,
+    VARCHAR_ARRAY,
 )
 
 if TYPE_CHECKING:
@@ -451,6 +469,8 @@ class Connection:
         self._run_cursor: Cursor = Cursor(self, paramstyle="named")
         self._client_protocol_version: int = client_protocol_version
         self._database = database
+        self.py_types = deepcopy(PY_TYPES)
+        self.pg_types = deepcopy(PG_TYPES)
         self._database_metadata_current_db_only: bool = database_metadata_current_db_only
 
         # based on _client_protocol_version value, we must use different conversion functions
@@ -647,31 +667,31 @@ class Connection:
 
     def _enable_protocol_based_conversion_funcs(self: "Connection"):
         if self._client_protocol_version == ClientProtocolVersion.BINARY.value:
-            pg_types[1700] = (FC_BINARY, numeric_in_binary)
-            pg_types[1082] = (FC_BINARY, date_recv_binary)
-            pg_types[1083] = (FC_BINARY, time_recv_binary)
-            pg_types[1266] = (FC_BINARY, timetz_recv_binary)
-            pg_types[1002] = (FC_BINARY, array_recv_binary)  # CHAR[]
-            pg_types[1005] = (FC_BINARY, array_recv_binary)  # INT2[]
-            pg_types[1007] = (FC_BINARY, array_recv_binary)  # INT4[]
-            pg_types[1009] = (FC_BINARY, array_recv_binary)  # TEXT[]
-            pg_types[1015] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
-            pg_types[1021] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
-            pg_types[1028] = (FC_BINARY, array_recv_binary)  # OID[]
-            pg_types[1034] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
+            self.pg_types[NUMERIC] = (FC_BINARY, numeric_in_binary)
+            self.pg_types[DATE] = (FC_BINARY, date_recv_binary)
+            self.pg_types[TIME] = (FC_BINARY, time_recv_binary)
+            self.pg_types[TIMETZ] = (FC_BINARY, timetz_recv_binary)
+            self.pg_types[1002] = (FC_BINARY, array_recv_binary)  # CHAR[]
+            self.pg_types[SMALLINT_ARRAY] = (FC_BINARY, array_recv_binary)  # INT2[]
+            self.pg_types[INTEGER_ARRAY] = (FC_BINARY, array_recv_binary)  # INT4[]
+            self.pg_types[TEXT_ARRAY] = (FC_BINARY, array_recv_binary)  # TEXT[]
+            self.pg_types[VARCHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
+            self.pg_types[REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
+            self.pg_types[1028] = (FC_BINARY, array_recv_binary)  # OID[]
+            self.pg_types[1034] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
         else:  # text protocol
-            pg_types[1700] = (FC_TEXT, numeric_in)
-            pg_types[1083] = (FC_TEXT, time_in)
-            pg_types[1082] = (FC_TEXT, date_in)
-            pg_types[1266] = (FC_TEXT, timetz_in)
-            pg_types[1002] = (FC_TEXT, array_recv_text)  # CHAR[]
-            pg_types[1005] = (FC_TEXT, int_array_recv)  # INT2[]
-            pg_types[1007] = (FC_TEXT, int_array_recv)  # INT4[]
-            pg_types[1009] = (FC_TEXT, array_recv_text)  # TEXT[]
-            pg_types[1015] = (FC_TEXT, array_recv_text)  # VARCHAR[]
-            pg_types[1021] = (FC_TEXT, float_array_recv)  # FLOAT4[]
-            pg_types[1028] = (FC_TEXT, int_array_recv)  # OID[]
-            pg_types[1034] = (FC_TEXT, array_recv_text)  # ACLITEM[]
+            self.pg_types[NUMERIC] = (FC_TEXT, numeric_in)
+            self.pg_types[TIME] = (FC_TEXT, time_in)
+            self.pg_types[DATE] = (FC_TEXT, date_in)
+            self.pg_types[TIMETZ] = (FC_TEXT, timetz_in)
+            self.pg_types[1002] = (FC_TEXT, array_recv_text)  # CHAR[]
+            self.pg_types[SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]
+            self.pg_types[INTEGER_ARRAY] = (FC_TEXT, int_array_recv)  # INT4[]
+            self.pg_types[TEXT_ARRAY] = (FC_TEXT, array_recv_text)  # TEXT[]
+            self.pg_types[VARCHAR_ARRAY] = (FC_TEXT, array_recv_text)  # VARCHAR[]
+            self.pg_types[REAL_ARRAY] = (FC_TEXT, float_array_recv)  # FLOAT4[]
+            self.pg_types[1028] = (FC_TEXT, int_array_recv)  # OID[]
+            self.pg_types[1034] = (FC_TEXT, array_recv_text)  # ACLITEM[]
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
@@ -946,31 +966,31 @@ class Connection:
 
     def inspect_datetime(self: "Connection", value: Datetime):
         if value.tzinfo is None:
-            return py_types[1114]  # timestamp
+            return self.py_types[TIMESTAMP]  # timestamp
         else:
-            return py_types[1184]  # send as timestamptz
+            return self.py_types[TIMESTAMPTZ]  # send as timestamptz
 
     def inspect_int(self: "Connection", value: int):
         if min_int2 < value < max_int2:
-            return py_types[21]
+            return self.py_types[SMALLINT]
         if min_int4 < value < max_int4:
-            return py_types[23]
+            return self.py_types[INTEGER]
         if min_int8 < value < max_int8:
-            return py_types[20]
-        return py_types[Decimal]
+            return self.py_types[BIGINT]
+        return self.py_types[Decimal]
 
     def make_params(self: "Connection", values):
         params = []
         for value in values:
             typ = type(value)
             try:
-                params.append(py_types[typ])
+                params.append(self.py_types[typ])
             except KeyError:
                 try:
                     params.append(self.inspect_funcs[typ](value))
                 except KeyError as e:
                     param = None
-                    for k, v in py_types.items():
+                    for k, v in self.py_types.items():
                         try:
                             if isinstance(value, typing.cast(type, k)):
                                 param = v
@@ -1033,7 +1053,7 @@ class Connection:
                 idx += 2
 
             cursor.ps["row_desc"].append(field)
-            field["pg8000_fc"], field["func"] = pg_types[field["type_oid"]]
+            field["pg8000_fc"], field["func"] = self.pg_types[field["type_oid"]]
 
     def execute(self: "Connection", cursor: Cursor, operation: str, vals) -> None:
         """
@@ -1158,7 +1178,7 @@ class Connection:
 
             # We've got row_desc that allows us to identify what we're
             # going to get back from this statement.
-            output_fc = tuple(pg_types[f["type_oid"]][0] for f in ps["row_desc"])
+            output_fc = tuple(self.pg_types[f["type_oid"]][0] for f in ps["row_desc"])
 
             ps["input_funcs"] = tuple(f["func"] for f in ps["row_desc"])
             # Byte1('B') - Identifies the Bind command.

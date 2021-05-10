@@ -39,6 +39,50 @@ from redshift_connector.pg_types import (
 )
 from redshift_connector.redshift_property import RedshiftProperty
 from redshift_connector.utils import DriverInfo
+from redshift_connector.utils.type_utils import (
+    BIGINT,
+    BIGINTEGER,
+    BOOLEAN,
+    BOOLEAN_ARRAY,
+    BYTES,
+    CHAR,
+    CHAR_ARRAY,
+    DATE,
+    DATETIME,
+    DECIMAL,
+    DECIMAL_ARRAY,
+    FLOAT,
+    FLOAT_ARRAY,
+    GEOMETRY,
+    INET,
+    INT2VECTOR,
+    INTEGER,
+    INTEGER_ARRAY,
+    INTERVAL,
+    JSON,
+    JSONB,
+    MACADDR,
+    NAME,
+    NAME_ARRAY,
+    NULLTYPE,
+    NUMBER,
+    OID,
+    ROWID,
+    SMALLINT,
+    STRING,
+    SUPER,
+    TEXT,
+    TEXT_ARRAY,
+    TIME,
+    TIMESTAMP,
+    TIMESTAMPTZ,
+    TIMETZ,
+    UNKNOWN,
+    UUID_TYPE,
+    VARCHAR,
+    VARCHAR_ARRAY,
+    XID,
+)
 
 from .version import __version__
 
@@ -293,24 +337,6 @@ paramstyle: str = "format"
 String property stating the type of parameter marker formatting expected by the interface; This value defaults to "format", in which parameters are marked in this format "WHERE name=%s"
 """
 
-# I have no idea what this would be used for by a client app.  Should it be
-# TEXT, VARCHAR, CHAR?  It will only compare against row_description's
-# type_code if it is this one type.  It is the varchar type oid for now, this
-# appears to match expectations in the DB API 2.0 compliance test suite.
-
-STRING: int = 1043
-"""String type oid."""
-
-
-NUMBER: int = 1700
-"""Numeric type oid"""
-
-DATETIME: int = 1114
-"""Timestamp type oid"""
-
-ROWID: int = 26
-"""ROWID type oid"""
-
 __all__: typing.Any = [
     "Warning",
     "DataError",
@@ -343,4 +369,46 @@ __all__: typing.Any = [
     "PGText",
     "PGVarchar",
     "__version__",
+    "BIGINT",
+    "BIGINTEGER",
+    "BOOLEAN",
+    "BOOLEAN_ARRAY",
+    "BYTES",
+    "CHAR",
+    "CHAR_ARRAY",
+    "DATE",
+    "DATETIME",
+    "DECIMAL",
+    "DECIMAL_ARRAY",
+    "FLOAT",
+    "FLOAT_ARRAY",
+    "GEOMETRY",
+    "INET",
+    "INT2VECTOR",
+    "INTEGER",
+    "INTEGER_ARRAY",
+    "INTERVAL",
+    "JSON",
+    "JSONB",
+    "MACADDR",
+    "NAME",
+    "NAME_ARRAY",
+    "NULLTYPE",
+    "NUMBER",
+    "OID",
+    "ROWID",
+    "STRING",
+    "SMALLINT",
+    "SUPER",
+    "TEXT",
+    "TEXT_ARRAY",
+    "TIME",
+    "TIMESTAMP",
+    "TIMESTAMPTZ",
+    "TIMETZ",
+    "UNKNOWN",
+    "UUID_TYPE",
+    "VARCHAR",
+    "VARCHAR_ARRAY",
+    "XID",
 ]

@@ -29,6 +29,75 @@ from redshift_connector.pg_types import (
     PGVarchar,
 )
 
+ANY_ARRAY = 2277
+BIGINT = 20
+BIGINT_ARRAY = 1016
+BOOLEAN = 16
+BOOLEAN_ARRAY = 1000
+BYTES = 17
+BYTES_ARRAY = 1001
+CHAR = 1042
+CHAR_ARRAY = 1014
+CIDR = 650
+CIDR_ARRAY = 651
+CSTRING = 2275
+CSTRING_ARRAY = 1263
+DATE = 1082
+DATE_ARRAY = 1182
+FLOAT = 701
+FLOAT_ARRAY = 1022
+GEOMETRY = 3000
+INET = 869
+INET_ARRAY = 1041
+INT2VECTOR = 22
+INTEGER = 23
+INTEGER_ARRAY = 1007
+INTERVAL = 1186
+INTERVAL_ARRAY = 1187
+OID = 26
+JSON = 114
+JSON_ARRAY = 199
+JSONB = 3802
+JSONB_ARRAY = 3807
+MACADDR = 829
+MONEY = 790
+MONEY_ARRAY = 791
+NAME = 19
+NAME_ARRAY = 1003
+NUMERIC = 1700
+NUMERIC_ARRAY = 1231
+NULLTYPE = -1
+OID = 26
+POINT = 600
+REAL = 700
+REAL_ARRAY = 1021
+SMALLINT = 21
+SMALLINT_ARRAY = 1005
+SMALLINT_VECTOR = 22
+STRING = 1043
+SUPER = 4000
+TEXT = 25
+TEXT_ARRAY = 1009
+TIME = 1083
+TIME_ARRAY = 1183
+TIMESTAMP = 1114
+TIMESTAMP_ARRAY = 1115
+TIMESTAMPTZ = 1184
+TIMESTAMPTZ_ARRAY = 1185
+TIMETZ = 1266
+UNKNOWN = 705
+UUID_TYPE = 2950
+UUID_ARRAY = 2951
+VARCHAR = 1043
+VARCHAR_ARRAY = 1015
+XID = 28
+
+BIGINTEGER = BIGINT
+DATETIME = TIMESTAMP
+NUMBER = DECIMAL = NUMERIC
+DECIMAL_ARRAY = NUMERIC_ARRAY
+ROWID = OID
+
 
 def pack_funcs(fmt: str) -> typing.Tuple[typing.Callable, typing.Callable]:
     struc: Struct = Struct("!" + fmt)
@@ -440,53 +509,53 @@ def array_recv_binary(data: bytes, idx: int, length: int) -> typing.List:
 pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultdict(
     lambda: (FC_TEXT, text_recv),
     {
-        16: (FC_BINARY, bool_recv),  # boolean
+        BOOLEAN: (FC_BINARY, bool_recv),  # boolean
         # 17: (FC_BINARY, bytea_recv),  # bytea
-        19: (FC_BINARY, text_recv),  # name type
-        20: (FC_BINARY, int8_recv),  # int8
-        21: (FC_BINARY, int2_recv),  # int2
-        22: (FC_TEXT, vector_in),  # int2vector
-        23: (FC_BINARY, int4_recv),  # int4
+        NAME: (FC_BINARY, text_recv),  # name type
+        BIGINT: (FC_BINARY, int8_recv),  # int8
+        SMALLINT: (FC_BINARY, int2_recv),  # int2
+        SMALLINT_VECTOR: (FC_TEXT, vector_in),  # int2vector
+        INTEGER: (FC_BINARY, int4_recv),  # int4
         24: (FC_BINARY, oid_recv),  # regproc
-        25: (FC_BINARY, text_recv),  # TEXT type
-        26: (FC_BINARY, oid_recv),  # oid
-        28: (FC_TEXT, int_in),  # xid
-        114: (FC_TEXT, json_in),  # json
-        700: (FC_BINARY, float4_recv),  # float4
-        701: (FC_BINARY, float8_recv),  # float8
-        705: (FC_BINARY, text_recv),  # unknown
+        TEXT: (FC_BINARY, text_recv),  # TEXT type
+        OID: (FC_BINARY, oid_recv),  # oid
+        XID: (FC_TEXT, int_in),  # xid
+        JSON: (FC_TEXT, json_in),  # json
+        REAL: (FC_BINARY, float4_recv),  # float4
+        FLOAT: (FC_BINARY, float8_recv),  # float8
+        UNKNOWN: (FC_BINARY, text_recv),  # unknown
         # 829: (FC_TEXT, text_recv),  # MACADDR type
         # 869: (FC_TEXT, inet_in),  # inet
         # 1000: (FC_BINARY, array_recv),  # BOOL[]
         # 1003: (FC_BINARY, array_recv),  # NAME[]
-        1005: (FC_BINARY, array_recv_binary),  # INT2[]
-        1007: (FC_BINARY, array_recv_binary),  # INT4[]
-        1009: (FC_BINARY, array_recv_binary),  # TEXT[]
+        SMALLINT_ARRAY: (FC_BINARY, array_recv_binary),  # INT2[]
+        INTEGER_ARRAY: (FC_BINARY, array_recv_binary),  # INT4[]
+        TEXT_ARRAY: (FC_BINARY, array_recv_binary),  # TEXT[]
         1002: (FC_BINARY, array_recv_binary),  # CHAR[]
         # 1014: (FC_BINARY, array_recv_text),  # BPCHAR[]
         1028: (FC_BINARY, int_array_recv),  # OID[]
         1033: (FC_BINARY, text_recv),  # ACLITEM
         1034: (FC_BINARY, array_recv_binary),  # ACLITEM[]
-        1015: (FC_BINARY, array_recv_binary),  # VARCHAR[]
+        VARCHAR_ARRAY: (FC_BINARY, array_recv_binary),  # VARCHAR[]
         # 1016: (FC_BINARY, array_recv),  # INT8[]
-        1021: (FC_BINARY, array_recv_binary),  # FLOAT4[]
+        REAL_ARRAY: (FC_BINARY, array_recv_binary),  # FLOAT4[]
         # 1022: (FC_BINARY, array_recv),  # FLOAT8[]
-        1042: (FC_BINARY, text_recv),  # CHAR type
-        1043: (FC_BINARY, text_recv),  # VARCHAR type
-        1082: (FC_BINARY, date_recv_binary),  # date
-        1083: (FC_BINARY, time_recv_binary),  # time
-        1114: (FC_BINARY, timestamp_recv_integer),  # timestamp
-        1184: (FC_BINARY, timestamptz_recv_integer),  # timestamptz
-        1266: (FC_BINARY, timetz_recv_binary),  # timetz
+        CHAR: (FC_BINARY, text_recv),  # CHAR type
+        STRING: (FC_BINARY, text_recv),  # VARCHAR type
+        DATE: (FC_BINARY, date_recv_binary),  # date
+        TIME: (FC_BINARY, time_recv_binary),  # time
+        TIMESTAMP: (FC_BINARY, timestamp_recv_integer),  # timestamp
+        TIMESTAMPTZ: (FC_BINARY, timestamptz_recv_integer),  # timestamptz
+        TIMETZ: (FC_BINARY, timetz_recv_binary),  # timetz
         # 1186: (FC_BINARY, interval_recv_integer),
         # 1231: (FC_TEXT, array_in),  # NUMERIC[]
         # 1263: (FC_BINARY, array_recv),  # cstring[]
-        1700: (FC_BINARY, numeric_in_binary),  # NUMERIC
+        NUMERIC: (FC_BINARY, numeric_in_binary),  # NUMERIC
         # 2275: (FC_BINARY, text_recv),  # cstring
         # 2950: (FC_BINARY, uuid_recv),  # uuid
-        3000: (FC_TEXT, text_recv),  # GEOMETRY
+        GEOMETRY: (FC_TEXT, text_recv),  # GEOMETRY
         # 3802: (FC_TEXT, json_in),  # jsonb
-        4000: (FC_TEXT, text_recv),  # SUPER
+        SUPER: (FC_TEXT, text_recv),  # SUPER
     },
 )
 
@@ -523,28 +592,28 @@ py_types: typing.Dict[typing.Union[type, int], typing.Tuple[int, int, typing.Cal
     type(None): (-1, FC_BINARY, null_send),  # null
     bool: (16, FC_BINARY, bool_send),
     # bytearray: (17, FC_BINARY, bytea_send),  # bytea
-    20: (20, FC_BINARY, q_pack),  # int8
-    21: (21, FC_BINARY, h_pack),  # int2
-    23: (23, FC_BINARY, i_pack),  # int4
-    PGText: (25, FC_TEXT, text_out),  # text
-    float: (701, FC_BINARY, d_pack),  # float8
-    PGEnum: (705, FC_TEXT, enum_out),
-    date: (1082, FC_TEXT, date_out),  # date
-    time: (1083, FC_TEXT, time_out),  # time
-    1114: (1114, FC_BINARY, timestamp_send_integer),  # timestamp
+    BIGINT: (BIGINT, FC_BINARY, q_pack),  # int8
+    SMALLINT: (SMALLINT, FC_BINARY, h_pack),  # int2
+    INTEGER: (INTEGER, FC_BINARY, i_pack),  # int4
+    PGText: (TEXT, FC_TEXT, text_out),  # text
+    float: (FLOAT, FC_BINARY, d_pack),  # float8
+    PGEnum: (UNKNOWN, FC_TEXT, enum_out),
+    date: (DATE, FC_TEXT, date_out),  # date
+    time: (TIME, FC_TEXT, time_out),  # time
+    TIMESTAMP: (TIMESTAMP, FC_BINARY, timestamp_send_integer),  # timestamp
     # timestamp w/ tz
-    PGVarchar: (1043, FC_TEXT, text_out),  # varchar
-    1184: (1184, FC_BINARY, timestamptz_send_integer),
-    PGJson: (114, FC_TEXT, text_out),
+    PGVarchar: (STRING, FC_TEXT, text_out),  # varchar
+    TIMESTAMPTZ: (TIMESTAMPTZ, FC_BINARY, timestamptz_send_integer),
+    PGJson: (JSON, FC_TEXT, text_out),
     # PGJsonb: (3802, FC_TEXT, text_out),
     # Timedelta: (1186, FC_BINARY, interval_send_integer),
     # Interval: (1186, FC_BINARY, interval_send_integer),
-    Decimal: (1700, FC_TEXT, numeric_out),  # Decimal
+    Decimal: (NUMERIC, FC_TEXT, numeric_out),  # Decimal
     PGTsvector: (3614, FC_TEXT, text_out),
     # UUID: (2950, FC_BINARY, uuid_send),  # uuid
     # bytes: (17, FC_BINARY, bytea_send),  # bytea
-    str: (705, FC_TEXT, text_out),  # unknown
-    enum.Enum: (705, FC_TEXT, enum_out),
+    str: (UNKNOWN, FC_TEXT, text_out),  # unknown
+    enum.Enum: (UNKNOWN, FC_TEXT, enum_out),
     # IPv4Address: (869, FC_TEXT, inet_out),  # inet
     # IPv6Address: (869, FC_TEXT, inet_out),  # inet
     # IPv4Network: (869, FC_TEXT, inet_out),  # inet
