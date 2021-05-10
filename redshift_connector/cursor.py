@@ -314,7 +314,7 @@ class Cursor:
         """
         return self
 
-    def setinputsizes(self: "Cursor", sizes):
+    def setinputsizes(self: "Cursor", *sizes):
         """This method is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_, however, it is not
         implemented.
