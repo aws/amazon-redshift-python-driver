@@ -662,11 +662,12 @@ class Connection:
             and not (b"server_protocol_version", str(self._client_protocol_version).encode()) in self.parameter_statuses
         ):
             self._client_protocol_version = ClientProtocolVersion.BASE_SERVER
+            self._enable_protocol_based_conversion_funcs()
 
         self.in_transaction = False
 
     def _enable_protocol_based_conversion_funcs(self: "Connection"):
-        if self._client_protocol_version == ClientProtocolVersion.BINARY.value:
+        if self._client_protocol_version >= ClientProtocolVersion.BINARY.value:
             self.pg_types[NUMERIC] = (FC_BINARY, numeric_in_binary)
             self.pg_types[DATE] = (FC_BINARY, date_recv_binary)
             self.pg_types[TIME] = (FC_BINARY, time_recv_binary)
@@ -1393,6 +1394,7 @@ class Connection:
                     )
                 )
                 self._client_protocol_version = int(value)
+                self._enable_protocol_based_conversion_funcs()
         elif key == b"server_version":
             self._server_version: LooseVersion = LooseVersion(value.decode("ascii"))
             if self._server_version < LooseVersion("8.2.0"):
