@@ -2,6 +2,34 @@ Changelog
 =========
 
 
+v2.0.879 (2021-05-10)
+---------------------
+- Refactor(cursor, setinputsize): use named arguments. [Brooke White]
+- Refactor(test, connection): use mock py_types, pg_types. [Brooke
+  White]
+- Refactor(Connection, type_utils): add py_types, pg_types to Connection
+  class, declare typecode constants at package level. [Brooke White]
+- Docs(contributing): update PR guidelines. [Brooke White]
+- Test(hooks): disable writing test failures to file. [Brooke White]
+- Refactor(connection, client-protocol): log when there is a mismatch in
+  requested vs granted protocol. [Brooke White]
+- Docs(transfer-protocol): modifying transfer protocol via connect
+  method. [Brooke White]
+- Fix(datatype): support regproc in binary format. [Brooke White]
+- Feat(connection, transfer-protocol): enable binary transfer protocol
+  by default. [Brooke White]
+- Test(connection, datatype): datatype tests for supported transfer
+  protocols. [Brooke White]
+- Test(connection, transfer-protocol): manual protocol performance
+  comparison. [Brooke White]
+- Feat(connection, transfer-protocol): support binary transfer protocol.
+  [Brooke White]
+- Fix(iam_helper): user, password are not required with credential
+  provider. [Brooke White]
+- Perf(cursor, merge_socket_read): enable by default. [Brooke White]
+- Docs(pull_request_template): update PR checklist. [Brooke White]
+
+
 v2.0.878 (2021-04-19)
 ---------------------
 
