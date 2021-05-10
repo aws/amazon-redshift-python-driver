@@ -447,6 +447,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         21: (FC_BINARY, int2_recv),  # int2
         22: (FC_TEXT, vector_in),  # int2vector
         23: (FC_BINARY, int4_recv),  # int4
+        24: (FC_BINARY, oid_recv),  # regproc
         25: (FC_BINARY, text_recv),  # TEXT type
         26: (FC_BINARY, oid_recv),  # oid
         28: (FC_TEXT, int_in),  # xid
