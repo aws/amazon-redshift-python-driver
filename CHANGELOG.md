@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+v2.0.880 (2021-05-10)
+---------------------
+- Test(connection, transfer-protocol): modify conversion functions when
+  server version < client requests. [Brooke White]
+- Fix(connection, transfer-protocol): modify conversion functions when
+  server version < client requests. [Brooke White]
+
+
 v2.0.879 (2021-05-10)
 ---------------------
 - Refactor(cursor, setinputsize): use named arguments. [Brooke White]
