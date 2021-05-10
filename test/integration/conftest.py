@@ -50,6 +50,20 @@ def db_kwargs():
 
 
 @pytest.fixture(scope="class")
+def perf_db_kwargs():
+    db_connect = {
+        "database": conf.get("performance-database", "database"),
+        "host": conf.get("performance-database", "host"),
+        "user": conf.get("performance-database", "user"),
+        "password": conf.get("performance-database", "password"),
+        "ssl": conf.getboolean("performance-database", "ssl"),
+        "sslmode": conf.get("performance-database", "sslmode"),
+    }
+
+    return db_connect
+
+
+@pytest.fixture(scope="class")
 def okta_idp():
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user"),

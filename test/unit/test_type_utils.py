@@ -70,10 +70,10 @@ def test_numeric_out(_input):
 
 
 timestamp_send_integer_data = [
-    (b"00000000", int.from_bytes(b"00000000", "big")),
-    (b"12345678", int.from_bytes(b"12345678", "big")),
-    (INFINITY_MICROSECONDS.to_bytes(length=8, byteorder="big"), "infinity"),
-    (MINUS_INFINITY_MICROSECONDS.to_bytes(signed=True, length=8, byteorder="big"), "-infinity"),
+    (b"00000000", datetime.max),
+    (b"12345678", datetime.max),
+    (INFINITY_MICROSECONDS.to_bytes(length=8, byteorder="big"), datetime.max),
+    (MINUS_INFINITY_MICROSECONDS.to_bytes(signed=True, length=8, byteorder="big"), datetime.min),
 ]
 
 

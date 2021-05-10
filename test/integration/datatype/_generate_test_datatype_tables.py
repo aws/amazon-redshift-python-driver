@@ -94,7 +94,7 @@ class Datatypes(Enum):
     int2 = auto()
     int4 = auto()
     int8 = auto()
-    numeric = auto()
+    numeric = "(18, 8)"  # toggle precision between 18 and 38 to test 8 & 16  byte. scale must be >= 8
     float4 = auto()
     float8 = auto()
     bool = auto()
@@ -111,7 +111,7 @@ class Datatypes(Enum):
         return list(map(lambda p: p, cls))  # type: ignore
 
 
-FLOAT_DATATYPES: typing.Tuple[Datatypes, ...] = (Datatypes.float4, Datatypes.float8)
+FLOAT_DATATYPES: typing.Tuple[Datatypes, ...] = (Datatypes.float4, Datatypes.float8, Datatypes.numeric)
 
 DATATYPES_WITH_MS: typing.Tuple[Datatypes, ...] = (Datatypes.timetz, Datatypes.timestamptz)
 
@@ -164,13 +164,19 @@ test_data: typing.Dict[str, typing.Tuple[typing.Tuple[typing.Any, ...], ...]] = 
     Datatypes.numeric.name: (
         ("-2147483648", -2147483648, Decimal(-2147483648)),  # signed 4 byte int min
         ("-32768", -32768, Decimal(-32768)),  # signed 2 byte int min
+        ("-12345.67891", -12345.67891, Decimal("-12345.67891")),
         ("-128", -128, Decimal(-128)),
         ("-1", -1, Decimal(-1)),
+        ("-0.11", -0.11, Decimal(-0.11)),
         ("0", 0, Decimal(0)),
+        ("0.00012345", 0.00012345, Decimal(0.00012345)),
+        ("0.1", 0.2, Decimal(0.2)),
         ("1", 1, Decimal(1)),
+        ("1.5", 1.5, Decimal(1.5)),
         ("2", 2, Decimal(2)),
         ("123", 123, Decimal(123)),
         ("127", 127, Decimal(127)),
+        ("12345.67891", 12345.67891, Decimal("12345.67891")),
         ("32767", 32767, Decimal(32767)),  # signed 2 byte int max
         ("2147483647", 2147483647, Decimal(2147483647)),  # signed 4 byte int max
     ),
@@ -271,6 +277,7 @@ test_data: typing.Dict[str, typing.Tuple[typing.Tuple[typing.Any, ...], ...]] = 
         ("mm/dd/yyy", "01-06-2020", date(year=2020, month=1, day=6)),
         ("yyyy-mm-dd", "2020-01-06", date(year=2020, month=1, day=6)),
         ("mm.dd.yyyy", "01.20.2020", date(year=2020, month=1, day=20)),
+        ("max date", "294276-01-02", date.max),  # too big for datetime.date
         ("some day", "01-01-1900", date(year=1900, month=1, day=1)),
         ("feb 29 2020", "02-29-2020", date(year=2020, month=2, day=29)),
     ),
@@ -279,6 +286,7 @@ test_data: typing.Dict[str, typing.Tuple[typing.Tuple[typing.Any, ...], ...]] = 
         ("jun 1 2008", "Jun 1,2008  09:59:59", datetime(year=2008, month=6, day=1, hour=9, minute=59, second=59)),
         ("dec 31 2008", "Dec 31,2008 18:20", datetime(year=2008, month=12, day=31, hour=18, minute=20, second=0)),
         ("feb 29, 2020", "02-29-2020 00:00:00", datetime(year=2020, month=2, day=29, hour=0, minute=0, second=0)),
+        ("max date", "294276-01-02 23:59:59", datetime.max),  # too big for datetime.datetime
     ),
     Datatypes.timestamptz.name: (
         (
@@ -301,6 +309,7 @@ test_data: typing.Dict[str, typing.Tuple[typing.Tuple[typing.Any, ...], ...]] = 
             "02-29-2020 00:00:00 UTC",
             datetime(year=2020, month=2, day=29, hour=0, minute=0, second=0, tzinfo=timezone.utc),
         ),
+        ("max date", "294276-01-02 23:59:59 UTC", datetime.max),  # too big for datetime.datetime
     ),
     Datatypes.time.name: (
         ("early", "00:00:00", time(hour=0, minute=0, second=0)),
@@ -342,8 +351,13 @@ def _make_data_str(dt: Datatypes) -> str:
 
 def _build_table_stmts(dt: Datatypes) -> None:
     drop_stmt: str = "drop table if exists {schema}.test_{datatype};".format(schema=SCHEMA_NAME, datatype=dt.name)
-    create_stmt: str = "create table {schema}.test_{datatype} (c1 varchar, c2 {datatype});".format(
-        schema=SCHEMA_NAME, datatype=dt.name
+
+    col_type: str = dt.name
+    if dt.name == Datatypes.numeric.name:
+        col_type += dt.value
+
+    create_stmt: str = "create table {schema}.test_{datatype} (c1 varchar, c2 {col_type});".format(
+        schema=SCHEMA_NAME, datatype=dt.name, col_type=col_type
     )
     insert_stmt: str = "insert into {schema}.test_{datatype}(c1, c2) values{data};".format(
         schema=SCHEMA_NAME, datatype=dt.name, data=_make_data_str(dt)
@@ -377,7 +391,7 @@ def datatype_test_setup(conf) -> None:
     # execute test sql file
     os.system(
         "PGPASSWORD={password} psql --host={host} --port 5439 --user={user} --dbname={db} -f {file}".format(
-            password=conf.get("ci-cluster", "password"),
+            password=conf.get("ci-cluster", "test_password"),
             host=conf.get("ci-cluster", "host"),
             user=conf.get("ci-cluster", "test_user"),
             db=conf.get("ci-cluster", "database"),
@@ -396,7 +410,7 @@ def datatype_test_teardown(conf) -> None:
 
     os.system(
         "PGPASSWORD={password} psql --host={host} --port 5439 --user={user} --dbname={db} -f {file}".format(
-            password=conf.get("ci-cluster", "password"),
+            password=conf.get("ci-cluster", "test_password"),
             host=conf.get("ci-cluster", "host"),
             user=conf.get("ci-cluster", "test_user"),
             db=conf.get("ci-cluster", "database"),
