@@ -191,7 +191,7 @@ def connect(
     allow_db_user_override : bool
         Specifies if the driver uses the `db_user` value from the SAML assertion. TDefault value is `False`.
     client_protocol_version : int
-         The requested server protocol version. The default value is 1 representing `EXTENDED_RESULT_METADATA`. If the requested server protocol cannot be satisfied, a warning will be displayed to the user.
+         The requested server protocol version. The default value is 2 representing `BINARY`. If the requested server protocol cannot be satisfied a warning will be displayed to the user and the driver will default to the highest supported protocol. See `ClientProtocolVersion` for more details.
     database_metadata_current_db_only : bool
         Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
     ssl_insecure : bool

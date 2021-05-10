@@ -254,6 +254,8 @@ Connection Parameters
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------+----------+
 | db_user                           | str  | The user ID to use with Amazon Redshift                                                                                                                                                                                                                                                                                                                               | None                 | No       |
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------+----------+
+| client_protocol_version           | int  | The requested server protocol version. The default value is 2 representing `BINARY`. If the requested server protocol cannot be satisfied a warning will be displayed to the user and the driver will default to the highest supported protocol. See `ClientProtocolVersion` for more details.                                                                        | 2                    | No       |
++-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------+----------+
 | iam                               | bool | If IAM Authentication is enabled                                                                                                                                                                                                                                                                                                                                      | FALSE                | No       |
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+----------------------+----------+
 | idp_response_timeout              | int  | The timeout for retrieving SAML assertion from IdP                                                                                                                                                                                                                                                                                                                    | 120                  | No       |
@@ -301,6 +303,8 @@ Incoming data from Amazon Redshift is treated as follows:
 +--------------------------+-------------------+
 | Amazon Redshift Datatype | Python Datatype   |
 +==========================+===================+
+| ACLITEM                  | str               |
++--------------------------+-------------------+
 | BOOLEAN                  | bool              |
 +--------------------------+-------------------+
 | INT8                     | int               |
@@ -313,6 +317,8 @@ Incoming data from Amazon Redshift is treated as follows:
 +--------------------------+-------------------+
 | OID                      | int               |
 +--------------------------+-------------------+
+| REGPROC                  | int               |
++--------------------------+-------------------+
 | XID                      | int               |
 +--------------------------+-------------------+
 | JSON                     | dict              |
@@ -320,6 +326,8 @@ Incoming data from Amazon Redshift is treated as follows:
 | FLOAT4                   | float             |
 +--------------------------+-------------------+
 | FLOAT8                   | float             |
++--------------------------+-------------------+
+| TEXT                     | str               |
 +--------------------------+-------------------+
 | CHAR                     | str               |
 +--------------------------+-------------------+
@@ -346,6 +354,12 @@ Logging
 
 Enable logging in your application to view logs output by ``redshift_connector`` as described in
 the `documentation for Python logging module <https://docs.python.org/3/library/logging.html#/>`_.
+
+Client Transfer Protocol
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+``redshift_connector`` requests the Amazon Redshift server use the  highest transfer protocol version supported. As of v2.0.879 binary transfer protocol is requested by default. If necessary, the requested transfer protocol can be modified via the ``client_protocol_version`` parameter of ``redshift_connector.connect(...)``. Please see the Connection Parameters table for more details.
+
 
 Getting Help
 ~~~~~~~~~~~~
