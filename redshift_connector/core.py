@@ -1,3 +1,4 @@
+import logging
 import os
 import socket
 import typing
@@ -115,6 +116,7 @@ if TYPE_CHECKING:
 
 __author__ = "Mathieu Fenniak"
 
+_logger: logging.Logger = logging.getLogger(__name__)
 
 ZERO: Timedelta = Timedelta(0)
 BINARY: type = bytes
@@ -1364,12 +1366,11 @@ class Connection:
             # when a mismatch occurs between the client's requested protocol version, and the server's response,
             # warn the user and follow server
             if self._client_protocol_version != int(value):
-                warn(
+                _logger.debug(
                     "Server indicated {} transfer protocol will be used rather than protocol requested by client: {}".format(
                         ClientProtocolVersion.get_name(int(value)),
                         ClientProtocolVersion.get_name(self._client_protocol_version),
-                    ),
-                    stacklevel=3,
+                    )
                 )
                 self._client_protocol_version = int(value)
         elif key == b"server_version":

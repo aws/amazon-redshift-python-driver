@@ -1,4 +1,5 @@
 import configparser
+import logging
 import os
 import random
 import socket
@@ -15,6 +16,8 @@ from redshift_connector.config import ClientProtocolVersion
 conf = configparser.ConfigParser()
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 conf.read(root_path + "/config.ini")
+
+logger = logging.getLogger(__name__)
 
 # Check if running in Jython
 if "java" in sys.platform:
@@ -195,12 +198,17 @@ def test_client_protocol_version_is_used(db_kwargs, _input):
         assert conn._client_protocol_version == _input
 
 
-def test_client_protocol_version_invalid_warns_user(db_kwargs):
+def test_client_protocol_version_invalid_logs(db_kwargs, caplog):
     db_kwargs["client_protocol_version"] = max(ClientProtocolVersion.list()) + 1
     del db_kwargs["region"]
     del db_kwargs["cluster_identifier"]
-    with pytest.warns(UserWarning):
-        redshift_connector.Connection(**db_kwargs)
+
+    with caplog.at_level(logging.DEBUG):
+        with redshift_connector.Connection(**db_kwargs) as con:
+            act_client_protocol: int = con._client_protocol_version
+    assert "Server indicated {} transfer protocol will be used rather than protocol requested by client: {}".format(
+        act_client_protocol, db_kwargs["client_protocol_version"]
+    )
 
 
 def test_stl_connection_log_contains_driver_version(db_kwargs):
