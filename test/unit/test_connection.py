@@ -22,7 +22,8 @@ from redshift_connector.config import (
     min_int4,
     min_int8,
 )
-from redshift_connector.utils.type_utils import py_types
+from redshift_connector.utils.type_utils import pg_types as PG_TYPES
+from redshift_connector.utils.type_utils import py_types as PY_TYPES
 
 test_error_responses_data: typing.List[typing.Tuple[bytes, typing.Dict, typing.Type[Error]]] = [
     (
@@ -144,24 +145,24 @@ def test_handle_COPY_DONE():
 
 
 test_inspect_int_vals: typing.List[typing.Tuple[int, typing.Tuple[int, int, typing.Callable]]] = [
-    (min_int2 - 1, py_types[23]),
-    (min_int2, py_types[23]),
-    (min_int2 + 1, py_types[21]),
-    (max_int2 - 1, py_types[21]),
-    (max_int2, py_types[23]),
-    (max_int2 + 1, py_types[23]),
-    (min_int4 - 1, py_types[20]),
-    (min_int4, py_types[20]),
-    (min_int4 + 1, py_types[23]),
-    (max_int4 - 1, py_types[23]),
-    (max_int4, py_types[20]),
-    (max_int4 + 1, py_types[20]),
-    (min_int8 - 1, py_types[Decimal]),
-    (min_int8, py_types[Decimal]),
-    (min_int8 + 1, py_types[20]),
-    (max_int8 - 1, py_types[20]),
-    (max_int8, py_types[Decimal]),
-    (max_int8 + 1, py_types[Decimal]),
+    (min_int2 - 1, PY_TYPES[23]),
+    (min_int2, PY_TYPES[23]),
+    (min_int2 + 1, PY_TYPES[21]),
+    (max_int2 - 1, PY_TYPES[21]),
+    (max_int2, PY_TYPES[23]),
+    (max_int2 + 1, PY_TYPES[23]),
+    (min_int4 - 1, PY_TYPES[20]),
+    (min_int4, PY_TYPES[20]),
+    (min_int4 + 1, PY_TYPES[23]),
+    (max_int4 - 1, PY_TYPES[23]),
+    (max_int4, PY_TYPES[20]),
+    (max_int4 + 1, PY_TYPES[20]),
+    (min_int8 - 1, PY_TYPES[Decimal]),
+    (min_int8, PY_TYPES[Decimal]),
+    (min_int8 + 1, PY_TYPES[20]),
+    (max_int8 - 1, PY_TYPES[20]),
+    (max_int8, PY_TYPES[Decimal]),
+    (max_int8 + 1, PY_TYPES[Decimal]),
 ]
 
 
@@ -169,6 +170,7 @@ test_inspect_int_vals: typing.List[typing.Tuple[int, typing.Tuple[int, int, typi
 def test_inspect_int(_input):
     input_val, expected_type = _input
     mock_connection = Connection.__new__(Connection)
+    mock_connection.py_types = PY_TYPES
     assert mock_connection.inspect_int(input_val) == expected_type
 
 
@@ -205,6 +207,7 @@ def test_handle_ROW_DESCRIPTION_extended_metadata(_input, protocol):
     data, exp_result = _input
     mock_connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = protocol
+    mock_connection.pg_types = dict(PG_TYPES)
     mock_cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 
@@ -240,6 +243,7 @@ def test_handle_ROW_DESCRIPTION_base(_input):
     data, exp_result = _input
     mock_connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = ClientProtocolVersion.BASE_SERVER.value
+    mock_connection.pg_types = dict(PG_TYPES)
     mock_cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 
