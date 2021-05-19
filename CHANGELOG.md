@@ -2,6 +2,21 @@ Changelog
 =========
 
 
+v2.0.881 (2021-05-19)
+---------------------
+- Test(connection, client_protocol_invalid_logs): disable flaky test.
+  [Brooke White]
+- Test(datatype, geometryhex): ensure support for all protocols. [Brooke
+  White]
+- Feat(datatype, geometryhex): support geometryhex. [Brooke White]
+- Test(connection, transfer-protocol): ensure system table queries
+  execute. [Brooke White]
+- Chore(deps): update scramp requirement (#35) [dependabot[bot]]
+- Chore: update dependabot.yml prefix. [Brooke White]
+- Chore: fix dependabot.yml prefix. [Brooke White]
+- Chore: init dependabot.yml. [Brooke White]
+
+
 v2.0.880 (2021-05-10)
 ---------------------
 - Test(connection, transfer-protocol): modify conversion functions when
