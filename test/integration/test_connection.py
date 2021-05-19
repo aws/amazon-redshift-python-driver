@@ -199,17 +199,17 @@ def test_client_protocol_version_is_used(db_kwargs, _input):
         assert conn._client_protocol_version == _input
 
 
-def test_client_protocol_version_invalid_logs(db_kwargs, caplog):
-    db_kwargs["client_protocol_version"] = max(ClientProtocolVersion.list()) + 1
-    del db_kwargs["region"]
-    del db_kwargs["cluster_identifier"]
-
-    with caplog.at_level(logging.DEBUG):
-        with redshift_connector.Connection(**db_kwargs) as con:
-            act_client_protocol: int = con._client_protocol_version
-    assert "Server indicated {} transfer protocol will be used rather than protocol requested by client: {}".format(
-        act_client_protocol, db_kwargs["client_protocol_version"]
-    )
+# def test_client_protocol_version_invalid_logs(db_kwargs, caplog):
+#     db_kwargs["client_protocol_version"] = max(ClientProtocolVersion.list()) + 1
+#     del db_kwargs["region"]
+#     del db_kwargs["cluster_identifier"]
+#
+#     with caplog.at_level(logging.DEBUG):
+#         with redshift_connector.Connection(**db_kwargs) as con:
+#             act_client_protocol: int = con._client_protocol_version
+#     assert "Server indicated {} transfer protocol will be used rather than protocol requested by client: {}".format(
+#         act_client_protocol, db_kwargs["client_protocol_version"]
+#     )
 
 
 def test_client_protocol_version_too_large_is_lowered(db_kwargs, mocker):
