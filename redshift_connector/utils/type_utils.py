@@ -47,6 +47,7 @@ DATE_ARRAY = 1182
 FLOAT = 701
 FLOAT_ARRAY = 1022
 GEOMETRY = 3000
+GEOMETRYHEX = 3999
 INET = 869
 INET_ARRAY = 1041
 INT2VECTOR = 22
@@ -497,6 +498,82 @@ def array_recv_binary(data: bytes, idx: int, length: int) -> typing.List:
     return values
 
 
+ascii_invalid_value: int = 0x7F
+
+
+def hexencoding_lookup_no_case(input_value: int) -> int:
+    if input_value == 48:
+        return 0x00
+    elif input_value == 49:
+        return 0x01
+    elif input_value == 50:
+        return 0x02
+    elif input_value == 51:
+        return 0x03
+    elif input_value == 52:
+        return 0x04
+    elif input_value == 53:
+        return 0x05
+    elif input_value == 54:
+        return 0x06
+    elif input_value == 55:
+        return 0x07
+    elif input_value == 56:
+        return 0x08
+    elif input_value == 57:
+        return 0x09
+    elif (input_value == 65) or (input_value == 97):
+        return 0x0A
+    elif (input_value == 66) or (input_value == 98):
+        return 0x0B
+    elif (input_value == 67) or (input_value == 99):
+        return 0x0C
+    elif (input_value == 68) or (input_value == 100):
+        return 0x0D
+    elif (input_value == 69) or (input_value == 101):
+        return 0x0E
+    elif (input_value == 70) or (input_value == 102):
+        return 0x0F
+    else:
+        return ascii_invalid_value
+
+
+def geometryhex_recv(data: bytes, idx: int, length: int) -> str:
+    error_flag: bool = False
+    pointer: int = idx
+
+    if data is None:
+        return ""
+    elif length == 0:
+        return ""
+    else:
+        # EWT is always hex encoded
+        # check to see if byte is expected length
+        if 1 == ((idx + length - pointer) % 2):
+            return data[idx : idx + length].hex()
+
+        result: bytearray = bytearray((idx + length - pointer) // 2)
+
+        i: int = 0
+        while pointer < (idx + length):
+            # get the ascii number encoded
+            stage: int = hexencoding_lookup_no_case(data[pointer]) << 4
+            # error check
+            error_flag = (stage == ascii_invalid_value) | error_flag
+            pointer += 1
+            stage2 = hexencoding_lookup_no_case(data[pointer])
+            error_flag = (stage2 == ascii_invalid_value) | error_flag
+            pointer += 1
+
+            result[i] = stage | stage2
+            i += 1
+
+        if error_flag:
+            return data[idx : idx + length].hex()
+
+        return result.hex()
+
+
 # def inet_in(data: bytes, offset: int, length: int) -> typing.Union[IPv4Address, IPv6Address, IPv4Network, IPv6Network]:
 #     inet_str: str = data[offset: offset + length].decode(
 #         _client_encoding)
@@ -554,6 +631,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         # 2275: (FC_BINARY, text_recv),  # cstring
         # 2950: (FC_BINARY, uuid_recv),  # uuid
         GEOMETRY: (FC_TEXT, text_recv),  # GEOMETRY
+        GEOMETRYHEX: (FC_TEXT, geometryhex_recv),  # GEOMETRYHEX
         # 3802: (FC_TEXT, json_in),  # jsonb
         SUPER: (FC_TEXT, text_recv),  # SUPER
     },
