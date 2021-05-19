@@ -79,8 +79,10 @@ for datatype in redshift_test_data:
 
 
 @pytest.mark.skip(reason="manual")
+@pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("_input", redshift_datatype_testcases)
-def test_redshift_specific_recv_support(db_kwargs, _input):
+def test_redshift_specific_recv_support(db_kwargs, _input, client_protocol):
+    db_kwargs["client_protocol_version"] = client_protocol
     datatype, data = _input
     test_val, exp_val = data
 
