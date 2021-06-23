@@ -16,7 +16,7 @@ class RedshiftProperty:
     # The Amazon Resource Name (ARN) of the SAML provider in IAM that describes the IdP.
     principal: typing.Optional[str] = None
     # This property indicates whether the IDP hosts server certificate should be verified.
-    sslInsecure: bool = True
+    ssl_insecure: bool = True
     # The Okta-provided unique ID associated with your Redshift application.
     app_id: typing.Optional[str] = None
     # The name of the Okta application that you use to authenticate the connection to Redshift.

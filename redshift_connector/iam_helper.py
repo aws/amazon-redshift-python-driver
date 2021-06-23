@@ -247,7 +247,7 @@ class IamHelper:
         info.allow_db_user_override = allow_db_user_override
 
         if ssl_insecure is not None:
-            info.sslInsecure = ssl_insecure
+            info.ssl_insecure = ssl_insecure
 
         # Azure specified parameters
         info.client_id = client_id

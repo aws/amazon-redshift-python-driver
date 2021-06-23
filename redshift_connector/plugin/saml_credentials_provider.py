@@ -25,7 +25,7 @@ class SamlCredentialsProvider(ABC):
         self.idpPort: int = 443
         self.duration: typing.Optional[int] = None
         self.preferred_role: typing.Optional[str] = None
-        self.sslInsecure: typing.Optional[bool] = None
+        self.ssl_insecure: typing.Optional[bool] = None
         self.db_user: typing.Optional[str] = None
         self.db_groups: typing.List[str] = list()
         self.force_lowercase: typing.Optional[bool] = None
@@ -42,7 +42,7 @@ class SamlCredentialsProvider(ABC):
         self.idpPort = info.idpPort
         self.duration = info.duration
         self.preferred_role = info.preferred_role
-        self.sslInsecure = info.sslInsecure
+        self.ssl_insecure = info.ssl_insecure
         self.db_user = info.db_user
         self.db_groups = info.db_groups
         self.force_lowercase = info.force_lowercase
@@ -51,7 +51,7 @@ class SamlCredentialsProvider(ABC):
         self.principal = info.principal
 
     def do_verify_ssl_cert(self: "SamlCredentialsProvider") -> bool:
-        return not self.sslInsecure
+        return not self.ssl_insecure
 
     def get_credentials(self: "SamlCredentialsProvider") -> CredentialsHolder:
         key: str = self.get_cache_key()

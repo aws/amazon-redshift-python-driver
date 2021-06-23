@@ -11,7 +11,7 @@ def make_redshift_property() -> RedshiftProperty:
     rp.idp_host = "8000"
     rp.duration = 100
     rp.preferred_role = "analyst"
-    rp.sslInsecure = False
+    rp.ssl_insecure = False
     rp.db_user = "primary"
     rp.db_groups = ["employees"]
     rp.force_lowercase = True
