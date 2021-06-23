@@ -42,8 +42,11 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
 
         # HTTP Post request to Okta API for session token
         url: str = "https://{host}/api/v1/authn".format(host=self.idp_host)
+        _logger.debug("Okta authentication request uri: {}".format(url))
         headers: typing.Dict[str, str] = okta_headers
         payload: typing.Dict[str, typing.Optional[str]] = {"username": self.user_name, "password": self.password}
+        _logger.debug("Okta authentication payload contains username={}".format(self.user_name))
+
         try:
             response: "requests.Response" = requests.post(
                 url, data=json.dumps(payload), headers=headers, verify=self.do_verify_ssl_cert()
@@ -51,9 +54,9 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if "response" in vars():
-                _logger.debug("okta_authentication https response: {}".format(response.text))  # type: ignore
+                _logger.debug("Okta authentication response body: {}".format(response.content))  # type: ignore
             else:
-                _logger.debug("okta_authentication could not receive https response due to an error")
+                _logger.debug("Okta authentication response raised an exception. No response returned.")
             _logger.error("Request for authentication from Okta was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
@@ -71,10 +74,14 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
         # Retrieve and parse the Okta response for session token
         if response is None:
             raise InterfaceError("Request for authentication returned empty payload")
+        _logger.debug("Okta_authentication https response: {!r}".format(response.content))
         response_payload: typing.Dict[str, typing.Any] = response.json()
+
         if "status" not in response_payload:
+            _logger.debug("Status key not found in payload")
             raise InterfaceError("Request for authentication retrieved malformed payload.")
         elif response_payload["status"] != "SUCCESS":
+            _logger.debug("Status={} found in payload. Status must equal SUCCESS".format(response_payload["status"]))
             raise InterfaceError("Request for authentication received non success response.")
         else:
             return str(response_payload["sessionToken"])
@@ -87,6 +94,8 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
         url: str = "https://{host}/home/{app_name}/{app_id}?onetimetoken={session_token}".format(
             host=self.idp_host, app_name=self.app_name, app_id=self.app_id, session_token=okta_session_token
         )
+        _logger.debug("OktaAWSAppUrl: {}".format(url))
+
         try:
             response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
@@ -106,6 +115,7 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             raise InterfaceError(e)
 
         text: str = response.text
+        _logger.debug(response.content)
 
         try:
             soup = bs4.BeautifulSoup(text, "html.parser")

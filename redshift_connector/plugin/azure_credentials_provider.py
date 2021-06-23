@@ -61,6 +61,8 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
 
         # endpoint to connect with Microsoft Azure to get SAML Assertion token
         url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
+        _logger.debug("Uri: {}".format(url))
+
         # headers to pass with POST request
         headers: typing.Dict[str, str] = azure_headers
         # required parameters to pass in POST body
@@ -82,10 +84,10 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         except requests.exceptions.HTTPError as e:
             if "response" in vars():
                 _logger.debug(
-                    "azure_oauth_based_authentication https response: {}".format(response.text)  # type: ignore
+                    "azure_oauth_based_authentication https response: {}".format(response.content)  # type: ignore
                 )
             else:
-                _logger.debug("azure_oauth_based_authentication could not receive https response due to an error")
+                _logger.debug("Azure_oauth_based_authentication could not receive https response due to an error")
             _logger.error("Request for authentication from Azure was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
@@ -99,6 +101,8 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         except requests.exceptions.RequestException as e:
             _logger.error("A unknown error occurred when requesting authentication from Azure.")
             raise InterfaceError(e)
+
+        _logger.debug(response.text)
 
         # parse the JSON response to grab access_token field which contains Base64 encoded SAML
         # Assertion and decode it

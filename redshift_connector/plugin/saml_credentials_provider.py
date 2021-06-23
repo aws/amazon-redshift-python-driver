@@ -59,7 +59,7 @@ class SamlCredentialsProvider(ABC):
             try:
                 self.refresh()
             except Exception as e:
-                _logger.error("refresh failed: {}".format(str(e)))
+                _logger.error("Refreshing IdP credentials failed: {}".format(str(e)))
                 raise InterfaceError(e)
         # if the SAML response has db_user argument, it will be picked up at this point.
         credentials: CredentialsHolder = self.cache[key]
@@ -81,7 +81,7 @@ class SamlCredentialsProvider(ABC):
             # get SAML assertion from specific identity provider
             saml_assertion = self.get_saml_assertion()
         except Exception as e:
-            _logger.error("get saml assertion failed: {}".format(str(e)))
+            _logger.error("Get saml assertion failed: {}".format(str(e)))
             raise InterfaceError(e)
         # decode SAML assertion into xml format
         doc: bytes = base64.b64decode(saml_assertion)
@@ -160,7 +160,7 @@ class SamlCredentialsProvider(ABC):
             _logger.error("RegionDisabledException: %s", e)
             raise e
         except Exception as e:
-            _logger.error("other Exception: %s", e)
+            _logger.error("Other Exception: %s", e)
             raise e
 
     def get_cache_key(self: "SamlCredentialsProvider") -> str:

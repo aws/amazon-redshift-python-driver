@@ -1,4 +1,5 @@
 import functools
+import logging
 import re
 import typing
 from collections import deque
@@ -22,6 +23,8 @@ if TYPE_CHECKING:
         import pandas  # type: ignore
     except:
         pass
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 class Cursor:
@@ -97,6 +100,8 @@ class Cursor:
             self.paramstyle: str = redshift_connector.paramstyle
         else:
             self.paramstyle = paramstyle
+
+        _logger.debug("Cursor.paramstyle={}".format(self.paramstyle))
 
     def __enter__(self: "Cursor") -> "Cursor":
         return self

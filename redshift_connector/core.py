@@ -71,6 +71,7 @@ from redshift_connector.utils import (
     ii_pack,
     iii_pack,
     int_array_recv,
+    make_divider_block,
     numeric_in,
     numeric_in_binary,
 )
@@ -493,6 +494,11 @@ class Connection:
         if credentials_provider:
             init_params["plugin_name"] = credentials_provider
 
+        _logger.debug(make_divider_block())
+        _logger.debug("Establishing a connection")
+        _logger.debug(init_params)
+        _logger.debug(make_divider_block())
+
         for k, v in tuple(init_params.items()):
             if isinstance(v, str):
                 init_params[k] = v.encode("utf8")
@@ -559,6 +565,9 @@ class Connection:
                     self._usock.sendall(ii_pack(8, 80877103))
                     resp: bytes = self._usock.recv(1)
                     if resp != b"S":
+                        _logger.debug(
+                            "Server response code when attempting to establish ssl connection: {!r}".format(resp)
+                        )
                         raise InterfaceError("Server refuses SSL")
 
                     if sslmode == "verify-ca":
@@ -642,6 +651,7 @@ class Connection:
 
         code = None
         self.error: typing.Optional[Exception] = None
+        _logger.debug("Sending start-up message")
         # When driver send the start-up message to database, DB will respond multi messages to driver
         # whose format is same with the message that driver send to DB.
         while code not in (READY_FOR_QUERY, ERROR_RESPONSE):
@@ -661,6 +671,7 @@ class Connection:
             self._client_protocol_version > ClientProtocolVersion.BASE_SERVER
             and not (b"server_protocol_version", str(self._client_protocol_version).encode()) in self.parameter_statuses
         ):
+            _logger.debug("Server_protocol_version not received from server")
             self._client_protocol_version = ClientProtocolVersion.BASE_SERVER
             self._enable_protocol_based_conversion_funcs()
 
@@ -1027,6 +1038,7 @@ class Connection:
             raise InterfaceError("Prepared Statement is missing row description")
 
         count: int = h_unpack(data)[0]
+        _logger.debug("field count={}".format(count))
         idx = 2
         for i in range(count):
             column_label = data[idx : data.find(NULL_BYTE, idx)]
@@ -1055,6 +1067,8 @@ class Connection:
 
             cursor.ps["row_desc"].append(field)
             field["pg8000_fc"], field["func"] = self.pg_types[field["type_oid"]]
+
+        _logger.debug(cursor.ps["row_desc"])
 
     def execute(self: "Connection", cursor: Cursor, operation: str, vals) -> None:
         """

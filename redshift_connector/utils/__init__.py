@@ -7,6 +7,7 @@ from .array_util import (
     walk_array,
 )
 from .driver_info import DriverInfo
+from .logging_utils import make_divider_block, mask_secure_info_in_props
 from .type_utils import (
     FC_BINARY,
     FC_TEXT,

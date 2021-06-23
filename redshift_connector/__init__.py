@@ -38,7 +38,11 @@ from redshift_connector.pg_types import (
     PGVarchar,
 )
 from redshift_connector.redshift_property import RedshiftProperty
-from redshift_connector.utils import DriverInfo
+from redshift_connector.utils import (
+    DriverInfo,
+    make_divider_block,
+    mask_secure_info_in_props,
+)
 from redshift_connector.utils.type_utils import (
     BIGINT,
     BIGINTEGER,
@@ -88,6 +92,7 @@ from redshift_connector.utils.type_utils import (
 from .version import __version__
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
+_logger: logging.Logger = logging.getLogger(__name__)
 
 # Copyright (c) 2007-2009, Mathieu Fenniak
 # Copyright (c) The Contributors
@@ -295,6 +300,12 @@ def connect(
         role_session_name=role_session_name,
         role_arn=role_arn,
     )
+
+    _logger.debug(make_divider_block())
+    _logger.debug("Initializing Connection object")
+    _logger.debug(make_divider_block())
+    _logger.debug(mask_secure_info_in_props(info).__str__())
+    _logger.debug(make_divider_block())
 
     return Connection(
         user=info.user_name,

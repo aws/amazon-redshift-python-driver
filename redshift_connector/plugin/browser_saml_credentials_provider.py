@@ -34,6 +34,10 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
         self.idp_response_timeout = info.idp_response_timeout
         self.listen_port = info.listen_port
 
+        _logger.debug("Listen_port={}".format(self.listen_port))
+        _logger.debug("Login_url={}".format(self.login_url))
+        _logger.debug("Idp_response_timeout={}".format(self.idp_response_timeout))
+
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "BrowserSamlCredentialsProvider") -> str:
 
@@ -54,6 +58,7 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
     def authenticate(self: "BrowserSamlCredentialsProvider") -> str:
         try:
             with concurrent.futures.ThreadPoolExecutor() as executor:
+                _logger.debug("Listening for connection on port {}".format(self.listen_port))
                 future = executor.submit(self.run_server, self.listen_port, self.idp_response_timeout)
                 self.open_browser()
                 return_value: str = future.result()
@@ -61,10 +66,10 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
             samlresponse = urllib.parse.unquote(return_value)
             return str(samlresponse)
         except socket.error as e:
-            _logger.error("socket error: %s", e)
+            _logger.error("Socket error: %s", e)
             raise e
         except Exception as e:
-            _logger.error("other Exception: %s", e)
+            _logger.error("Other Exception: %s", e)
             raise e
 
     def run_server(self: "BrowserSamlCredentialsProvider", listen_port: int, idp_response_timeout: int) -> str:
@@ -85,6 +90,7 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
                     result: typing.Optional[typing.Match] = re.search(
                         pattern="SAMLResponse[:=]+[\\n\\r]*", string=decoded_part, flags=re.MULTILINE
                     )
+                    _logger.debug("Data received contained SAMLResponse: {}".format(bool(result is not None)))
 
                     if result is not None:
                         saml_resp_block: str = decoded_part[result.regs[0][1] :]
@@ -98,6 +104,8 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
         import webbrowser
 
         url: typing.Optional[str] = self.login_url
+        _logger.debug("SSO URI: {}".format(url))
+
         if url is None:
             raise InterfaceError("the login_url could not be empty")
         webbrowser.open(url)

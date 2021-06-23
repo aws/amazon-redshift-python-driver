@@ -16,6 +16,7 @@ from redshift_connector.credentials_holder import (
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
+from redshift_connector.utils import make_divider_block
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -153,6 +154,7 @@ class IamHelper:
                     )
                 else:
                     info.credentials_provider = credentials_provider
+                    _logger.debug("IDP Credential Provider {}".format(info.credentials_provider))
             elif profile is not None:
                 if any((access_key_id, secret_access_key, session_token)):
                     raise InterfaceError(
@@ -161,6 +163,7 @@ class IamHelper:
                     )
                 else:
                     info.profile = profile
+                    _logger.debug("AWS Profile {}".format(info.profile))
             elif access_key_id is not None:
                 info.access_key_id = access_key_id
 
@@ -170,6 +173,7 @@ class IamHelper:
                 # SQL Workbench.
                 elif password != "":
                     info.secret_access_key = password
+                    _logger.debug("Value of password will be used for secret_access_key")
                 else:
                     raise InterfaceError(
                         "Invalid connection property setting. "
@@ -178,6 +182,11 @@ class IamHelper:
 
                 if session_token is not None:
                     info.session_token = session_token
+                _logger.debug(
+                    "AWS Credentials access_key_id: {} secret_access_key: {} session_token: {}".format(
+                        bool(info.access_key_id), bool(info.secret_access_key), bool(info.session_token)
+                    )
+                )
             elif secret_access_key is not None:
                 raise InterfaceError(
                     "Invalid connection property setting. access_key_id is required when secret_access_key is "
@@ -290,6 +299,7 @@ class IamHelper:
                     )
                     raise InterfaceError("Invalid credentials provider " + info.credentials_provider)
         else:  # indicates AWS Credentials will be used
+            _logger.debug("AWS Credentials provider will be used for authentication")
             provider = AWSCredentialsProvider()
             provider.add_parameter(info)
 

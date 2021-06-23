@@ -52,6 +52,11 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
         self.idp_response_timeout = info.idp_response_timeout
 
+        _logger.debug("Idp_tenant={}".format(self.idp_tenant))
+        _logger.debug("Client_id={}".format(self.client_id))
+        _logger.debug("Idp_response_timeout={}".format(self.idp_response_timeout))
+        _logger.debug("Listen_port={}".format(self.listen_port))
+
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "BrowserAzureCredentialsProvider") -> str:
 
@@ -65,6 +70,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
         listen_socket: socket.socket = self.get_listen_socket()
         self.redirectUri = "http://localhost:{port}/redshift/".format(port=self.listen_port)
+        _logger.debug("Listening for connection on port {}".format(self.listen_port))
 
         try:
             token: str = self.fetch_authorization_token(listen_socket)
@@ -73,7 +79,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             raise e
         finally:
             listen_socket.close()
-
+        _logger.debug("Got SAML assertion")
         return self.wrap_and_encode_assertion(saml_assertion)
 
     #  First authentication phase:
@@ -93,10 +99,10 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
             return str(return_value)
         except socket.error as e:
-            _logger.error("socket error: %s", e)
+            _logger.error("Socket error: %s", e)
             raise e
         except Exception as e:
-            _logger.error("other Exception: %s", e)
+            _logger.error("Other Exception: %s", e)
             raise e
 
     # Initiates the request to the IDP and gets the response body
@@ -119,14 +125,17 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             "client_secret": self.client_secret,
             "redirect_uri": self.redirectUri,
         }
+
+        _logger.debug("Uri: {}".format(url))
+
         try:
             response = requests.post(url, data=payload, headers=headers, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if "response" in vars():
-                _logger.debug("fetch_saml_response https response: {}".format(response.text))  # type: ignore
+                _logger.debug("Fetch_saml_response https response: {}".format(response.content))  # type: ignore
             else:
-                _logger.debug("fetch_saml_response could not receive https response due to an error")
+                _logger.debug("Fetch_saml_response could not receive https response due to an error")
             _logger.error("Request for authentication from Microsoft was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
@@ -140,6 +149,8 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         except requests.exceptions.RequestException as e:
             _logger.error("A unknown error occurred when requesting authentication from Azure")
             raise InterfaceError(e)
+
+        _logger.debug(response.text)
 
         try:
             saml_assertion: str = response.json()["access_token"]

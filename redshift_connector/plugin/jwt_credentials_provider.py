@@ -63,7 +63,7 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
             try:
                 self.refresh()
             except Exception as e:
-                _logger.error("refresh failed: {}".format(str(e)))
+                _logger.error("Refreshing IdP credentials failed: {}".format(str(e)))
                 raise InterfaceError(e)
 
         if key not in self.cache or self.cache[key] is None:
@@ -118,7 +118,7 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
             _logger.error("RegionDisabledException: %s", e)
             raise e
         except Exception as e:
-            _logger.error("other Exception: %s", e)
+            _logger.error("Other Exception: %s", e)
             raise e
 
     def check_required_parameters(self: "JwtCredentialsProvider") -> None:

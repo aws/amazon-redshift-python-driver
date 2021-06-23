@@ -57,7 +57,7 @@ class AWSCredentialsProvider:
             try:
                 self.refresh()
             except Exception as e:
-                _logger.error("refresh failed: {}".format(str(e)))
+                _logger.error("Refreshing IdP credentials failed: {}".format(str(e)))
                 raise InterfaceError(e)
 
         credentials: typing.Union[AWSDirectCredentialsHolder, AWSProfileCredentialsHolder] = self.cache[key]

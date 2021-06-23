@@ -38,14 +38,16 @@ class PingCredentialsProvider(SamlCredentialsProvider):
             url: str = "https://{host}:{port}/idp/startSSO.ping?PartnerSpId={sp_id}".format(
                 host=self.idp_host, port=str(self.idpPort), sp_id=self.partner_sp_id
             )
+            _logger.debug("Uri: {}".format(url))
+
             try:
                 response: "requests.Response" = session.get(url, verify=self.do_verify_ssl_cert())
                 response.raise_for_status()
             except requests.exceptions.HTTPError as e:
                 if "response" in vars():
-                    _logger.debug("get_saml_assertion https response: {}".format(response.text))  # type: ignore
+                    _logger.debug("Get_saml_assertion https response: {}".format(response.content))  # type: ignore
                 else:
-                    _logger.debug("get_saml_assertion could not receive https response due to an error")
+                    _logger.debug("Get_saml_assertion could not receive https response due to an error")
                 _logger.error(
                     "Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e))
                 )
@@ -63,6 +65,8 @@ class PingCredentialsProvider(SamlCredentialsProvider):
                 _logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
                 raise InterfaceError(e)
 
+            _logger.debug(response.content)
+
             try:
                 soup = bs4.BeautifulSoup(response.text)
             except Exception as e:
@@ -77,6 +81,7 @@ class PingCredentialsProvider(SamlCredentialsProvider):
                 name: str = inputtag.get("name", "")
                 id: str = inputtag.get("id", "")
                 value: str = inputtag.get("value", "")
+                _logger.debug("Name={} , id={}".format(name, id))
 
                 if username is False and self.is_text(inputtag) and id == "username":
                     payload[name] = self.user_name
@@ -97,11 +102,14 @@ class PingCredentialsProvider(SamlCredentialsProvider):
                         username = True
 
             if (username is False) or (pwd is False):
+                _logger.debug(soup.find_all(re.compile("(INPUT|input)")))
                 raise InterfaceError("Failed to parse login form.")
 
             action: typing.Optional[str] = self.get_form_action(soup)
             if action and action.startswith("/"):
                 url = "https://{host}:{port}{action}".format(host=self.idp_host, port=str(self.idpPort), action=action)
+            _logger.debug("Action uri: {}".format(url))
+
             try:
                 response = session.post(url, data=payload, verify=self.do_verify_ssl_cert())
                 response.raise_for_status()

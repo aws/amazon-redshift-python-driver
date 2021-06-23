@@ -35,14 +35,16 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
         url: str = "https://{host}:{port}/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices".format(
             host=self.idp_host, port=str(self.idpPort)
         )
+        _logger.debug("Uri: {}".format(url))
+
         try:
             response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if "response" in vars():
-                _logger.debug("form_based_authentication https response: {}".format(response.text))  # type: ignore
+                _logger.debug("Form_based_authentication https response: {}".format(response.content))  # type: ignore
             else:
-                _logger.debug("form_based_authentication could not receive https response due to an error")
+                _logger.debug("Form_based_authentication could not receive https response due to an error")
             _logger.error("Request for SAML assertion when refreshing credentials was unsuccessful. {}".format(str(e)))
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
@@ -58,6 +60,8 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             _logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
             raise InterfaceError(e)
 
+        _logger.debug(response.text)
+
         try:
             soup = bs4.BeautifulSoup(response.text, features="lxml")
         except Exception as e:
@@ -69,6 +73,9 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
         for inputtag in soup.find_all(re.compile("(INPUT|input)")):
             name: str = inputtag.get("name", "")
             value: str = inputtag.get("value", "")
+
+            _logger.debug("Name={}".format(name))
+
             if "username" in name.lower():
                 payload[name] = self.user_name
             elif "authmethod" in name.lower():
@@ -81,6 +88,8 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
         action: typing.Optional[str] = self.get_form_action(soup)
         if action and action.startswith("/"):
             url = "https://{host}:{port}{action}".format(host=self.idp_host, port=str(self.idpPort), action=action)
+
+        _logger.debug("Action uri: {}".format(url))
 
         try:
             response = requests.post(url, data=payload, verify=self.do_verify_ssl_cert())

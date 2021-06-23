@@ -97,3 +97,6 @@ class RedshiftProperty:
     web_identity_token: typing.Optional[str] = None
     role_session_name: typing.Optional[str] = None
     role_arn: typing.Optional[str] = None
+
+    def __str__(self: "RedshiftProperty") -> str:
+        return str(self.__dict__)
