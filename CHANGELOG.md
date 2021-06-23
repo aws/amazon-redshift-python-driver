@@ -2,6 +2,18 @@ Changelog
 =========
 
 
+v2.0.882 (2021-06-23)
+---------------------
+- Refactor(redshift-property, ssl_insecure): use ssl_insecure rather
+  than sslInsecure in internal code. [Brooke White]
+- Refactor(logging): add additional debug stmts. [Brooke White]
+- Docs(tutorials): init tutorials. [Brooke White]
+- Refactor(tests, idp): don't pass host, port, db password to idp
+  fixtures. [Brooke White]
+- Fix(connection, iam-auth): host, port connect() params override
+  describe_cluster response. [Brooke White]
+
+
 v2.0.881 (2021-05-19)
 ---------------------
 - Test(connection, client_protocol_invalid_logs): disable flaky test.
