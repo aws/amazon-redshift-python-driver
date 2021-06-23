@@ -125,7 +125,7 @@ def connect(
     database: str,
     password: str,
     port: int = 5439,
-    host: str = "localhost",
+    host: str = "",
     source_address: typing.Optional[str] = None,
     unix_sock: typing.Optional[str] = None,
     ssl: bool = True,

@@ -377,9 +377,11 @@ class IamHelper:
             else:
                 client = boto3.client(service_name="redshift", **session_credentials)
 
-            response = client.describe_clusters(ClusterIdentifier=info.cluster_identifier)
-            info.host = response["Clusters"][0]["Endpoint"]["Address"]
-            info.port = response["Clusters"][0]["Endpoint"]["Port"]
+            if info.host is None or info.host == "" or info.port is None or info.port == "":
+                response = client.describe_clusters(ClusterIdentifier=info.cluster_identifier)
+
+                info.host = response["Clusters"][0]["Endpoint"]["Address"]
+                info.port = response["Clusters"][0]["Endpoint"]["Port"]
 
             # temporary credentials are cached by redshift_connector and will be used if they have not expired
             cache_key: str = IamHelper.get_credentials_cache_key(info)
