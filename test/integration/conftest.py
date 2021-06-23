@@ -44,6 +44,14 @@ def _get_default_connection_args():
     }
 
 
+def _get_default_iam_connection_args():
+    args = _get_default_connection_args()
+    del args["host"]
+    del args["port"]
+    args["password"] = ""
+    return args
+
+
 @pytest.fixture(scope="class")
 def db_kwargs():
     return _get_default_connection_args()
@@ -75,7 +83,7 @@ def okta_idp():
         "app_name": conf.get("okta-idp", "app_name"),
         "credentials_provider": conf.get("okta-idp", "credentials_provider"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -88,7 +96,7 @@ def okta_browser_idp():
         "credentials_provider": conf.get("okta-browser-idp", "credentials_provider"),
         "login_url": conf.get("okta-browser-idp", "login_url"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -103,7 +111,7 @@ def azure_browser_idp():
         "client_id": conf.get("azure-browser-idp", "client_id"),
         "client_secret": conf.get("azure-browser-idp", "client_secret"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -116,7 +124,7 @@ def jumpcloud_browser_idp():
         "credentials_provider": conf.get("jumpcloud-browser-idp", "credentials_provider"),
         "login_url": conf.get("jumpcloud-browser-idp", "login_url"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -128,7 +136,7 @@ def ping_browser_idp():
         "listen_port": conf.getint("ping-one-idp", "listen_port"),
         "idp_response_timeout": conf.getint("ping-one-idp", "idp_response_timeout"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -143,7 +151,7 @@ def azure_idp():
         "client_id": conf.get("azure-idp", "client_id"),
         "client_secret": conf.get("azure-idp", "client_secret"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -156,7 +164,7 @@ def adfs_idp():
         "credentials_provider": conf.get("adfs-idp", "credentials_provider"),
         "idp_host": conf.get("adfs-idp", "idp_host"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -169,7 +177,7 @@ def jwt_google_idp():
         "web_identity_token": conf.get("jwt-google-idp", "web_identity_token"),
         "role_arn": conf.get("jwt-google-idp", "role_arn"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture(scope="class")
@@ -182,7 +190,7 @@ def jwt_azure_v2_idp():
         "web_identity_token": conf.get("jwt-azure-v2-idp", "web_identity_token"),
         "role_arn": conf.get("jwt-azure-v2-idp", "role_arn"),
     }
-    return {**_get_default_connection_args(), **db_connect}
+    return {**_get_default_iam_connection_args(), **db_connect}
 
 
 @pytest.fixture
