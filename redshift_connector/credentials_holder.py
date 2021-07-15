@@ -1,9 +1,14 @@
 import datetime
+import logging
+import time
 import typing
 from abc import ABC, abstractmethod
 
 if typing.TYPE_CHECKING:
     import boto3  # type: ignore
+
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 class ABCCredentialsHolder(ABC):
@@ -145,7 +150,9 @@ class CredentialsHolder(ABCCredentialsHolder):
         return self.expiration
 
     def is_expired(self: "CredentialsHolder") -> bool:
-        return datetime.datetime.now() > self.expiration.replace(tzinfo=None)
+        _logger.debug("Credentials will expire at {} (UTC)".format(self.expiration))
+
+        return datetime.datetime.now(datetime.timezone.utc) > self.expiration
 
     class IamMetadata:
         """

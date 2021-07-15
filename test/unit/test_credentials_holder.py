@@ -1,3 +1,4 @@
+import datetime
 import typing
 from unittest.mock import MagicMock
 
@@ -8,6 +9,7 @@ from redshift_connector.credentials_holder import (
     ABCAWSCredentialsHolder,
     AWSDirectCredentialsHolder,
     AWSProfileCredentialsHolder,
+    CredentialsHolder,
 )
 
 
@@ -80,3 +82,53 @@ def test_aws_profile_credentials_holder_get_session_credentials():
     assert len(ret_value) == 1
 
     assert ret_value["profile"] == profile_val
+
+
+@pytest.mark.parametrize(
+    "expiration",
+    [
+        datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(hours=3),  # expired 3 hrs ago
+        datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(days=1),  # expired 1 day ago
+        datetime.datetime.now(datetime.timezone.utc)
+        - datetime.timedelta(weeks=1),  # expired 1 week ago
+    ],
+)
+def test_is_expired_true(expiration):
+    credentials: typing.Dict[str, typing.Any] = {
+        "AccessKeyId": "something",
+        "SecretAccessKey": "secret",
+        "SessionToken": "fornow",
+        "Expiration": expiration,
+    }
+
+    obj: CredentialsHolder = CredentialsHolder(credentials=credentials)
+
+    assert obj.is_expired() == True
+
+
+@pytest.mark.parametrize(
+    "expiration",
+    [
+        datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(minutes=1),  # expired 1 minute ago
+        datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(hours=3),  # expired 3 hrs ago
+        datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(days=1),  # expired 1 day ago
+        datetime.datetime.now(datetime.timezone.utc)
+        + datetime.timedelta(weeks=1),  # expired 1 week ago
+    ],
+)
+def test_is_expired_false(expiration):
+    credentials: typing.Dict[str, typing.Any] = {
+        "AccessKeyId": "something",
+        "SecretAccessKey": "secret",
+        "SessionToken": "fornow",
+        "Expiration": expiration,
+    }
+
+    obj: CredentialsHolder = CredentialsHolder(credentials=credentials)
+
+    assert obj.is_expired() == False
