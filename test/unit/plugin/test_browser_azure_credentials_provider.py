@@ -175,6 +175,17 @@ def test_run_server():
     assert result == browser_azure_data.code
 
 
+def test_run_server_calls_get_success_response_http_msg(mocker):
+    bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
+    MockSocket.mocked_data = browser_azure_data.valid_response
+    listen_socket: MockSocket = MockSocket()
+    spy = mocker.spy(bacp, "close_window_http_resp")
+
+    result: str = bacp.run_server(listen_socket=listen_socket, idp_response_timeout=10, state=browser_azure_data.state)
+    assert spy.called is True
+    assert spy.call_count == 1
+
+
 invalid_datas = [
     (browser_azure_data.missing_code_response, "No code found"),
     (browser_azure_data.empty_code_response, "No valid code found"),

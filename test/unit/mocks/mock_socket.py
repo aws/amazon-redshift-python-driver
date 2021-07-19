@@ -30,3 +30,6 @@ class MockSocket(socket.socket):
 
     def close(self) -> None:
         pass
+
+    def send(self, *args) -> None:  # type: ignore
+        pass
