@@ -212,6 +212,7 @@ def connect(
     preferred_role : str
         The IAM role preferred for the current connection.
     principal_arn : Optional[str]
+        The ARN of the IAM entity (user or role) for which you are generating a policy.
     credentials_provider : str
         The class name of the IdP that will be used for authenticating with the Amazon Redshift cluster.
     region : str
@@ -227,6 +228,7 @@ def connect(
     client_secret : str
         The client secret from Azure IdP.
     partner_sp_id : Optional[str]
+        The Partner SP Id used for authentication with Ping.
     idp_response_timeout : int
         The timeout for retrieving SAML assertion from IdP. Default value is `120`.
     listen_port : int
@@ -246,7 +248,12 @@ def connect(
         Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
     ssl_insecure : bool
         Specifies if IdP host's server certificate will be verified. Default value is True
-
+    web_identity_token: Optional[str]
+        A web identity token used for authentication with JWT.
+    role_session_name: Optional[str]
+        An identifier for the assumed role session used for authentication with JWT.
+    role_arn: Optional[str]
+        The role ARN used for authentication with JWT. This parameter is required when using a JWTCredentialsProvider.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`

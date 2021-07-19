@@ -1322,7 +1322,7 @@ class Connection:
                     pcache["ps"].clear()
 
     # Get the data respond from database
-    # transfrom the Redshift data tye into python data type
+    # transform the Redshift data tye into python data type
     # store the data into _cached_rows
     def handle_DATA_ROW(self: "Connection", data: bytes, cursor: Cursor) -> None:
         data_idx: int = 2
