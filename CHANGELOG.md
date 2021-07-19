@@ -2,6 +2,20 @@ Changelog
 =========
 
 
+v2.0.883 (2021-07-19)
+---------------------
+- Docs(Connection, handle_DATA_ROW): add doc-string. [Brooke White]
+- Docs(tutorials, BrowserAzureCredentialsProvider): fix bug in tutorial.
+  [Brooke White]
+- Docs: update doc-strings, fix typo. [Brooke White]
+- Docs(readme): update connection params table, pandas usage. [Brooke
+  White]
+- Test(idp, browser-azure): display close window message after auth with
+  IdP. [Brooke White]
+- Fix(idp, browser): display close window message after auth with IdP.
+  [Brooke White]
+
+
 v2.0.882 (2021-06-23)
 ---------------------
 - Refactor(redshift-property, ssl_insecure): use ssl_insecure rather
