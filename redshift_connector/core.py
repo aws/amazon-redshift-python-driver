@@ -1321,10 +1321,15 @@ class Connection:
                         self.close_prepared_statement(ps["statement_name_bin"])
                     pcache["ps"].clear()
 
-    # Get the data respond from database
-    # transform the Redshift data tye into python data type
-    # store the data into _cached_rows
     def handle_DATA_ROW(self: "Connection", data: bytes, cursor: Cursor) -> None:
+        """
+        Processes incoming data rows from Amazon Redshift into Python data types, storing the transformed row in the cursor object's `_cached_rows`.
+        :param data: bytearray
+            The raw bytes sent by the Amazon Redshift server.
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given statements execution.
+        :return: None
+        """
         data_idx: int = 2
         row: typing.List = []
         for desc in cursor.truncated_row_desc():
