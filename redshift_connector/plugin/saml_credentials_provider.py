@@ -177,6 +177,13 @@ class SamlCredentialsProvider(ABC):
     def get_saml_assertion(self: "SamlCredentialsProvider"):
         pass
 
+    @staticmethod
+    def close_window_http_resp() -> bytes:
+        return str.encode(
+            "HTTP/1.1 200 OK\nContent-Type: text/html\n\n"
+            + "<html><body>Thank you for using Amazon Redshift! You can now close this window.</body></html>\n"
+        )
+
     def check_required_parameters(self: "SamlCredentialsProvider") -> None:
         if self.user_name == "" or self.user_name is None:
             raise InterfaceError("Missing required property: user_name")

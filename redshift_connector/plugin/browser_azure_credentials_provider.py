@@ -218,7 +218,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
                     if received_code == "":
                         raise InterfaceError("No valid code found")
-
+                    conn.send(self.close_window_http_resp())
                     return received_code
 
     # Opens the default browser with the authorization request to the IDP

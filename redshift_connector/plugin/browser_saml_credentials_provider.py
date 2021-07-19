@@ -93,6 +93,7 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
                     _logger.debug("Data received contained SAMLResponse: {}".format(bool(result is not None)))
 
                     if result is not None:
+                        conn.send(self.close_window_http_resp())
                         saml_resp_block: str = decoded_part[result.regs[0][1] :]
                         end_idx: int = saml_resp_block.find("&RelayState=")
                         if end_idx > -1:
