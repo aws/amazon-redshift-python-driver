@@ -85,22 +85,19 @@ def test_aws_profile_credentials_holder_get_session_credentials():
 
 
 @pytest.mark.parametrize(
-    "expiration",
+    "expiration_delta",
     [
-        datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(hours=3),  # expired 3 hrs ago
-        datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(days=1),  # expired 1 day ago
-        datetime.datetime.now(datetime.timezone.utc)
-        - datetime.timedelta(weeks=1),  # expired 1 week ago
+        datetime.timedelta(hours=3),  # expired 3 hrs ago
+        datetime.timedelta(days=1),  # expired 1 day ago
+        datetime.timedelta(weeks=1),  # expired 1 week ago
     ],
 )
-def test_is_expired_true(expiration):
+def test_is_expired_true(expiration_delta):
     credentials: typing.Dict[str, typing.Any] = {
         "AccessKeyId": "something",
         "SecretAccessKey": "secret",
         "SessionToken": "fornow",
-        "Expiration": expiration,
+        "Expiration": datetime.datetime.now(datetime.timezone.utc) - expiration_delta,
     }
 
     obj: CredentialsHolder = CredentialsHolder(credentials=credentials)
@@ -109,26 +106,23 @@ def test_is_expired_true(expiration):
 
 
 @pytest.mark.parametrize(
-    "expiration",
+    "expiration_delta",
     [
-        datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(minutes=1),  # expired 1 minute ago
-        datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(hours=3),  # expired 3 hrs ago
-        datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(days=1),  # expired 1 day ago
-        datetime.datetime.now(datetime.timezone.utc)
-        + datetime.timedelta(weeks=1),  # expired 1 week ago
+        datetime.timedelta(minutes=2),  # expired 1 minute ago
+        datetime.timedelta(hours=3),  # expired 3 hrs ago
+        datetime.timedelta(days=1),  # expired 1 day ago
+        datetime.timedelta(weeks=1),  # expired 1 week ago
     ],
 )
-def test_is_expired_false(expiration):
+def test_is_expired_false(expiration_delta):
     credentials: typing.Dict[str, typing.Any] = {
         "AccessKeyId": "something",
         "SecretAccessKey": "secret",
         "SessionToken": "fornow",
-        "Expiration": expiration,
+        "Expiration": datetime.datetime.now(datetime.timezone.utc) + expiration_delta,
     }
 
     obj: CredentialsHolder = CredentialsHolder(credentials=credentials)
 
     assert obj.is_expired() == False
+    
