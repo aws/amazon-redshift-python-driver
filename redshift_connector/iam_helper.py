@@ -131,7 +131,9 @@ class IamHelper:
                 )
 
             if info.credentials_provider is not None:
-                if any((info.access_key_id, info.secret_access_key, info.session_token, info.profile)):
+                if info.auth_profile is None and any(
+                    (info.access_key_id, info.secret_access_key, info.session_token, info.profile)
+                ):
                     raise InterfaceError(
                         "Invalid connection property setting. It is not valid to provide both Credentials provider and "
                         "AWS credentials or AWS profile"
@@ -142,7 +144,7 @@ class IamHelper:
                         "credentials_provider."
                     )
             elif info.profile is not None:
-                if any((info.access_key_id, info.secret_access_key, info.session_token)):
+                if info.auth_profile is None and any((info.access_key_id, info.secret_access_key, info.session_token)):
                     raise InterfaceError(
                         "Invalid connection property setting. It is not valid to provide any of access_key_id, "
                         "secret_access_key, or session_token when profile is provided"
