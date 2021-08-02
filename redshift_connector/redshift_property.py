@@ -19,6 +19,7 @@ class RedshiftProperty:
             # The name of the Okta application that you use to authenticate the connection to Redshift.
             self.app_name: str = "amazon_aws_redshift"
             self.application_name: typing.Optional[str] = None
+            self.auth_profile: typing.Optional[str] = None
             # Indicates whether the user should be created if it does not already exist.
             self.auto_create: bool = False
             # The client ID associated with the user name in the Azure AD portal. Only used for Azure AD.
@@ -44,6 +45,7 @@ class RedshiftProperty:
             self.db_user: typing.Optional[str] = None
             # The length of time, in seconds
             self.duration: int = 900
+            self.endpoint_url: typing.Optional[str] = None
             # Forces the database group names to be lower case.
             self.force_lowercase: bool = False
             # The host to connect to.

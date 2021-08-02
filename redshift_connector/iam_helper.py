@@ -53,6 +53,36 @@ class IamHelper:
         """
         if info is None:
             raise InterfaceError("Invalid connection property setting. info must be specified")
+
+        # Check for IAM keys and AuthProfile first
+        if info.auth_profile is not None:
+            import pkg_resources
+            from packaging.version import Version
+
+            if Version(pkg_resources.get_distribution("boto3").version) < Version("1.17.111"):
+                raise pkg_resources.VersionConflict(
+                    "boto3 >= 1.17.111 required for authentication via Amazon Redshift authentication profile. "
+                    "Please upgrade the installed version of boto3 to use this functionality."
+                )
+
+            if not all((info.access_key_id, info.secret_access_key, info.region)):
+                raise InterfaceError(
+                    "Invalid connection property setting. access_key_id, secret_access_key, and region are required "
+                    "for authentication via Redshift auth_profile"
+                )
+            else:
+                # info.put("region", info.region)
+                # info.put("endpoint_url", info.endpoint_url)
+
+                resp = IamHelper.read_auth_profile(
+                    auth_profile=typing.cast(str, info.auth_profile),
+                    iam_access_key_id=typing.cast(str, info.access_key_id),
+                    iam_secret_key=typing.cast(str, info.secret_access_key),
+                    iam_session_token=info.session_token,
+                    info=info,
+                )
+                info.put_all(resp)
+
         # IAM requires an SSL connection to work.
         # Make sure that is set to SSL level VERIFY_CA or higher.
         if info.ssl is True:
@@ -87,6 +117,7 @@ class IamHelper:
                     info.secret_access_key,
                     info.session_token,
                     info.profile,
+                    info.auth_profile,
                 )
             ):
                 raise InterfaceError(
@@ -94,7 +125,7 @@ class IamHelper:
                     "or AWS profile must be provided when IAM is enabled"
                 )
 
-            if info.cluster_identifier is None and info.cluster_identifier is None:
+            if info.cluster_identifier is None:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
                 )
@@ -158,6 +189,56 @@ class IamHelper:
                 )
             IamHelper.set_iam_credentials(info)
         return info
+
+    @staticmethod
+    def read_auth_profile(
+        auth_profile: str,
+        iam_access_key_id: str,
+        iam_secret_key: str,
+        iam_session_token: typing.Optional[str],
+        info: RedshiftProperty,
+    ) -> RedshiftProperty:
+        import json
+
+        import boto3
+        from botocore.exceptions import ClientError
+
+        # 1st phase - authenticate with boto3 client for Amazon Redshift via IAM
+        # credentials provided by end user
+        creds: typing.Dict[str, str] = {
+            "aws_access_key_id": iam_access_key_id,
+            "aws_secret_access_key": iam_secret_key,
+            "region_name": typing.cast(str, info.region),
+        }
+
+        for opt_key, opt_val in (
+            ("aws_session_token", iam_session_token),
+            ("endpoint_url", info.endpoint_url),
+        ):
+            if opt_val is not None and opt_val != "":
+                creds[opt_key] = opt_val
+
+        try:
+            _logger.debug("Initial authentication with boto3...")
+            client = boto3.client(service_name="redshift", **creds)
+            _logger.debug("Requesting authentication profiles")
+            # 2nd phase - request Amazon Redshift authentication profiles and record contents for retrieving
+            # temporary credentials for the Amazon Redshift cluster specified by end user
+            response = client.describe_authentication_profiles(AuthenticationProfileName=auth_profile)
+        except ClientError:
+            raise InterfaceError("Unable to retrieve contents of Redshift authentication profile from server")
+
+        _logger.debug("Received {} authentication profiles".format(len(response["AuthenticationProfiles"])))
+        # the first matching authentication profile will be used
+        profile_content: typing.Union[str] = response["AuthenticationProfiles"][0]["AuthenticationProfileContent"]
+
+        try:
+            profile_content_dict: typing.Dict = json.loads(profile_content)
+            return RedshiftProperty(**profile_content_dict)
+        except ValueError:
+            raise ProgrammingError(
+                "Unable to decode the JSON content of the Redshift authentication profile: {}".format(auth_profile)
+            )
 
     @staticmethod
     def set_iam_credentials(info: RedshiftProperty) -> None:
@@ -258,8 +339,9 @@ class IamHelper:
             ] = cred_provider.get_credentials()
             session_credentials: typing.Dict[str, str] = credentials_holder.get_session_credentials()
 
-            if info.region is not None:
-                session_credentials["region_name"] = info.region
+            for opt_key, opt_val in (("region_name", info.region), ("endpoint_url", info.endpoint_url)):
+                if opt_val is not None:
+                    session_credentials[opt_key] = opt_val
 
             # if AWS credentials were used to create a boto3.Session object, use it
             if credentials_holder.has_associated_session:

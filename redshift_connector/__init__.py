@@ -172,6 +172,8 @@ def connect(
     role_session_name: typing.Optional[str] = None,
     role_arn: typing.Optional[str] = None,
     iam_disable_cache: typing.Optional[bool] = None,
+    auth_profile: typing.Optional[str] = None,
+    endpoint_url: typing.Optional[str] = None,
 ) -> Connection:
     """
     Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
@@ -257,6 +259,10 @@ def connect(
         The role ARN used for authentication with JWT. This parameter is required when using a JWTCredentialsProvider.
     iam_disable_cache: Optional[bool]
         This option specifies whether the IAM credentials are cached. By default caching is enabled.
+    auth_profile: Optional[str]
+        The name of an Amazon Redshift Authentication profile having connection properties as JSON. See :class:RedshiftProperty to learn how connection properties should be named.
+    endpoint_url: Optional[str]
+        The Amazon Redshift endpoint url. This option is only used by AWS internal teams.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -267,6 +273,7 @@ def connect(
     info.put("app_id", app_id)
     info.put("app_name", app_name)
     info.put("application_name", application_name)
+    info.put("auth_profile", auth_profile)
     info.put("auto_create", auto_create)
     info.put("client_id", client_id)
     info.put("client_protocol_version", client_protocol_version)
@@ -277,6 +284,7 @@ def connect(
     info.put("db_groups", db_groups)
     info.put("db_name", database)
     info.put("db_user", db_user)
+    info.put("endpoint_url", endpoint_url)
     info.put("force_lowercase", force_lowercase)
     info.put("host", host)
     info.put("iam", iam)
