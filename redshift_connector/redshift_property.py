@@ -8,7 +8,7 @@ class RedshiftProperty:
         """
         Initialize a RedshiftProperty object.
         """
-        if len(kwargs) == 0:
+        if not kwargs:
             # The access key for the IAM role or IAM user configured for IAM database authentication
             self.access_key_id: typing.Optional[str] = None
             # This option specifies whether the driver uses the DbUser value from the SAML assertion
