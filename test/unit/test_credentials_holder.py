@@ -28,9 +28,7 @@ def test_aws_direct_credentials_holder_should_have_session():
     assert obj.get_boto_session() == mocked_session
 
 
-valid_aws_direct_credential_params: typing.List[
-    typing.Dict[str, typing.Optional[str]]
-] = [
+valid_aws_direct_credential_params: typing.List[typing.Dict[str, typing.Optional[str]]] = [
     {
         "access_key_id": "something",
         "secret_access_key": "secret",
@@ -62,9 +60,7 @@ def test_aws_direct_credentials_holder_get_session_credentials(input):
 
 def test_aws_profile_credentials_holder_should_have_session():
     mocked_session: MagicMock = MagicMock()
-    obj: AWSProfileCredentialsHolder = AWSProfileCredentialsHolder(
-        profile="myprofile", session=mocked_session
-    )
+    obj: AWSProfileCredentialsHolder = AWSProfileCredentialsHolder(profile="myprofile", session=mocked_session)
 
     assert isinstance(obj, ABCAWSCredentialsHolder)
     assert hasattr(obj, "get_boto_session")
@@ -74,9 +70,7 @@ def test_aws_profile_credentials_holder_should_have_session():
 
 def test_aws_profile_credentials_holder_get_session_credentials():
     profile_val: str = "myprofile"
-    obj: AWSProfileCredentialsHolder = AWSProfileCredentialsHolder(
-        profile=profile_val, session=MagicMock()
-    )
+    obj: AWSProfileCredentialsHolder = AWSProfileCredentialsHolder(profile=profile_val, session=MagicMock())
 
     ret_value = obj.get_session_credentials()
     assert len(ret_value) == 1
@@ -125,4 +119,3 @@ def test_is_expired_false(expiration_delta):
     obj: CredentialsHolder = CredentialsHolder(credentials=credentials)
 
     assert obj.is_expired() == False
-    
