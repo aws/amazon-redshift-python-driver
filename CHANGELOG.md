@@ -2,6 +2,45 @@ Changelog
 =========
 
 
+v2.0.884 (2021-08-02)
+---------------------
+- Refactor(iam-helper): allow IAM keys and profile when auth_profile is
+  used. [Brooke White]
+- Test(connection, auth-profile): auth via redshift authentication
+  profile. [Brooke White]
+- Build(dependency): add packaging. [Brooke White]
+- Docs(tutorials, 001): redshift auth profile. [Brooke White]
+- Feat(connection, auth-profile): support Redshift authentication
+  profile. [Brooke White]
+- Docs(connection-parameters): add endpoint_url, auth_profile. [Brooke
+  White]
+- Docs(connection-parameters): reflect change to use all optional
+  params. [Brooke White]
+- Refactor(docs): alphabetize connection parameters. [Brooke White]
+- Refactor(redshift-property): kwargs check. [Brooke White]
+- Refactor(Connection): alphabetize setting definitions. [Brooke White]
+- Refactor(test, iam_helper): rework for optional connection param
+  change. [Brooke White]
+- Refactor(Connection): make all parameters optional. [Brooke White]
+- Docs(connection): add iam_disable_cache. [Brooke White]
+- Test(IamHelper, iam_disable_cache): validate fetch from server when
+  cache disable. [Brooke White]
+- Feat(connection, iam_disable_cache): add new connection option.
+  [Brooke White]
+- Chore: apply linting. [Brooke White]
+- Test(credentials-holder, is_expired): get current datetime inside
+  test. [Brooke White]
+- Fix(credentials-holder): check credentials expiration in localtime.
+  [ivica.kolenkas]
+- Chore(code-style): 'black-ifies' `test_credentials_holder`
+  [ivica.kolenkas]
+- Fix(tests): adds 'testpaths' config key. [ivica.kolenkas]
+
+  according to https://docs.pytest.org/en/6.2.x/customize.html#setup-cfg it should
+  be a path to where tests are. without it running `pytest test/unit` fails
+- Chore(code-style): 'black-ifies' code. [ivica.kolenkas]
+
+
 v2.0.883 (2021-07-19)
 ---------------------
 - Docs(Connection, handle_DATA_ROW): add doc-string. [Brooke White]
