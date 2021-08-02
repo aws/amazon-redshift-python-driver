@@ -49,76 +49,24 @@ def mock_all_provider_get_credentials(mocker):
         mocker.patch("redshift_connector.plugin.{}.get_credentials".format(provider), return_value=None)
 
 
-def get_set_iam_properties_args(**kwargs) -> typing.Dict[str, typing.Any]:
-    return {
-        "info": RedshiftProperty(),
-        "user": "awsuser",
-        "host": "localhost",
-        "database": "dev",
-        "port": 5439,
-        "password": "hunter2",
-        "source_address": None,
-        "unix_sock": None,
-        "ssl": False,
-        "sslmode": "verify-ca",
-        "timeout": None,
-        "max_prepared_statements": 1,
-        "tcp_keepalive": True,
-        "application_name": None,
-        "replication": None,
-        "idp_host": None,
-        "db_user": None,
-        "iam": False,
-        "app_id": None,
-        "app_name": "testing",
-        "preferred_role": None,
-        "principal_arn": None,
-        "credentials_provider": None,
-        "region": None,
-        "cluster_identifier": None,
-        "client_id": None,
-        "idp_tenant": None,
-        "client_secret": None,
-        "partner_sp_id": None,
-        "idp_response_timeout": 1,
-        "listen_port": 8000,
-        "login_url": None,
-        "auto_create": True,
-        "db_groups": None,
-        "force_lowercase": True,
-        "allow_db_user_override": True,
-        "client_protocol_version": ClientProtocolVersion.BASE_SERVER,
-        "database_metadata_current_db_only": True,
-        "access_key_id": None,
-        "secret_access_key": None,
-        "session_token": None,
-        "profile": None,
-        "ssl_insecure": None,
-        "web_identity_token": None,
-        "role_arn": None,
-        "role_session_name": None,
-        "iam_disable_cache": None,
-        **kwargs,
-    }
-
-
-required_params: typing.List[str] = ["info", "user", "host", "database", "port", "password"]
-
-
-@pytest.mark.usefixtures("mock_set_iam_credentials")
-@pytest.mark.parametrize("missing_param", required_params)
-def test_set_iam_properties_fails_when_info_is_none(missing_param):
-    keywords: typing.Dict = {missing_param: None}
-    with pytest.raises(InterfaceError) as excinfo:
-        IamHelper.set_iam_properties(**get_set_iam_properties_args(**keywords))
-    assert "Invalid connection property setting" in str(excinfo.value)
+def make_basic_redshift_property(**kwargs) -> RedshiftProperty:
+    rp: RedshiftProperty = RedshiftProperty()
+    for k, v in kwargs.items():
+        rp.put(k, v)
+    rp.put("user_name", "awsuser")
+    rp.put("host", "localhost")
+    rp.put("db_name", "dev")
+    return rp
 
 
 @pytest.mark.usefixtures("mock_set_iam_credentials")
 def test_set_iam_properties_fails_when_non_str_credential_provider():
-    keywords: typing.Dict = {"credentials_provider": 1}
+    keywords: typing.Dict = {
+        "credentials_provider": 1,
+        "iam": True,
+    }
     with pytest.raises(InterfaceError) as excinfo:
-        IamHelper.set_iam_properties(**get_set_iam_properties_args(**keywords))
+        IamHelper.set_iam_properties(make_basic_redshift_property(**keywords))
     assert "Invalid connection property setting" in str(excinfo.value)
 
 
@@ -139,11 +87,14 @@ ssl_mode_descriptions: typing.List[typing.Tuple[typing.Optional[str], str]] = [
 def test_set_iam_properties_enforce_min_ssl_mode(ssl_param):
     test_input, expected_mode = ssl_param
     keywords: typing.Dict = {"sslmode": test_input, "ssl": True}
-    all_params: typing.Dict = get_set_iam_properties_args(**keywords)
-    assert all_params["sslmode"] == test_input
+    rp: RedshiftProperty = make_basic_redshift_property(**keywords)
+    if test_input is None:
+        assert rp.sslmode == expected_mode
+    else:
+        assert rp.sslmode == test_input
 
-    IamHelper.set_iam_properties(**all_params)
-    assert all_params["info"].sslmode == expected_mode
+    IamHelper.set_iam_properties(rp)
+    assert rp.sslmode == expected_mode
 
 
 client_protocol_version_values: typing.List[int] = ClientProtocolVersion.list()
@@ -152,11 +103,11 @@ client_protocol_version_values: typing.List[int] = ClientProtocolVersion.list()
 @pytest.mark.parametrize("_input", client_protocol_version_values)
 def test_set_iam_properties_enforce_client_protocol_version(_input):
     keywords: typing.Dict = {"client_protocol_version": _input}
-    all_params: typing.Dict = get_set_iam_properties_args(**keywords)
-    assert all_params["client_protocol_version"] == _input
+    rp: RedshiftProperty = make_basic_redshift_property(**keywords)
+    assert rp.client_protocol_version == _input
 
-    IamHelper.set_iam_properties(**all_params)
-    assert all_params["info"].client_protocol_version == _input
+    IamHelper.set_iam_properties(rp)
+    assert rp.client_protocol_version == _input
 
 
 multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
@@ -229,10 +180,6 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
         {"iam": False, "ssl_insecure": False},
         "Invalid connection property setting",
     ),
-    (
-        {"iam": False, "ssl_insecure": True},
-        "Invalid connection property setting",
-    ),
 ]
 
 
@@ -242,7 +189,7 @@ def test_set_iam_properties_enforce_setting_compatibility(mocker, joint_params):
     test_input, expected_exception_msg = joint_params
 
     with pytest.raises(InterfaceError) as excinfo:
-        IamHelper.set_iam_properties(**get_set_iam_properties_args(**test_input))
+        IamHelper.set_iam_properties(make_basic_redshift_property(**test_input))
     assert expected_exception_msg in str(excinfo.value)
 
 
@@ -297,25 +244,24 @@ valid_aws_credential_args: typing.List[typing.Dict[str, str]] = [
 @pytest.mark.parametrize("test_input", valid_aws_credential_args)
 def test_set_iam_properties_via_aws_credentials(mocker, test_input):
     # spy = mocker.spy("redshift_connector", "set_iam_credentials")
-    info_obj: typing.Dict[str, typing.Any] = get_set_iam_properties_args(**test_input)
-    info_obj["ssl"] = True
-    info_obj["iam"] = True
-    info_obj["cluster_identifier"] = "blah"
+    rp: RedshiftProperty = make_basic_redshift_property(
+        **{**test_input, **{"ssl": True, "iam": True, "cluster_identifier": "blah"}}
+    )
 
     mocker.patch("redshift_connector.iam_helper.IamHelper.set_iam_credentials", return_value=None)
-    IamHelper.set_iam_properties(**info_obj)
+    IamHelper.set_iam_properties(rp)
 
     for aws_cred_key, aws_cred_val in enumerate(test_input):
         if aws_cred_key == "profile":
-            assert info_obj["info"].profile == aws_cred_val
+            assert rp.profile == aws_cred_val
         if aws_cred_key == "access_key_id":
-            assert info_obj["info"].access_key_id == aws_cred_val
+            assert rp.access_key_id == aws_cred_val
         if aws_cred_key == "secret_access_key":
-            assert info_obj["info"].secret_access_key == aws_cred_val
+            assert rp.secret_access_key == aws_cred_val
         if aws_cred_key == "password":
-            assert info_obj["info"].password == aws_cred_val
+            assert rp.password == aws_cred_val
         if aws_cred_key == "session_token":
-            assert info_obj["info"].session_token == aws_cred_val
+            assert rp.session_token == aws_cred_val
 
 
 def test_set_iam_credentials_via_aws_credentials(mocker):
