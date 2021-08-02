@@ -97,6 +97,7 @@ def get_set_iam_properties_args(**kwargs) -> typing.Dict[str, typing.Any]:
         "web_identity_token": None,
         "role_arn": None,
         "role_session_name": None,
+        "iam_disable_cache": None,
         **kwargs,
     }
 
@@ -403,6 +404,83 @@ def test_set_cluster_credentials_caches_credentials(
                 DbUser=rp.db_user,
             )
         ]
+    )
+
+
+@mock.patch("boto3.client.get_cluster_credentials")
+@mock.patch("boto3.client.describe_clusters")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_honors_iam_disable_cache(
+    mock_boto_client, mock_describe_clusters, mock_get_cluster_credentials
+):
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_holder.has_associated_session = False
+
+    rp: RedshiftProperty = make_redshift_property()
+    rp.iam_disable_cache = True
+
+    IamHelper.credentials_cache.clear()
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+    assert len(IamHelper.credentials_cache) == 0
+
+    assert mock_boto_client.called is True
+    mock_boto_client.assert_has_calls(
+        [
+            call().get_cluster_credentials(
+                AutoCreate=rp.auto_create,
+                ClusterIdentifier=rp.cluster_identifier,
+                DbGroups=rp.db_groups,
+                DbName=rp.db_name,
+                DbUser=rp.db_user,
+            )
+        ]
+    )
+
+
+@mock.patch("boto3.client.get_cluster_credentials")
+@mock.patch("boto3.client.describe_clusters")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_ignores_cache_when_disabled(
+    mock_boto_client, mock_describe_clusters, mock_get_cluster_credentials
+):
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_holder.has_associated_session = False
+
+    rp: RedshiftProperty = make_redshift_property()
+    rp.iam_disable_cache = True
+    # mock out the boto3 response temporary credentials stored from prior auth
+    mock_cred_obj: typing.Dict[str, typing.Union[str, datetime.datetime]] = {
+        "DbUser": "xyz",
+        "DbPassword": "turtle",
+        "Expiration": datetime.datetime(9999, 1, 1, tzinfo=tzutc()),
+    }
+    # populate the cache
+    IamHelper.credentials_cache.clear()
+    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] = mock_cred_obj
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+    assert len(IamHelper.credentials_cache) == 1
+    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] is mock_cred_obj
+    assert mock_boto_client.called is True
+
+    # we should not have retrieved user/password from the cache
+    assert rp.user_name != mock_cred_obj["DbUser"]
+    assert rp.password != mock_cred_obj["DbPassword"]
+
+    assert (
+        call().get_cluster_credentials(
+            AutoCreate=rp.auto_create,
+            ClusterIdentifier=rp.cluster_identifier,
+            DbGroups=rp.db_groups,
+            DbName=rp.db_name,
+            DbUser=rp.db_user,
+        )
+        in mock_boto_client.mock_calls
     )
 
 
