@@ -5,3 +5,4 @@ boto3>=1.16.8,<2.0.0
 requests>=2.23.0,<2.25.2
 lxml>=4.6.2
 botocore>=1.19.8,<2.0.0
+packaging
