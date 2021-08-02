@@ -94,6 +94,7 @@ class IamHelper:
         web_identity_token: typing.Optional[str],
         role_session_name: typing.Optional[str],
         role_arn: typing.Optional[str],
+        iam_disable_cache: typing.Optional[bool],
     ) -> None:
         """
         Helper function to handle IAM connection properties and ensure required parameters are specified.
@@ -246,6 +247,9 @@ class IamHelper:
         info.force_lowercase = force_lowercase
         info.allow_db_user_override = allow_db_user_override
 
+        if iam_disable_cache is not None:
+            info.iam_disable_cache = iam_disable_cache
+
         if ssl_insecure is not None:
             info.ssl_insecure = ssl_insecure
 
@@ -393,17 +397,19 @@ class IamHelper:
                 info.host = response["Clusters"][0]["Endpoint"]["Address"]
                 info.port = response["Clusters"][0]["Endpoint"]["Port"]
 
-            # temporary credentials are cached by redshift_connector and will be used if they have not expired
-            cache_key: str = IamHelper.get_credentials_cache_key(info)
-            cred: typing.Optional[
-                typing.Dict[str, typing.Union[str, datetime.datetime]]
-            ] = IamHelper.credentials_cache.get(cache_key, None)
+            cred: typing.Optional[typing.Dict[str, typing.Union[str, datetime.datetime]]] = None
 
-            _logger.debug(
-                "Searching credential cache for temporary AWS credentials. Found: {} Expiration: {}".format(
-                    bool(cache_key in IamHelper.credentials_cache), cred["Expiration"] if cred is not None else "N/A"
+            if info.iam_disable_cache is False:
+                # temporary credentials are cached by redshift_connector and will be used if they have not expired
+                cache_key: str = IamHelper.get_credentials_cache_key(info)
+                cred = IamHelper.credentials_cache.get(cache_key, None)
+
+                _logger.debug(
+                    "Searching credential cache for temporary AWS credentials. Found: {} Expiration: {}".format(
+                        bool(cache_key in IamHelper.credentials_cache),
+                        cred["Expiration"] if cred is not None else "N/A",
+                    )
                 )
-            )
 
             if cred is None or typing.cast(datetime.datetime, cred["Expiration"]) < datetime.datetime.now(tz=tzutc()):
                 # retries will occur by default ref:
@@ -419,9 +425,10 @@ class IamHelper:
                     ),
                 )
 
-                IamHelper.credentials_cache[cache_key] = typing.cast(
-                    typing.Dict[str, typing.Union[str, datetime.datetime]], cred
-                )
+                if info.iam_disable_cache is False:
+                    IamHelper.credentials_cache[cache_key] = typing.cast(
+                        typing.Dict[str, typing.Union[str, datetime.datetime]], cred
+                    )
 
             info.user_name = typing.cast(str, cred["DbUser"])
             info.password = typing.cast(str, cred["DbPassword"])

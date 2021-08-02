@@ -171,6 +171,7 @@ def connect(
     web_identity_token: typing.Optional[str] = None,
     role_session_name: typing.Optional[str] = None,
     role_arn: typing.Optional[str] = None,
+    iam_disable_cache: typing.Optional[bool] = None,
 ) -> Connection:
     """
     Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
@@ -254,6 +255,8 @@ def connect(
         An identifier for the assumed role session used for authentication with JWT.
     role_arn: Optional[str]
         The role ARN used for authentication with JWT. This parameter is required when using a JWTCredentialsProvider.
+    iam_disable_cache: Optional[bool]
+        This option specifies whether the IAM credentials are cached. By default caching is enabled.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -306,6 +309,7 @@ def connect(
         web_identity_token=web_identity_token,
         role_session_name=role_session_name,
         role_arn=role_arn,
+        iam_disable_cache=iam_disable_cache,
     )
 
     _logger.debug(make_divider_block())
