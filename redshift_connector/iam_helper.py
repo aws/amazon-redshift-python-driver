@@ -13,10 +13,9 @@ from redshift_connector.credentials_holder import (
     AWSProfileCredentialsHolder,
     CredentialsHolder,
 )
-from redshift_connector.error import InterfaceError
+from redshift_connector.error import InterfaceError, ProgrammingError
 from redshift_connector.plugin import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
-from redshift_connector.utils import make_divider_block
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -47,55 +46,7 @@ class IamHelper:
     credentials_cache: typing.Dict[str, dict] = {}
 
     @staticmethod
-    def set_iam_properties(
-        info: RedshiftProperty,
-        user: str,
-        host: str,
-        database: str,
-        port: int,
-        password: str,
-        source_address: typing.Optional[str],
-        unix_sock: typing.Optional[str],
-        ssl: bool,
-        sslmode: str,
-        timeout: typing.Optional[int],
-        max_prepared_statements: int,
-        tcp_keepalive: bool,
-        application_name: typing.Optional[str],
-        replication: typing.Optional[str],
-        idp_host: typing.Optional[str],
-        db_user: typing.Optional[str],
-        iam: bool,
-        app_id: typing.Optional[str],
-        app_name: str,
-        preferred_role: typing.Optional[str],
-        principal_arn: typing.Optional[str],
-        access_key_id: typing.Optional[str],
-        secret_access_key: typing.Optional[str],
-        session_token: typing.Optional[str],
-        profile: typing.Optional[str],
-        credentials_provider: typing.Optional[str],
-        region: typing.Optional[str],
-        cluster_identifier: typing.Optional[str],
-        client_id: typing.Optional[str],
-        idp_tenant: typing.Optional[str],
-        client_secret: typing.Optional[str],
-        partner_sp_id: typing.Optional[str],
-        idp_response_timeout: int,
-        listen_port: int,
-        login_url: typing.Optional[str],
-        auto_create: bool,
-        db_groups: typing.List[str],
-        force_lowercase: bool,
-        allow_db_user_override: bool,
-        client_protocol_version: int,
-        database_metadata_current_db_only: bool,
-        ssl_insecure: typing.Optional[bool],
-        web_identity_token: typing.Optional[str],
-        role_session_name: typing.Optional[str],
-        role_arn: typing.Optional[str],
-        iam_disable_cache: typing.Optional[bool],
-    ) -> None:
+    def set_iam_properties(info: RedshiftProperty) -> RedshiftProperty:
         """
         Helper function to handle IAM connection properties and ensure required parameters are specified.
         Parameters
@@ -104,76 +55,73 @@ class IamHelper:
             raise InterfaceError("Invalid connection property setting. info must be specified")
         # IAM requires an SSL connection to work.
         # Make sure that is set to SSL level VERIFY_CA or higher.
-        info.ssl = ssl
         if info.ssl is True:
-            if sslmode not in SupportedSSLMode.list():
-                info.sslmode = SupportedSSLMode.default()
+            if info.sslmode not in SupportedSSLMode.list():
+                info.put("sslmode", SupportedSSLMode.default())
                 _logger.debug(
                     "A non-supported value: {} was provides for sslmode. Falling back to default value: {}".format(
-                        sslmode, SupportedSSLMode.default()
+                        info.sslmode, SupportedSSLMode.default()
                     )
                 )
-            else:
-                info.sslmode = sslmode
         else:
-            info.sslmode = ""
+            info.put("sslmode", "")
 
-        if (info.ssl is False) and (iam is True):
+        if (info.ssl is False) and (info.iam is True):
             raise InterfaceError("Invalid connection property setting. SSL must be enabled when using IAM")
-        else:
-            info.iam = iam
 
-        if (info.iam is False) and (ssl_insecure is not None):
+        if (info.iam is False) and (info.ssl_insecure is False):
             raise InterfaceError("Invalid connection property setting. IAM must be enabled when using ssl_insecure")
         elif (info.iam is False) and any(
-            (credentials_provider, access_key_id, secret_access_key, session_token, profile)
+            (info.credentials_provider, info.access_key_id, info.secret_access_key, info.session_token, info.profile)
         ):
             raise InterfaceError(
                 "Invalid connection property setting. IAM must be enabled when using credential_provider, "
-                "AWS credentials, or AWS profile"
+                "AWS credentials, Amazon Redshift authentication profile, or AWS profile"
             )
         elif info.iam is True:
-            if cluster_identifier is None:
+
+            if not any(
+                (
+                    info.credentials_provider,
+                    info.access_key_id,
+                    info.secret_access_key,
+                    info.session_token,
+                    info.profile,
+                )
+            ):
+                raise InterfaceError(
+                    "Invalid connection property setting. Credentials provider, AWS credentials, Redshift auth profile "
+                    "or AWS profile must be provided when IAM is enabled"
+                )
+
+            if info.cluster_identifier is None and info.cluster_identifier is None:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
                 )
-            if not any((credentials_provider, access_key_id, secret_access_key, session_token, profile)):
-                raise InterfaceError(
-                    "Invalid connection property setting. Credentials provider, AWS credentials, or AWS profile must be"
-                    " provided when IAM is enabled"
-                )
-            elif credentials_provider is not None:
-                if any((access_key_id, secret_access_key, session_token, profile)):
+
+            if info.credentials_provider is not None:
+                if any((info.access_key_id, info.secret_access_key, info.session_token, info.profile)):
                     raise InterfaceError(
                         "Invalid connection property setting. It is not valid to provide both Credentials provider and "
                         "AWS credentials or AWS profile"
                     )
-                elif not isinstance(credentials_provider, str):
+                elif not isinstance(info.credentials_provider, str):
                     raise InterfaceError(
                         "Invalid connection property setting. It is not valid to provide a non-string value to "
                         "credentials_provider."
                     )
-                else:
-                    info.credentials_provider = credentials_provider
-                    _logger.debug("IDP Credential Provider {}".format(info.credentials_provider))
-            elif profile is not None:
-                if any((access_key_id, secret_access_key, session_token)):
+            elif info.profile is not None:
+                if any((info.access_key_id, info.secret_access_key, info.session_token)):
                     raise InterfaceError(
                         "Invalid connection property setting. It is not valid to provide any of access_key_id, "
                         "secret_access_key, or session_token when profile is provided"
                     )
-                else:
-                    info.profile = profile
-                    _logger.debug("AWS Profile {}".format(info.profile))
-            elif access_key_id is not None:
-                info.access_key_id = access_key_id
+            elif info.access_key_id is not None:
 
-                if secret_access_key is not None:
-                    info.secret_access_key = secret_access_key
-                # secret_access_key can be provided in the password field so it is hidden from applications such as
-                # SQL Workbench.
-                elif password != "":
-                    info.secret_access_key = password
+                if info.secret_access_key is not None:
+                    pass
+                elif info.password != "":
+                    info.put("secret_access_key", info.password)
                     _logger.debug("Value of password will be used for secret_access_key")
                 else:
                     raise InterfaceError(
@@ -181,98 +129,35 @@ class IamHelper:
                         "secret access key must be provided in either secret_access_key or password field"
                     )
 
-                if session_token is not None:
-                    info.session_token = session_token
                 _logger.debug(
                     "AWS Credentials access_key_id: {} secret_access_key: {} session_token: {}".format(
                         bool(info.access_key_id), bool(info.secret_access_key), bool(info.session_token)
                     )
                 )
-            elif secret_access_key is not None:
+            elif info.secret_access_key is not None:
                 raise InterfaceError(
                     "Invalid connection property setting. access_key_id is required when secret_access_key is "
                     "provided"
                 )
-            elif session_token is not None:
+            elif info.session_token is not None:
                 raise InterfaceError(
                     "Invalid connection property setting. access_key_id and secret_access_key are  required when "
                     "session_token is provided"
                 )
 
-        if not all((user, host, database, port, password)):
-            if not any((profile, access_key_id, credentials_provider)):
-                raise InterfaceError(
-                    "Invalid connection property setting. "
-                    "user, password, host, database and port are required "
-                    "when not using AWS credentials and AWS profile"
-                )
-
-        if client_protocol_version not in ClientProtocolVersion.list():
+        if info.client_protocol_version not in ClientProtocolVersion.list():
             raise InterfaceError(
                 "Invalid connection property setting. client_protocol_version must be in: {}".format(
                     ClientProtocolVersion.list()
                 )
             )
-
-        # basic driver parameters
-        info.user_name = user
-        info.host = host
-        info.db_name = database
-        info.port = port
-        info.password = password
-        info.source_address = source_address
-        info.unix_sock = unix_sock
-        info.timeout = timeout
-        info.max_prepared_statements = max_prepared_statements
-        info.tcp_keepalive = tcp_keepalive
-        info.application_name = application_name
-        info.replication = replication
-        info.client_protocol_version = client_protocol_version
-        info.database_metadata_current_db_only = database_metadata_current_db_only
-
-        # Idp parameters
-        info.idp_host = idp_host
-        info.db_user = db_user
-        info.app_id = app_id
-        info.app_name = app_name
-        info.preferred_role = preferred_role
-        info.principal = principal_arn
-        # Regions.fromName(string) requires the string to be lower case and in this format:
-        # E.g. "us-west-2"
-        info.region = region
-        # cluster_identifier parameter is required
-        info.cluster_identifier = cluster_identifier
-        info.auto_create = auto_create
-        info.db_groups = db_groups
-        info.force_lowercase = force_lowercase
-        info.allow_db_user_override = allow_db_user_override
-
-        if iam_disable_cache is not None:
-            info.iam_disable_cache = iam_disable_cache
-
-        if ssl_insecure is not None:
-            info.ssl_insecure = ssl_insecure
-
-        # Azure specified parameters
-        info.client_id = client_id
-        info.idp_tenant = idp_tenant
-        info.client_secret = client_secret
-
-        # Browser idp parameters
-        info.idp_response_timeout = idp_response_timeout
-        info.listen_port = listen_port
-        info.login_url = login_url
-        info.partner_sp_id = partner_sp_id
-
-        # Jwt idp parameters
-        info.web_identity_token = web_identity_token
-        info.role_session_name = role_session_name
-        info.role_arn = role_arn
-
         if info.iam is True:
+            if info.cluster_identifier is None:
+                raise InterfaceError(
+                    "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
+                )
             IamHelper.set_iam_credentials(info)
-        else:
-            return
+        return info
 
     @staticmethod
     def set_iam_credentials(info: RedshiftProperty) -> None:
@@ -294,7 +179,7 @@ class IamHelper:
                     klass = dynamic_plugin_import(predefined_idp)
                     provider = klass()  # type: ignore
                     provider.add_parameter(info)  # type: ignore
-                    info.credentials_provider = predefined_idp
+                    info.put("credentials_provider", predefined_idp)
                 except (AttributeError, ModuleNotFoundError):
                     _logger.debug(
                         "Failed to load pre-defined IdP plugin from redshift_connector.plugin: {}".format(
@@ -319,28 +204,22 @@ class IamHelper:
                 force_lowercase: bool = metadata.get_force_lowercase()
                 allow_db_user_override: bool = metadata.get_allow_db_user_override()
                 if auto_create is True:
-                    info.auto_create = auto_create
+                    info.put("auto_create", auto_create)
 
                 if force_lowercase is True:
-                    info.force_lowercase = force_lowercase
+                    info.put("force_lowercase", force_lowercase)
 
                 if allow_db_user_override is True:
-                    if saml_db_user is not None:
-                        info.db_user = saml_db_user
-                    if db_user is not None:
-                        info.db_user = db_user
-                    if profile_db_user is not None:
-                        info.db_user = profile_db_user
+                    info.put("db_user", saml_db_user)
+                    info.put("db_user", db_user)
+                    info.put("db_user", profile_db_user)
                 else:
-                    if db_user is not None:
-                        info.db_user = db_user
-                    if profile_db_user is not None:
-                        info.db_user = profile_db_user
-                    if saml_db_user is not None:
-                        info.db_user = saml_db_user
+                    info.put("db_user", db_user)
+                    info.put("db_user", profile_db_user)
+                    info.put("db_user", saml_db_user)
 
                 if (len(info.db_groups) == 0) and (len(db_groups) > 0):
-                    info.db_groups = db_groups
+                    info.put("db_groups", db_groups)
 
         IamHelper.set_cluster_credentials(provider, info)
 
@@ -349,7 +228,7 @@ class IamHelper:
         db_groups: str = ""
 
         if len(info.db_groups) > 0:
-            info.db_groups = sorted(info.db_groups)
+            info.put("db_groups", sorted(info.db_groups))
             db_groups = ",".join(info.db_groups)
 
         return ";".join(
@@ -394,8 +273,8 @@ class IamHelper:
             if info.host is None or info.host == "" or info.port is None or info.port == "":
                 response = client.describe_clusters(ClusterIdentifier=info.cluster_identifier)
 
-                info.host = response["Clusters"][0]["Endpoint"]["Address"]
-                info.port = response["Clusters"][0]["Endpoint"]["Port"]
+                info.put("host", response["Clusters"][0]["Endpoint"]["Address"])
+                info.put("port", response["Clusters"][0]["Endpoint"]["Port"])
 
             cred: typing.Optional[typing.Dict[str, typing.Union[str, datetime.datetime]]] = None
 
@@ -430,22 +309,13 @@ class IamHelper:
                         typing.Dict[str, typing.Union[str, datetime.datetime]], cred
                     )
 
-            info.user_name = typing.cast(str, cred["DbUser"])
-            info.password = typing.cast(str, cred["DbPassword"])
+            info.put("user_name", typing.cast(str, cred["DbUser"]))
+            info.put("password", typing.cast(str, cred["DbPassword"]))
 
             _logger.debug("Using temporary aws credentials with expiration: {}".format(cred["Expiration"]))
 
         except botocore.exceptions.ClientError as e:
             _logger.error("ClientError: %s", e)
-            raise e
-        except client.exceptions.ClusterNotFoundFault as e:
-            _logger.error("ClusterNotFoundFault: %s", e)
-            raise e
-        except client.exceptions.UnsupportedOperationFault as e:
-            _logger.error("UnsupportedOperationFault: %s", e)
-            raise e
-        except botocore.exceptions.EndpointConnectionError as e:
-            _logger.error("EndpointConnectionError: %s", e)
             raise e
         except Exception as e:
             _logger.error("other Exception: %s", e)

@@ -126,24 +126,24 @@ __author__ = "Mathieu Fenniak"
 
 
 def connect(
-    user: str,
-    database: str,
-    password: str,
-    port: int = 5439,
-    host: str = "",
+    user: typing.Optional[str] = None,
+    database: typing.Optional[str] = None,
+    password: typing.Optional[str] = None,
+    port: typing.Optional[int] = None,
+    host: typing.Optional[str] = None,
     source_address: typing.Optional[str] = None,
     unix_sock: typing.Optional[str] = None,
-    ssl: bool = True,
-    sslmode: str = "verify-ca",
+    ssl: typing.Optional[bool] = None,
+    sslmode: typing.Optional[str] = None,
     timeout: typing.Optional[int] = None,
-    max_prepared_statements: int = 1000,
-    tcp_keepalive: bool = True,
+    max_prepared_statements: typing.Optional[int] = None,
+    tcp_keepalive: typing.Optional[bool] = None,
     application_name: typing.Optional[str] = None,
     replication: typing.Optional[str] = None,
     idp_host: typing.Optional[str] = None,
     db_user: typing.Optional[str] = None,
     app_id: typing.Optional[str] = None,
-    app_name: str = "amazon_aws_redshift",
+    app_name: typing.Optional[str] = None,
     preferred_role: typing.Optional[str] = None,
     principal_arn: typing.Optional[str] = None,
     access_key_id: typing.Optional[str] = None,
@@ -153,20 +153,20 @@ def connect(
     credentials_provider: typing.Optional[str] = None,
     region: typing.Optional[str] = None,
     cluster_identifier: typing.Optional[str] = None,
-    iam: bool = False,
+    iam: typing.Optional[bool] = None,
     client_id: typing.Optional[str] = None,
     idp_tenant: typing.Optional[str] = None,
     client_secret: typing.Optional[str] = None,
     partner_sp_id: typing.Optional[str] = None,
-    idp_response_timeout: int = 120,
-    listen_port: int = 7890,
+    idp_response_timeout: typing.Optional[int] = None,
+    listen_port: typing.Optional[int] = None,
     login_url: typing.Optional[str] = None,
-    auto_create: bool = False,
-    db_groups: typing.List[str] = list(),
-    force_lowercase: bool = False,
-    allow_db_user_override: bool = False,
-    client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
-    database_metadata_current_db_only: bool = True,
+    auto_create: typing.Optional[bool] = None,
+    db_groups: typing.Optional[typing.List[str]] = None,
+    force_lowercase: typing.Optional[bool] = None,
+    allow_db_user_override: typing.Optional[bool] = None,
+    client_protocol_version: typing.Optional[int] = None,
+    database_metadata_current_db_only: typing.Optional[bool] = None,
     ssl_insecure: typing.Optional[bool] = None,
     web_identity_token: typing.Optional[str] = None,
     role_session_name: typing.Optional[str] = None,
@@ -178,25 +178,25 @@ def connect(
 
     Parameters
     ----------
-    user : str
+    user : Optional[str]
         The username to use for authentication with the Amazon Redshift cluster.
-    password : str
+    password : Optional[str]
         The password to use for authentication with the Amazon Redshift cluster.
-    database : str
+    database : Optional[str]
         The name of the database instance to connect to.
-    host : str
+    host : Optional[str]
         The hostname of the Amazon Redshift cluster.
-    port : int
+    port : Optional[int]
         The port number of the Amazon Redshift cluster. Default value is 5439.
     source_address : typing.Optional[str]
     unix_sock : Optional[str]
-    ssl : bool
+    ssl : Optional[bool]
         Is SSL enabled. Default value is ``True``. SSL must be enabled when authenticating using IAM.
-    sslmode : str
+    sslmode : Optional[str]
         The security of the connection to the Amazon Redshift cluster. 'verify-ca' and 'verify-full' are supported.
     timeout : Optional[int]
         The number of seconds before the connection to the server will timeout. By default there is no timeout.
-    max_prepared_statements : int
+    max_prepared_statements : Optional[int]
     tcp_keepalive : Optional[bool]
         Is `TCP keepalive <https://en.wikipedia.org/wiki/Keepalive#TCP_keepalive>`_ used. The default value is ``True``.
     application_name : Optional[str]
@@ -205,49 +205,49 @@ def connect(
         Used to run in `streaming replication mode <https://www.postgresql.org/docs/12/protocol-replication.html>`_.
     idp_host : Optional[str]
         The hostname of the IdP.
-    db_user : str
+    db_user : Optional[str]
         The user ID to use with Amazon Redshift
     app_id : Optional[str]
-    app_name : str
+    app_name : Optional[str]
         The name of the identity provider (IdP) application used for authentication.
-    preferred_role : str
+    preferred_role : Optional[str]
         The IAM role preferred for the current connection.
     principal_arn : Optional[str]
         The ARN of the IAM entity (user or role) for which you are generating a policy.
-    credentials_provider : str
+    credentials_provider : Optional[str]
         The class name of the IdP that will be used for authenticating with the Amazon Redshift cluster.
-    region : str
+    region : Optional[str]
         The AWS region where the Amazon Redshift cluster is located.
-    cluster_identifier : str
+    cluster_identifier : Optional[str]
         The cluster identifier of the Amazon Redshift cluster.
-    iam : bool
+    iam : Optional[bool]
         If IAM authentication is enabled. Default value is False. IAM must be True when authenticating using an IdP.
-    client_id : str
+    client_id : Optional[str]
         The client id from Azure IdP.
-    idp_tenant : str
+    idp_tenant : Optional[str]
         The IdP tenant.
-    client_secret : str
+    client_secret : Optional[str]
         The client secret from Azure IdP.
     partner_sp_id : Optional[str]
         The Partner SP Id used for authentication with Ping.
-    idp_response_timeout : int
+    idp_response_timeout : Optional[int]
         The timeout for retrieving SAML assertion from IdP. Default value is `120`.
-    listen_port : int
+    listen_port : Optional[int]
         The listen port the IdP will send the SAML assertion to. Default value is `7890`.
-    login_url : str
+    login_url : Optional[str]
         The SSO url for the IdP.
-    auto_create :bool
+    auto_create : Optional[bool]
         Indicates whether the user should be created if they do not exist. Default value is `False`.
-    db_groups : str
+    db_groups : Optional[str]
         A comma-separated list of existing database group names that the `db_user` joins for the current session.
-    force_lowercase :
-    allow_db_user_override : bool
+    force_lowercase : Optional[bool]
+    allow_db_user_override : Optional[bool]
         Specifies if the driver uses the `db_user` value from the SAML assertion. TDefault value is `False`.
-    client_protocol_version : int
+    client_protocol_version : Optional[int]
          The requested server protocol version. The default value is 2 representing `BINARY`. If the requested server protocol cannot be satisfied a warning will be displayed to the user and the driver will default to the highest supported protocol. See `ClientProtocolVersion` for more details.
-    database_metadata_current_db_only : bool
+    database_metadata_current_db_only : Optional[bool]
         Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
-    ssl_insecure : bool
+    ssl_insecure : Optional[bool]
         Specifies if IdP host's server certificate will be verified. Default value is True
     web_identity_token: Optional[str]
         A web identity token used for authentication with JWT.
@@ -262,58 +262,63 @@ def connect(
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
     """
     info: RedshiftProperty = RedshiftProperty()
-    IamHelper.set_iam_properties(
-        info,
-        user=user,
-        host=host,
-        database=database,
-        port=port,
-        password=password,
-        source_address=source_address,
-        unix_sock=unix_sock,
-        ssl=ssl,
-        sslmode=sslmode,
-        timeout=timeout,
-        max_prepared_statements=max_prepared_statements,
-        tcp_keepalive=tcp_keepalive,
-        application_name=application_name,
-        replication=replication,
-        idp_host=idp_host,
-        db_user=db_user,
-        app_id=app_id,
-        app_name=app_name,
-        preferred_role=preferred_role,
-        principal_arn=principal_arn,
-        access_key_id=access_key_id,
-        secret_access_key=secret_access_key,
-        session_token=session_token,
-        profile=profile,
-        credentials_provider=credentials_provider,
-        region=region,
-        cluster_identifier=cluster_identifier,
-        iam=iam,
-        client_id=client_id,
-        idp_tenant=idp_tenant,
-        client_secret=client_secret,
-        partner_sp_id=partner_sp_id,
-        idp_response_timeout=idp_response_timeout,
-        listen_port=listen_port,
-        login_url=login_url,
-        auto_create=auto_create,
-        db_groups=db_groups,
-        force_lowercase=force_lowercase,
-        allow_db_user_override=allow_db_user_override,
-        client_protocol_version=client_protocol_version,
-        database_metadata_current_db_only=database_metadata_current_db_only,
-        ssl_insecure=ssl_insecure,
-        web_identity_token=web_identity_token,
-        role_session_name=role_session_name,
-        role_arn=role_arn,
-        iam_disable_cache=iam_disable_cache,
-    )
+    info.put("user_name", user)
+    info.put("host", host)
+    info.put("db_name", database)
+    info.put("port", port)
+    info.put("password", password)
+    info.put("source_address", source_address)
+    info.put("unix_sock", unix_sock)
+    info.put("ssl", ssl)
+    info.put("sslmode", sslmode)
+    info.put("timeout", timeout)
+    info.put("max_prepared_statements", max_prepared_statements)
+    info.put("tcp_keepalive", tcp_keepalive)
+    info.put("application_name", application_name)
+    info.put("replication", replication)
+    info.put("idp_host", idp_host)
+    info.put("db_user", db_user)
+    info.put("app_id", app_id)
+    info.put("app_name", app_name)
+    info.put("preferred_role", preferred_role)
+    info.put("principal", principal_arn)
+    info.put("access_key_id", access_key_id)
+    info.put("secret_access_key", secret_access_key)
+    info.put("session_token", session_token)
+    info.put("profile", profile)
+    info.put("credentials_provider", credentials_provider)
+    info.put("region", region)
+    info.put("cluster_identifier", cluster_identifier)
+    info.put("iam", iam)
+    info.put("client_id", client_id)
+    info.put("idp_tenant", idp_tenant)
+    info.put("client_secret", client_secret)
+    info.put("partner_sp_id", partner_sp_id)
+    info.put("idp_response_timeout", idp_response_timeout)
+    info.put("listen_port", listen_port)
+    info.put("login_url", login_url)
+    info.put("auto_create", auto_create)
+    info.put("db_groups", db_groups)
+    info.put("force_lowercase", force_lowercase)
+    info.put("allow_db_user_override", allow_db_user_override)
+    info.put("client_protocol_version", client_protocol_version)
+    info.put("database_metadata_current_db_only", database_metadata_current_db_only)
+    info.put("ssl_insecure", ssl_insecure)
+    info.put("web_identity_token", web_identity_token)
+    info.put("role_session_name", role_session_name)
+    info.put("role_arn", role_arn)
+    info.put("iam_disable_cache", iam_disable_cache)
 
     _logger.debug(make_divider_block())
-    _logger.debug("Initializing Connection object")
+    _logger.debug("User provided connection arguments")
+    _logger.debug(make_divider_block())
+    _logger.debug(mask_secure_info_in_props(info).__str__())
+    _logger.debug(make_divider_block())
+
+    IamHelper.set_iam_properties(info)
+
+    _logger.debug(make_divider_block())
+    _logger.debug("Connection arguments following validation and IAM auth (if applicable)")
     _logger.debug(make_divider_block())
     _logger.debug(mask_secure_info_in_props(info).__str__())
     _logger.debug(make_divider_block())
@@ -334,7 +339,7 @@ def connect(
         application_name=info.application_name,
         replication=info.replication,
         client_protocol_version=info.client_protocol_version,
-        database_metadata_current_db_only=database_metadata_current_db_only,
+        database_metadata_current_db_only=info.database_metadata_current_db_only,
         credentials_provider=info.credentials_provider,
     )
 
