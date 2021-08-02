@@ -8,7 +8,7 @@ import pytest  # type: ignore
 from dateutil.tz import tzutc
 from pytest_mock import mocker
 
-from redshift_connector import InterfaceError, RedshiftProperty
+from redshift_connector import InterfaceError, ProgrammingError, RedshiftProperty
 from redshift_connector.auth import AWSCredentialsProvider
 from redshift_connector.config import ClientProtocolVersion
 from redshift_connector.iam_helper import IamHelper
@@ -137,32 +137,78 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
         "Invalid connection property setting",
     ),
     (
-        {"iam": True, "ssl": True, "access_key_id": "my_key", "credentials_provider": "OktaCredentialsProvider"},
-        "Invalid connection property setting",
+        {
+            "iam": True,
+            "ssl": True,
+            "access_key_id": "my_key",
+            "credentials_provider": "OktaCredentialsProvider",
+            "cluster_identifier": "my_cluster",
+        },
+        "Invalid connection property setting. It is not valid to provide both Credentials provider and AWS credentials or AWS profile",
     ),
     (
-        {"iam": True, "ssl": True, "secret_access_key": "my_secret", "credentials_provider": "OktaCredentialsProvider"},
-        "Invalid connection property setting",
+        {
+            "iam": True,
+            "ssl": True,
+            "secret_access_key": "my_secret",
+            "credentials_provider": "OktaCredentialsProvider",
+            "cluster_identifier": "my_cluster",
+        },
+        "Invalid connection property setting. It is not valid to provide both Credentials provider and AWS credentials or AWS profile",
     ),
     (
-        {"iam": True, "ssl": True, "session_token": "token", "credentials_provider": "OktaCredentialsProvider"},
-        "Invalid connection property setting",
+        {
+            "iam": True,
+            "ssl": True,
+            "session_token": "token",
+            "credentials_provider": "OktaCredentialsProvider",
+            "cluster_identifier": "my_cluster",
+        },
+        "Invalid connection property setting. It is not valid to provide both Credentials provider and AWS credentials or AWS profile",
     ),
     (
-        {"iam": True, "ssl": True, "profile": "default", "credentials_provider": "OktaCredentialsProvider"},
-        "Invalid connection property setting",
+        {
+            "iam": True,
+            "ssl": True,
+            "profile": "default",
+            "credentials_provider": "OktaCredentialsProvider",
+            "cluster_identifier": "my_cluster",
+        },
+        "Invalid connection property setting. It is not valid to provide both Credentials provider and AWS credentials or AWS profile",
     ),
     (
-        {"iam": True, "ssl": True, "profile": "default", "access_key_id": "my_key"},
-        "Invalid connection property setting",
+        {"iam": True, "ssl": True, "credentials_provider": 1, "cluster_identifier": "my_cluster"},
+        "Invalid connection property setting. It is not valid to provide a non-string value to credentials_provider.",
     ),
     (
-        {"iam": True, "ssl": True, "profile": "default", "secret_access_key": "my_secret"},
-        "Invalid connection property setting",
+        {"iam": True, "ssl": True, "profile": "default", "access_key_id": "my_key", "cluster_identifier": "my_cluster"},
+        "Invalid connection property setting. It is not valid to provide any of access_key_id, secret_access_key, or session_token when profile is provided",
     ),
     (
-        {"iam": True, "ssl": True, "profile": "default", "session_token": "token"},
-        "Invalid connection property setting",
+        {
+            "iam": True,
+            "ssl": True,
+            "profile": "default",
+            "secret_access_key": "my_secret",
+            "cluster_identifier": "my_cluster",
+        },
+        "Invalid connection property setting. It is not valid to provide any of access_key_id, secret_access_key, or session_token when profile is provided",
+    ),
+    (
+        {"iam": True, "ssl": True, "profile": "default", "session_token": "token", "cluster_identifier": "my_cluster"},
+        "Invalid connection property setting. It is not valid to provide any of access_key_id, secret_access_key, or session_token when profile is provided",
+    ),
+    (
+        {"iam": True, "ssl": True, "access_key_id": "my_access_key", "cluster_identifier": "my_cluster"},
+        "Invalid connection property setting. secret access key must be provided in either secret_access_key or password field",
+    ),
+    (
+        {"iam": True, "ssl": True, "cluster_identifier": "my_cluster", "secret_access_key": "someSecretAccessKey"},
+        "Invalid connection property setting. access_key_id is required when secret_access_key is provided",
+    ),
+    (
+        {"iam": True, "ssl": True, "cluster_identifier": "my_cluster", "session_token": "someSessionToken"},
+        "Invalid connection property setting. access_key_id and secret_access_key are  required when session_token is provided",
     ),
     (
         {"iam": True, "ssl": True, "secret_access_key": "my_secret"},
@@ -179,6 +225,25 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
     (
         {"iam": False, "ssl_insecure": False},
         "Invalid connection property setting",
+    ),
+    (
+        {"iam": False, "client_protocol_version": max(ClientProtocolVersion.list()) + 1},
+        "Invalid connection property setting. client_protocol_version must be in",
+    ),
+    (
+        {
+            "iam": True,
+            "ssl": True,
+        },
+        "Invalid connection property setting. Credentials provider, AWS credentials, Redshift auth profile or AWS profile must be provided when IAM is enabled",
+    ),
+    (
+        {"iam": True, "ssl": True, "credentials_provider": "SomeProvider"},
+        "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled",
+    ),
+    (
+        {"iam": True, "ssl": True, "cluster_identifier": "some-cluster", "auth_profile": "someAuthProfile"},
+        "Invalid connection property setting. access_key_id, secret_access_key, and region are required for authentication via Redshift auth_profile",
     ),
 ]
 
@@ -202,6 +267,12 @@ valid_credential_providers: typing.List[typing.Tuple[str, typing.Any]] = [
     ("AdfsCredentialsProvider", AdfsCredentialsProvider),
     ("BasicJwtCredentialsProvider", BasicJwtCredentialsProvider),
 ]
+
+
+def test_set_iam_properties_raises_exception_when_info_is_none():
+    with pytest.raises(InterfaceError) as excinfo:
+        IamHelper.set_iam_properties(None)
+    assert "Invalid connection property setting. info must be specified" in str(excinfo.value)
 
 
 def mock_add_parameter():
@@ -512,3 +583,180 @@ def test_set_cluster_credentials_refreshes_stale_credentials(
             )
         ]
     )
+
+
+@pytest.mark.parametrize(
+    "boto3_version",
+    (
+        "1.17.110",
+        "1.17.100",
+    ),
+)
+def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(mocker, boto3_version):
+    mock_boto3_dist_obj = MagicMock()
+    mock_boto3_dist_obj.version = boto3_version
+
+    mocker.patch("pkg_resources.get_distribution", return_value=mock_boto3_dist_obj)
+    import pkg_resources
+
+    with pytest.raises(pkg_resources.VersionConflict) as excinfo:
+        IamHelper.set_iam_properties(
+            make_basic_redshift_property(**{"iam": True, "ssl": True, "auth_profile": "SomeTestProfile"})
+        )
+    assert "boto3 >= 1.17.111 required for authentication via Amazon Redshift authentication profile." in str(
+        excinfo.value
+    )
+
+
+def test_set_iam_properties_use_redshift_auth_profile_calls_read_auth_profile(mocker):
+
+    mocker.patch(
+        "redshift_connector.iam_helper.IamHelper.read_auth_profile", return_value=RedshiftProperty(kwargs={"": ""})
+    )
+    mocker.patch("redshift_connector.iam_helper.IamHelper.set_iam_credentials", return_value=None)
+    spy = mocker.spy(IamHelper, "read_auth_profile")
+
+    # anticipate read_auth_profile being called with the following parameters
+    exp_call_arg: typing.Dict[str, str] = {
+        "auth_profile": "someTestProfile",
+        "access_key_id": "someAccessKeyIdValue",
+        "session_token": "someSessionTokenValue",
+        "secret_access_key": "someSecretAccessValue",
+        "region": "someRegion",
+        "endpoint_url": "someEndpointUrl",
+    }
+
+    rp: RedshiftProperty = make_basic_redshift_property(
+        **{**{"iam": True, "ssl": True, "cluster_identifier": "someCluster"}, **exp_call_arg}
+    )
+
+    IamHelper.set_iam_properties(rp)
+
+    assert spy.called is True
+    assert spy.call_count == 1
+    assert "auth_profile" in spy.call_args[1]
+    assert spy.call_args[1]["auth_profile"] == exp_call_arg["auth_profile"]
+    assert "iam_access_key_id" in spy.call_args[1]
+    assert spy.call_args[1]["iam_access_key_id"] == exp_call_arg["access_key_id"]
+    assert "iam_session_token" in spy.call_args[1]
+    assert spy.call_args[1]["iam_session_token"] == exp_call_arg["session_token"]
+    assert "iam_secret_key" in spy.call_args[1]
+    assert spy.call_args[1]["iam_secret_key"] == exp_call_arg["secret_access_key"]
+    assert "info" in spy.call_args[1]
+    assert spy.call_args[1]["info"].region == exp_call_arg["region"]
+    assert spy.call_args[1]["info"].endpoint_url == exp_call_arg["endpoint_url"]
+
+
+def test_set_iam_properties_redshift_auth_profile_does_override(mocker):
+    mock_contents: typing.Dict[str, str] = {
+        "password": "overridePassword",
+    }
+    mock_auth_profile_contents: RedshiftProperty = RedshiftProperty(**mock_contents)
+
+    mocker.patch("redshift_connector.iam_helper.IamHelper.read_auth_profile", return_value=mock_auth_profile_contents)
+    mocker.patch("redshift_connector.iam_helper.IamHelper.set_iam_credentials", return_value=None)
+    redshift_auth_profile_spy = mocker.spy(IamHelper, "read_auth_profile")
+    set_iam_crednetials_spy = mocker.spy(IamHelper, "set_iam_credentials")
+
+    exp_call_arg: typing.Dict[str, str] = {
+        "auth_profile": "someTestProfile",
+        "access_key_id": "someAccessKeyIdValue",
+        "session_token": "someSessionTokenValue",
+        "secret_access_key": "someSecretAccessValue",
+        "region": "someRegion",
+        "endpoint_url": "someEndpointUrl",
+    }
+
+    rp: RedshiftProperty = make_basic_redshift_property(
+        **{
+            **{"iam": True, "ssl": True, "cluster_identifier": "someCluster"},
+            **exp_call_arg,
+        }
+    )
+
+    res = IamHelper.set_iam_properties(rp)
+    assert rp.password == mock_auth_profile_contents.password
+
+    assert redshift_auth_profile_spy.called is True
+    assert redshift_auth_profile_spy.call_count == 1
+    assert res.password == mock_auth_profile_contents.password
+
+    assert set_iam_crednetials_spy.called is True
+    assert set_iam_crednetials_spy.call_count == 1
+    assert set_iam_crednetials_spy.call_args[0][0].password == mock_auth_profile_contents.password
+
+
+def test_read_auth_profile_raises_exception_if_profile_dne(mocker):
+    from botocore import exceptions
+
+    req_params: typing.Dict = {
+        "auth_profile": "testProfile",
+        "iam_access_key_id": "testAccessKey",
+        "iam_secret_key": "someSecretKey",
+        "iam_session_token": "someToken",
+        "info": RedshiftProperty(),
+    }
+
+    req_params["info"].put("region", "us-east-1")
+
+    mock_redshift_client: MagicMock = MagicMock()
+    mock_redshift_client.describe_authentication_profiles.side_effect = exceptions.ClientError(
+        operation_name="ErrorOp", error_response=MagicMock()
+    )
+    mocker.patch("boto3.client", return_value=mock_redshift_client)
+
+    with pytest.raises(
+        InterfaceError, match="Unable to retrieve contents of Redshift authentication profile from server"
+    ):
+        IamHelper.read_auth_profile(**req_params)
+
+
+def test_read_auth_profile_loads_json_payload(mocker):
+    import json
+
+    req_params: typing.Dict = {
+        "auth_profile": "testProfile",
+        "iam_access_key_id": "testAccessKey",
+        "iam_secret_key": "someSecretKey",
+        "iam_session_token": "someToken",
+        "info": RedshiftProperty(),
+    }
+
+    req_params["info"].put("region", "us-east-1")
+
+    mock_payload: typing.Dict[str, str] = {"region": "someTestRegion", "cluster_identifier": "someCluster"}
+
+    mock_redshift_client: MagicMock = MagicMock()
+    mock_redshift_client.describe_authentication_profiles.return_value = {
+        "AuthenticationProfiles": [{"AuthenticationProfileContent": json.dumps(mock_payload)}]
+    }
+    mocker.patch("boto3.client", return_value=mock_redshift_client)
+
+    result = IamHelper.read_auth_profile(**req_params)
+    assert result.region == mock_payload["region"]
+    assert result.cluster_identifier == mock_payload["cluster_identifier"]
+
+
+def test_read_auth_profile_invalid_json_payload_raises_exception(mocker):
+    import json
+
+    req_params: typing.Dict = {
+        "auth_profile": "testProfile",
+        "iam_access_key_id": "testAccessKey",
+        "iam_secret_key": "someSecretKey",
+        "iam_session_token": "someToken",
+        "info": RedshiftProperty(),
+    }
+
+    req_params["info"].put("region", "us-east-1")
+
+    mock_redshift_client: MagicMock = MagicMock()
+    mock_redshift_client.describe_authentication_profiles.return_value = {
+        "AuthenticationProfiles": [{"AuthenticationProfileContent": "{{{{"}]
+    }
+    mocker.patch("boto3.client", return_value=mock_redshift_client)
+
+    with pytest.raises(
+        ProgrammingError, match="Unable to decode the JSON content of the Redshift authentication profile"
+    ):
+        IamHelper.read_auth_profile(**req_params)
