@@ -184,6 +184,10 @@ class IamHelper:
                     ClientProtocolVersion.list()
                 )
             )
+
+        if info.db_groups and info.force_lowercase:
+            info.put("db_groups", [group.lower() for group in info.db_groups])
+
         if info.iam is True:
             if info.cluster_identifier is None:
                 raise InterfaceError(
@@ -308,7 +312,10 @@ class IamHelper:
                         info.put("db_user", saml_db_user)
 
                 if (len(info.db_groups) == 0) and (len(db_groups) > 0):
-                    info.put("db_groups", db_groups)
+                    if force_lowercase:
+                        info.db_groups = [group.lower() for group in db_groups]
+                    else:
+                        info.db_groups = db_groups
 
         IamHelper.set_cluster_credentials(provider, info)
 
