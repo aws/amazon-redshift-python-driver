@@ -293,13 +293,19 @@ class IamHelper:
                     info.put("force_lowercase", force_lowercase)
 
                 if allow_db_user_override is True:
-                    info.put("db_user", saml_db_user)
-                    info.put("db_user", db_user)
-                    info.put("db_user", profile_db_user)
+                    if saml_db_user is not None:
+                        info.put("db_user", saml_db_user)
+                    elif db_user is not None:
+                        info.put("db_user", db_user)
+                    elif profile_db_user is not None:
+                        info.put("db_user", profile_db_user)
                 else:
-                    info.put("db_user", db_user)
-                    info.put("db_user", profile_db_user)
-                    info.put("db_user", saml_db_user)
+                    if db_user is not None:
+                        info.put("db_user", db_user)
+                    elif profile_db_user is not None:
+                        info.put("db_user", profile_db_user)
+                    elif saml_db_user is not None:
+                        info.put("db_user", saml_db_user)
 
                 if (len(info.db_groups) == 0) and (len(db_groups) > 0):
                     info.put("db_groups", db_groups)
