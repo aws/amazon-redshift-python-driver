@@ -2,6 +2,16 @@ Changelog
 =========
 
 
+v2.0.885 (2021-08-16)
+---------------------
+- Test(iam, set_iam_credentials): ensure force_lowercase is used.
+  [Brooke White]
+- Fix(iam, set_iam_credentials): utilize force_lowercase connection opt.
+  [Brooke White]
+- Fix(iam, set_iam_credentials): consider precedence when setting
+  db_user. [Brooke White]
+
+
 v2.0.884 (2021-08-02)
 ---------------------
 - Refactor(iam-helper): allow IAM keys and profile when auth_profile is
