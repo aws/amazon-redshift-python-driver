@@ -57,6 +57,10 @@ def db_kwargs():
     return _get_default_connection_args()
 
 
+def db_groups():
+    return conf.get("cluster-setup", "groups").split(sep=",")
+
+
 @pytest.fixture(scope="class")
 def perf_db_kwargs():
     db_connect = {

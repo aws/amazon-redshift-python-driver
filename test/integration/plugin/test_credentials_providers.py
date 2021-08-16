@@ -182,3 +182,28 @@ def test_stl_connection_log_contains_plugin_name(idp_arg, db_kwargs):
             res = cursor.fetchone()
             assert res is not None
             assert res[0] == 1
+
+
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+def raise_exception_when_uppercase_db_groups(idp_arg, db_groups):
+    idp_arg["db_groups"] = [group.upper() for group in db_groups]
+
+    with pytest.raises():
+        redshift_connector.connect(**idp_arg)
+
+
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+def uses_force_lowercase_when_db_groups_uppercase(idp_arg, db_groups):
+    idp_arg["db_groups"] = [group.upper() for group in db_groups]
+    idp_arg["force_lowercase"] = True
+
+    with redshift_connector.connect(**idp_arg):
+        pass
+
+
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+def uses_db_groups_nominal(idp_arg, db_groups):
+    idp_arg["db_groups"] = [group for group in db_groups]
+
+    with redshift_connector.connect(**idp_arg):
+        pass
