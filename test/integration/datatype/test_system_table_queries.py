@@ -28,7 +28,7 @@ system_tables: typing.List[str] = [
     "pg_namespace",
     "pg_opclass",
     "pg_operator",
-    # "pg_proc",  # has unsupported type oid 30
+    "pg_proc",
     "pg_rewrite",
     "pg_shdepend",
     "pg_statistic",
