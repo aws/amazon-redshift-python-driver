@@ -2,6 +2,16 @@ Changelog
 =========
 
 
+v2.0.886 (2021-08-30)
+---------------------
+- Test(datatype, system-tables): enable test for pg_proc. [Brooke White]
+- Fix(JwtCredentialsProvider, refresh): use derived user from JWT token
+  as RoleSessionName. [Brooke White]
+- Test(Cursor, callproc): ensure support. [Brooke White]
+- Feat(Cursor, callproc): support db-api method callproc() [Brooke
+  White]
+
+
 v2.0.885 (2021-08-16)
 ---------------------
 - Test(iam, set_iam_credentials): ensure force_lowercase is used.
