@@ -93,6 +93,14 @@ class JwtCredentialsProvider(SamlCredentialsProvider, ABC):
                 DurationSeconds=self.duration if (self.duration is not None) and (self.duration > 0) else None,
             )
 
+            if (
+                self.role_session_name is None
+                or self.role_session_name == ""
+                or self.role_session_name == JwtCredentialsProvider.DEFAULT_ROLE_SESSION_NAME
+            ):
+                # Use user name as role session name for security purposes
+                self.role_session_name = self.db_user
+
             stscred: typing.Dict[str, typing.Any] = response["Credentials"]
             credentials: CredentialsHolder = CredentialsHolder(stscred)
             credentials.set_metadata(self.read_metadata())
