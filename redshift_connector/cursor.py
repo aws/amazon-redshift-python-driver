@@ -239,6 +239,23 @@ class Cursor:
         self._row_count = -1 if -1 in rowcounts else sum(rowcounts)
         return self
 
+    def callproc(self, procname, parameters=None):
+        args = [] if parameters is None else parameters
+        operation = "CALL " + self.__sanitize_str(procname) + "(" + ", ".join(["%s" for _ in args]) + ")"
+        from redshift_connector.core import convert_paramstyle
+
+        try:
+            statement, vals = convert_paramstyle("format", operation, args)
+            self.execute(statement, vals)
+
+        except AttributeError as e:
+            if self._c is None:
+                raise InterfaceError("Cursor closed")
+            elif self._c._sock is None:
+                raise InterfaceError("connection is closed")
+            else:
+                raise e
+
     def fetchone(self: "Cursor") -> typing.Optional[typing.List]:
         """Fetch the next row of a query result set.
 

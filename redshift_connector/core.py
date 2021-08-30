@@ -145,7 +145,7 @@ BINARY: type = bytes
 # in order to be identified by database
 # example: INSERT INTO book (title) VALUES (:title) -> INSERT INTO book (title) VALUES ($1)
 # also return the function: make_args()
-def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
+def convert_paramstyle(style: str, query, args) -> typing.Tuple[str, typing.Any]:
     # I don't see any way to avoid scanning the query string char by char,
     # so we might as well take that careful approach and create a
     # state-based scanner.  We'll use int variables for the state.
@@ -271,16 +271,11 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
         prev_c = c
 
     if style in ("numeric", "qmark", "format"):
-
-        def make_args(vals):
-            return vals
-
+        vals = args
     else:
+        vals = tuple(args[p] for p in placeholders)
 
-        def make_args(vals):
-            return tuple(vals[p] for p in placeholders)
-
-    return "".join(output_query), make_args
+    return "".join(output_query), vals
 
 
 # Message codes
@@ -1110,9 +1105,11 @@ class Connection:
         try:
             statement, make_args = cache["statement"][operation]
         except KeyError:
-            statement, make_args = cache["statement"][operation] = convert_paramstyle(cursor.paramstyle, operation)
+            statement, make_args = cache["statement"][operation] = convert_paramstyle(
+                cursor.paramstyle, operation, vals
+            )
 
-        args = make_args(vals)
+        args = vals
         # change the args to the format that the DB will identify
         # take reference from self.py_types
         params = self.make_params(args)
