@@ -136,18 +136,20 @@ def test_rowcount(cursor):
     assert cursor.rowcount == -1, "cursor.rowcount not being reset to -1 after executing " "no-result statements"
 
 
-lower_func = "lower"
-
-
 def test_callproc(cursor):
-    if lower_func and hasattr(cursor, "callproc"):
-        r = cursor.callproc(lower_func, ("FOO",))
-        assert len(r) == 1
-        assert r[0] == "FOO"
-        r = cursor.fetchall()
-        assert len(r) == 1, "callproc produced no result set"
-        assert len(r[0]) == 1, "callproc produced invalid result set"
-        assert r[0][0] == "foo", "callproc produced invalid results"
+    cursor.execute(
+        """
+CREATE PROCEDURE echo(INOUT val text)
+  LANGUAGE plpgsql AS
+$proc$
+BEGIN
+END
+$proc$;
+"""
+    )
+
+    cursor.callproc("echo", ["hello"])
+    assert cursor.fetchall() == (["hello"],)
 
 
 def test_close(con):
