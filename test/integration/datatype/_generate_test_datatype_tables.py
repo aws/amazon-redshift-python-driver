@@ -24,13 +24,16 @@ class RedshiftDatatypes(Enum):
 
     super = auto()
     geometry = auto()
+    varbyte = auto()
 
     @classmethod
     def list(cls) -> typing.List["RedshiftDatatypes"]:
         return list(map(lambda p: p, cls))  # type: ignore
 
 
-redshift_test_data: typing.Dict[str, typing.Tuple[typing.Tuple[str, str], ...]] = {
+redshift_test_data: typing.Dict[
+    str, typing.Union[typing.Tuple[typing.Tuple[str, str], ...], typing.List[typing.Tuple[str, bytes]]]
+] = {
     RedshiftDatatypes.geometry.name: (
         (
             "ST_GeomFromText('LINESTRING(1 2,3 4,5 6,7 8,9 10,11 12,13 14,15 16,17 18,19 20)')",
@@ -82,7 +85,75 @@ redshift_test_data: typing.Dict[str, typing.Tuple[typing.Tuple[str, str], ...]] 
                 "f000000000000f03f000000000000f03f000000000000f03f000000000000000000000000000000000000000000000000"
             ),
         ),
-    )
+    ),
+    RedshiftDatatypes.varbyte.name: [
+        ("'{}'::varbyte".format(x), bytes(x, encoding="utf-8"))
+        for x in (
+            "00",
+            "1111",
+            "11",
+            "222222",
+            "22",
+            "33333333",
+            "33",
+            "44444444",
+            "44",
+            "5555555555",
+            "55",
+            "666666666666",
+            "66",
+            "77777777777777",
+            "77",
+            "8888888888888888",
+            "88",
+            "999999999999999999",
+            "99",
+            "aa",
+            "aa",
+            "bbbb",
+            "bb",
+            "cccccc",
+            "cc",
+            "dddddddd",
+            "dd",
+            "eeeeeeeeee",
+            "ee",
+            "ffffffffffff",
+            "ff",
+            "aa00",
+            "00",
+            "bb1111",
+            "1111",
+            "cc222222",
+            "222222",
+            "dd33333333",
+            "33333333",
+            "ee4444444444",
+            "4444444444",
+            "ff555555555555",
+            "555555555555",
+            "0066666666666666",
+            "66666666666666",
+            "117777777777777777",
+            "7777777777777777",
+            "22888888888888888888",
+            "888888888888888888",
+            "3399",
+            "99",
+            "44aaaa",
+            "aaaa",
+            "55bbbbbb",
+            "bbbbbb",
+            "66cccccccc",
+            "cccccccc",
+            "77dddddddddd",
+            "dddddddddd",
+            "88eeeeeeeeeeee",
+            "eeeeeeeeeeee",
+            "99ffffffffffffff",
+            "ffffffffffffff",
+        )
+    ],
 }
 
 
