@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+v2.0.887 (2021-09-14)
+---------------------
+- Fix(cursor, metadata-queries): support for super, varbyte datatype.
+  [Brooke White]
+- Test(datatype, varbyte): ensure support. [Brooke White]
+- Feat(datatype): support varbyte. [Brooke White]
+
+
 v2.0.886 (2021-08-30)
 ---------------------
 - Test(datatype, system-tables): enable test for pg_proc. [Brooke White]
