@@ -16,6 +16,7 @@ from .type_utils import (
     array_recv_binary,
     array_recv_text,
     bh_unpack,
+    bytea_recv,
     cccc_unpack,
     ci_unpack,
     date_in,
@@ -38,4 +39,5 @@ from .type_utils import (
     time_recv_binary,
     timetz_in,
     timetz_recv_binary,
+    varbytehex_recv,
 )

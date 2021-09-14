@@ -84,6 +84,7 @@ from redshift_connector.utils.type_utils import (
     TIMETZ,
     UNKNOWN,
     UUID_TYPE,
+    VARBYTE,
     VARCHAR,
     VARCHAR_ARRAY,
     XID,

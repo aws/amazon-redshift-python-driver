@@ -1,5 +1,6 @@
 import enum
 import typing
+from codecs import decode as codecs_decode
 from collections import defaultdict
 from datetime import date
 from datetime import datetime as Datetime
@@ -90,6 +91,7 @@ UNKNOWN = 705
 UUID_TYPE = 2950
 UUID_ARRAY = 2951
 VARCHAR = 1043
+VARBYTE = 6551
 VARCHAR_ARRAY = 1015
 XID = 28
 
@@ -131,8 +133,8 @@ def bool_recv(data: bytes, offset: int, length: int) -> bool:
 
 
 # bytea
-# def bytea_recv(data: bytearray, offset: int, length: int) -> bytearray:
-#     return data[offset:offset + length]
+def bytea_recv(data: bytearray, offset: int, length: int) -> bytearray:
+    return data[offset : offset + length]
 
 
 def int8_recv(data: bytes, offset: int, length: int) -> int:
@@ -574,6 +576,10 @@ def geometryhex_recv(data: bytes, idx: int, length: int) -> str:
         return result.hex()
 
 
+def varbytehex_recv(data: bytes, idx: int, length: int) -> bytes:
+    return codecs_decode(data[idx : idx + length], "hex_codec")
+
+
 # def inet_in(data: bytes, offset: int, length: int) -> typing.Union[IPv4Address, IPv6Address, IPv4Network, IPv6Network]:
 #     inet_str: str = data[offset: offset + length].decode(
 #         _client_encoding)
@@ -634,6 +640,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         GEOMETRYHEX: (FC_TEXT, geometryhex_recv),  # GEOMETRYHEX
         # 3802: (FC_TEXT, json_in),  # jsonb
         SUPER: (FC_TEXT, text_recv),  # SUPER
+        VARBYTE: (FC_TEXT, varbytehex_recv),  # VARBYTE
     },
 )
 

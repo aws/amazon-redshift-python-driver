@@ -58,6 +58,7 @@ from redshift_connector.utils import (
     array_recv_binary,
     array_recv_text,
     bh_unpack,
+    bytea_recv,
     cccc_unpack,
     ci_unpack,
     date_in,
@@ -83,6 +84,7 @@ from redshift_connector.utils import (
     time_recv_binary,
     timetz_in,
     timetz_recv_binary,
+    varbytehex_recv,
     walk_array,
 )
 from redshift_connector.utils.type_utils import (
@@ -99,6 +101,7 @@ from redshift_connector.utils.type_utils import (
     TIMESTAMP,
     TIMESTAMPTZ,
     TIMETZ,
+    VARBYTE,
     VARCHAR_ARRAY,
 )
 
@@ -686,6 +689,7 @@ class Connection:
             self.pg_types[REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
             self.pg_types[1028] = (FC_BINARY, array_recv_binary)  # OID[]
             self.pg_types[1034] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
+            self.pg_types[VARBYTE] = (FC_TEXT, bytea_recv)  # VARBYTE
         else:  # text protocol
             self.pg_types[NUMERIC] = (FC_TEXT, numeric_in)
             self.pg_types[TIME] = (FC_TEXT, time_in)
@@ -699,6 +703,7 @@ class Connection:
             self.pg_types[REAL_ARRAY] = (FC_TEXT, float_array_recv)  # FLOAT4[]
             self.pg_types[1028] = (FC_TEXT, int_array_recv)  # OID[]
             self.pg_types[1034] = (FC_TEXT, array_recv_text)  # ACLITEM[]
+            self.pg_types[VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
