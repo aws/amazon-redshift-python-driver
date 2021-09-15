@@ -100,6 +100,7 @@ class SamlCredentialsProvider(ABC):
                     role: str = ""
                     provider: str = ""
                     for arn in arns:
+                        arn = arn.strip() # remove trailing or leading whitespace
                         if role_pattern.match(arn):
                             role = arn
                         if provider_pattern.match(arn):
