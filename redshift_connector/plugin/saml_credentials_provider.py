@@ -100,6 +100,7 @@ class SamlCredentialsProvider(ABC):
                     role: str = ""
                     provider: str = ""
                     for arn in arns:
+                        arn = arn.strip() # remove trailing or leading whitespace
                         if role_pattern.match(arn):
                             role = arn
                         if provider_pattern.match(arn):
@@ -212,7 +213,7 @@ class SamlCredentialsProvider(ABC):
             for attr in attrs:
                 name: str = attr.attrs["Name"]
                 values: typing.Any = attr.findAll("{}AttributeValue".format(SAML_RESP_NAMESPACES[namespace_used_idx]))
-                if len(values) == 0:
+                if len(values) == 0 or not values[0].contents:
                     # Ignore empty-valued attributes.
                     continue
                 value: str = values[0].contents[0]
