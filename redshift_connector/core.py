@@ -58,7 +58,6 @@ from redshift_connector.utils import (
     array_recv_binary,
     array_recv_text,
     bh_unpack,
-    bytea_recv,
     cccc_unpack,
     ci_unpack,
     date_in,
@@ -80,6 +79,7 @@ from redshift_connector.utils import pg_types as PG_TYPES
 from redshift_connector.utils import py_types as PY_TYPES
 from redshift_connector.utils import (
     q_pack,
+    text_recv,
     time_in,
     time_recv_binary,
     timetz_in,
@@ -689,7 +689,7 @@ class Connection:
             self.pg_types[REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
             self.pg_types[1028] = (FC_BINARY, array_recv_binary)  # OID[]
             self.pg_types[1034] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
-            self.pg_types[VARBYTE] = (FC_TEXT, bytea_recv)  # VARBYTE
+            self.pg_types[VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
         else:  # text protocol
             self.pg_types[NUMERIC] = (FC_TEXT, numeric_in)
             self.pg_types[TIME] = (FC_TEXT, time_in)

@@ -173,8 +173,8 @@ def float8_recv(data: bytes, offset: int, length: int) -> float:
     return d_unpack(data, offset)[0]
 
 
-# def bytea_send(v: bytearray) -> bytearray:
-#     return v
+def varbyte_send(v: bytearray) -> bytes:
+    return v.hex().encode(_client_encoding)
 
 
 # def uuid_send(v: UUID) -> bytes:
@@ -576,8 +576,8 @@ def geometryhex_recv(data: bytes, idx: int, length: int) -> str:
         return result.hex()
 
 
-def varbytehex_recv(data: bytes, idx: int, length: int) -> bytes:
-    return codecs_decode(data[idx : idx + length], "hex_codec")
+def varbytehex_recv(data: bytes, idx: int, length: int) -> str:
+    return codecs_decode(data[idx : idx + length], "hex_codec").decode(_client_encoding)
 
 
 # def inet_in(data: bytes, offset: int, length: int) -> typing.Union[IPv4Address, IPv6Address, IPv4Network, IPv6Network]:
@@ -696,7 +696,7 @@ py_types: typing.Dict[typing.Union[type, int], typing.Tuple[int, int, typing.Cal
     Decimal: (NUMERIC, FC_TEXT, numeric_out),  # Decimal
     PGTsvector: (3614, FC_TEXT, text_out),
     # UUID: (2950, FC_BINARY, uuid_send),  # uuid
-    # bytes: (17, FC_BINARY, bytea_send),  # bytea
+    bytes: (UNKNOWN, FC_TEXT, varbyte_send),  # varbyte
     str: (UNKNOWN, FC_TEXT, text_out),  # unknown
     enum.Enum: (UNKNOWN, FC_TEXT, enum_out),
     # IPv4Address: (869, FC_TEXT, inet_out),  # inet
