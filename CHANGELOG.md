@@ -2,6 +2,32 @@ Changelog
 =========
 
 
+v2.0.888 (2021-09-27)
+---------------------
+
+Fix
+~~~
+- Data manipulation issues in saml_credentials_provider (#57)
+  [kylemcleland-fanduel]
+
+  * issue-55
+
+  * issue-56
+
+  * fix: whitespace issue
+
+  * fix: list manipulation
+
+Other
+~~~~~
+- Docs(readme, datatypes): add varbyte support. [Brooke White]
+- Test(datatype, varbyte): send receive varbyte. [Brooke White]
+- Fix(datatype, varbyte): support send and receive hex/text varbyte.
+  [Brooke White]
+- Chore: apply lint. [Brooke White]
+- Chore(deps): update requests requirement (#44) [dependabot[bot]]
+
+
 v2.0.887 (2021-09-14)
 ---------------------
 - Fix(cursor, metadata-queries): support for super, varbyte datatype.
