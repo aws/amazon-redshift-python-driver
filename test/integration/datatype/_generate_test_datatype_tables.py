@@ -32,7 +32,7 @@ class RedshiftDatatypes(Enum):
 
 
 redshift_test_data: typing.Dict[
-    str, typing.Union[typing.Tuple[typing.Tuple[str, str], ...], typing.List[typing.Tuple[str, bytes]]]
+    str, typing.Union[typing.Tuple[typing.Tuple[str, str], ...], typing.List[typing.Tuple[str, ...]]]
 ] = {
     RedshiftDatatypes.geometry.name: (
         (
@@ -87,7 +87,7 @@ redshift_test_data: typing.Dict[
         ),
     ),
     RedshiftDatatypes.varbyte.name: [
-        ("'{}'::varbyte".format(x), bytes(x, encoding="utf-8"))
+        ("'{}'::varbyte".format(x), x)
         for x in (
             "00",
             "1111",
