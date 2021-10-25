@@ -2,7 +2,6 @@ import configparser
 import os
 import sys
 import typing
-from test import idp_arg
 
 import botocore
 import pytest  # type: ignore

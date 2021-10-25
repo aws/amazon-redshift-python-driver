@@ -1,4 +1,4 @@
-from .conftest import (
+from test.conftest import (
     adfs_idp,
     azure_browser_idp,
     azure_idp,

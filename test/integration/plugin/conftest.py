@@ -1,5 +1,5 @@
 import typing
-from test.integration.conftest import _get_default_connection_args, conf
+from test.conftest import _get_default_connection_args, conf
 
 import pytest
 

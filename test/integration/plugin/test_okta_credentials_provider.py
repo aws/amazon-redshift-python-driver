@@ -1,6 +1,5 @@
 import configparser
 import os
-from test import idp_arg
 
 import pytest  # type: ignore
 
