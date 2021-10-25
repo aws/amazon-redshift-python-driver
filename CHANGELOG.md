@@ -2,6 +2,16 @@ Changelog
 =========
 
 
+v2.0.889 (2021-10-25)
+---------------------
+- Test(datatype, timetz): ensure tz is always utc. [Brooke White]
+- Fix(datatype, timetz): always use binary transfer format. [Brooke
+  White]
+- Tests(conftest): configure unit tests to run without config.ini.
+  [Brooke White]
+- Fix named paramstyle in readme (#60) [Ash Berlin-Taylor]
+
+
 v2.0.888 (2021-09-27)
 ---------------------
 
