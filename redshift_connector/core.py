@@ -694,7 +694,7 @@ class Connection:
             self.pg_types[NUMERIC] = (FC_TEXT, numeric_in)
             self.pg_types[TIME] = (FC_TEXT, time_in)
             self.pg_types[DATE] = (FC_TEXT, date_in)
-            self.pg_types[TIMETZ] = (FC_TEXT, timetz_in)
+            self.pg_types[TIMETZ] = (FC_BINARY, timetz_recv_binary)
             self.pg_types[1002] = (FC_TEXT, array_recv_text)  # CHAR[]
             self.pg_types[SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]
             self.pg_types[INTEGER_ARRAY] = (FC_TEXT, int_array_recv)  # INT4[]
