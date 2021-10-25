@@ -1,4 +1,5 @@
 import configparser
+import datetime
 import os
 import typing
 from math import isclose
@@ -136,3 +137,26 @@ def test_redshift_varbyte_insert_python_bytes(db_kwargs, _input, client_protocol
             assert len(results) == 1
             assert len(results[0]) == 2
             assert results[0][1] == data.hex()
+
+
+@pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
+@pytest.mark.parametrize("_input", ["Australia/Eucla", "America/New_York"])
+def test_redshift_timetz_client_tz_applied(db_kwargs, _input, client_protocol):
+    db_kwargs["client_protocol_version"] = client_protocol
+    data = _input
+    t_time = datetime.time(hour=10, minute=14, second=56, tzinfo=datetime.timezone.utc)
+
+    with redshift_connector.connect(**db_kwargs) as con:
+        with con.cursor() as cursor:
+            cursor.execute("create table t_timetz_tz (v1 timetz)")
+            cursor.execute("insert into t_timetz_tz (v1) values(%s)", (t_time,))
+            cursor.execute("select v1 from t_timetz_tz ")
+            results: typing.Tuple = cursor.fetchone()
+            assert len(results) == 1
+            assert results[0] == t_time
+
+            cursor.execute("set timezone = '{}'".format(data))
+            cursor.execute("select v1 from t_timetz_tz ")
+            results: typing.Tuple = cursor.fetchone()
+            assert len(results) == 1
+            assert results[0] == t_time
