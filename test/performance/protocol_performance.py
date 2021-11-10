@@ -11,7 +11,7 @@ from redshift_connector.config import ClientProtocolVersion
 """
 THIS IS A MANUAL TEST REQUIRING LEADER NODE ACCESS ON A REDSHIFT CLUSTER
 1) Execute protocol_perf_test.sql, using a tool like psql, on your Redshift cluster
-2) Install Python>=3.5 on the leader node of your Redshift cluster and install redshift_connector
+2) Install Python>=3.6 on the leader node of your Redshift cluster and install redshift_connector
 3) Hardcode user, password, password arguments for connect(...). Ensure host is set to 'localhost' and SSL is
    disabled.
 4) Execute this script from the leader node, the script will output performance results
