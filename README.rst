@@ -7,7 +7,7 @@ redshift_connector
 .. |PyPi| image:: https://img.shields.io/pypi/v/redshift_connector.svg?maxAge=432000&style=flat-square
    :target: https://pypi.org/project/redshift_connector/
 
-.. |Python Version| image:: https://img.shields.io/badge/python->=3.5-brightgreen.svg
+.. |Python Version| image:: https://img.shields.io/badge/python->=3.6-brightgreen.svg
    :target: https://pypi.org/project/redshift_connector/
 
 ``redshift_connector`` is the Amazon Redshift connector for
