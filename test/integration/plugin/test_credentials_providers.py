@@ -14,7 +14,7 @@ root_path = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file_
 conf.read(root_path + "/config.ini")
 
 
-NON_BROWSER_IDP: typing.List[str] = ["okta_idp", "azure_idp"]
+NON_BROWSER_IDP: typing.List[str] = ["okta_idp", "azure_idp", "adfs_idp"]
 ALL_IDP: typing.List[str] = ["okta_browser_idp", "azure_browser_idp"] + NON_BROWSER_IDP
 
 
@@ -51,7 +51,10 @@ def testIdpPassword(idp_arg):
     idp_arg = idp_arg
     idp_arg["password"] = "wrong_password"
 
-    with pytest.raises(redshift_connector.InterfaceError, match=r"(Unauthorized)|(400 Client Error: Bad Request)"):
+    with pytest.raises(
+        redshift_connector.InterfaceError,
+        match=r"(Unauthorized)|(400 Client Error: Bad Request)|(Failed to find Adfs access_token)",
+    ):
         redshift_connector.connect(**idp_arg)
 
 
@@ -91,14 +94,17 @@ def test_preferred_role_invalid_should_fail(idp_arg):
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_invalid_db_group(idp_arg):
+    import botocore.exceptions
+
     idp_arg["db_groups"] = ["girl_dont_do_it"]
     with pytest.raises(
-        redshift_connector.ProgrammingError, match='Group "{}" does not exist'.format(idp_arg["db_groups"][0])
+        expected_exception=(redshift_connector.ProgrammingError, botocore.exceptions.ClientError),
+        match="{}".format(idp_arg["db_groups"][0]),
     ):
         redshift_connector.connect(**idp_arg)
 
 
-@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+@pytest.mark.parametrize("idp_arg", ["okta_idp", "azure_idp"], indirect=True)
 @pytest.mark.parametrize("ssl_insecure_val", [True, False])
 def test_ssl_insecure_is_used(idp_arg, ssl_insecure_val):
     idp_arg["ssl_insecure"] = ssl_insecure_val
@@ -162,21 +168,17 @@ def use_cached_temporary_credentials(idp_arg):
     assert first_cred_cache_entry == redshift_connector.IamHelper.credentials_cache.popitem()
 
 
-@pytest.mark.skip
-# TODO: https://docs.aws.amazon.com/redshift/latest/dg/r_STL_CONNECTION_LOG.html plugin_name column character limit
-# TODO: causes field value cut-off
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_stl_connection_log_contains_plugin_name(idp_arg, db_kwargs):
     idp_arg["auto_create"] = True
     with redshift_connector.connect(**idp_arg) as conn:
-        pass
-    with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            # verify stl_connection_log contains driver version as expected
             cursor.execute(
-                "select top 1 1 from stl_connection_log where driver_version = '{}' and plugin_name = 'redshift_connector.plugin.{}'".format(
-                    DriverInfo.driver_full_name(), idp_arg["credentials_provider"]
-                )
+                "select top 1 1 from stl_connection_log where driver_version = %s and plugin_name like %s",
+                (
+                    DriverInfo.driver_full_name(),
+                    "redshift_connector.plugin.{}".format(idp_arg["credentials_provider"])[:32],
+                ),
             )
             res = cursor.fetchone()
             assert res is not None

@@ -175,6 +175,9 @@ def adfs_idp():
         "user": conf.get("adfs-idp", "user", fallback="mock_user"),
         "credentials_provider": conf.get("adfs-idp", "credentials_provider", fallback="AdfsCredentialsProvider"),
         "idp_host": conf.get("adfs-idp", "idp_host", fallback="mock_idp_host"),
+        "cluster_identifier": conf.get("adfs-idp", "cluster_identifier", fallback="mock_adfs_cluster_identifier"),
+        "region": conf.get("adfs-idp", "region", fallback="mock-region"),
+        "ssl_insecure": conf.getboolean("adfs-idp", "ssl_insecure", fallback=False),
     }
     return {**_get_default_iam_connection_args(), **db_connect}
 
