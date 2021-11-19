@@ -18,7 +18,7 @@ http_response_datas: typing.List[bytes] = [
 
 
 @pytest.fixture(autouse=True)
-def cleanup_mock_socket():
+def cleanup_mock_socket() -> None:
     # cleans up class attribute that mocks data the socket receives
     MockSocket.mocked_data = None
 

@@ -10,18 +10,18 @@ import redshift_connector
 if typing.TYPE_CHECKING:
     from redshift_connector import Connection
 
-conf = configparser.ConfigParser()
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+conf: configparser.ConfigParser = configparser.ConfigParser()
+root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 conf.read(root_path + "/config.ini")
 
 
 @pytest.fixture
-def db_table(request, con):
+def db_table(request, con: redshift_connector.Connection) -> redshift_connector.Connection:
     filterwarnings("ignore", "DB-API extension cursor.next()")
     filterwarnings("ignore", "DB-API extension cursor.__iter__()")
-    con.paramstyle = "format"
+    con.paramstyle = "format"  # type: ignore
 
-    def fin():
+    def fin() -> None:
         try:
             with con.cursor() as cursor:
                 cursor.execute("drop table if exists t1")

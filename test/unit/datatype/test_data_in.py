@@ -11,31 +11,31 @@ from redshift_connector.utils import type_utils
 
 
 class Datatypes(Enum):
-    text = type_utils.text_recv
-    bool = type_utils.bool_recv
-    int8 = type_utils.int8_recv
-    int2 = type_utils.int2_recv
-    int4 = type_utils.int4_recv
-    float4 = type_utils.float4_recv
-    float8 = type_utils.float8_recv
-    timestamp = type_utils.timestamp_recv_integer
-    numeric_binary = type_utils.numeric_in_binary
-    numeric = type_utils.numeric_in
-    timetz_binary = type_utils.timetz_recv_binary
-    time_binary = type_utils.time_recv_binary
-    time = type_utils.time_in
-    timetz = type_utils.timetz_in
-    date_binary = type_utils.date_recv_binary
-    date = type_utils.date_in
-    aclitem_array = type_utils.array_recv_text
-    aclitem_array_binary = type_utils.array_recv_binary
-    char_array = type_utils.array_recv_text
-    char_array_binary = type_utils.array_recv_binary
-    oid_array = type_utils.int_array_recv
-    oid_array_binary = type_utils.array_recv_binary
-    text_array = type_utils.array_recv_text
-    text_array_binary = type_utils.array_recv_binary
-    geometry = type_utils.text_recv
+    text: typing.Callable = type_utils.text_recv
+    bool: typing.Callable = type_utils.bool_recv
+    int8: typing.Callable = type_utils.int8_recv
+    int2: typing.Callable = type_utils.int2_recv
+    int4: typing.Callable = type_utils.int4_recv
+    float4: typing.Callable = type_utils.float4_recv
+    float8: typing.Callable = type_utils.float8_recv
+    timestamp: typing.Callable = type_utils.timestamp_recv_integer
+    numeric_binary: typing.Callable = type_utils.numeric_in_binary
+    numeric: typing.Callable = type_utils.numeric_in
+    timetz_binary: typing.Callable = type_utils.timetz_recv_binary
+    time_binary: typing.Callable = type_utils.time_recv_binary
+    time: typing.Callable = type_utils.time_in
+    timetz: typing.Callable = type_utils.timetz_in
+    date_binary: typing.Callable = type_utils.date_recv_binary
+    date: typing.Callable = type_utils.date_in
+    aclitem_array: typing.Callable = type_utils.array_recv_text
+    aclitem_array_binary: typing.Callable = type_utils.array_recv_binary
+    char_array: typing.Callable = type_utils.array_recv_text
+    char_array_binary: typing.Callable = type_utils.array_recv_binary
+    oid_array: typing.Callable = type_utils.int_array_recv
+    oid_array_binary: typing.Callable = type_utils.array_recv_binary
+    text_array: typing.Callable = type_utils.array_recv_text
+    text_array_binary: typing.Callable = type_utils.array_recv_binary
+    geometry: typing.Callable = type_utils.text_recv
 
 
 test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {

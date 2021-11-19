@@ -11,11 +11,11 @@ from redshift_connector.plugin import SamlCredentialsProvider
 
 
 @patch.multiple(SamlCredentialsProvider, __abstractmethods__=set())
-def make_valid_saml_credentials_provider():
+def make_valid_saml_credentials_provider() -> typing.Tuple[SamlCredentialsProvider, RedshiftProperty]:
     rp: RedshiftProperty = RedshiftProperty()
     rp.user_name = "AzureDiamond"
     rp.password = "hunter2"
-    scp: SamlCredentialsProvider = SamlCredentialsProvider()
+    scp: SamlCredentialsProvider = SamlCredentialsProvider()  # type: ignore
     scp.add_parameter(rp)
     return scp, rp
 

@@ -5,8 +5,8 @@ import typing
 
 import redshift_connector
 
-conf = configparser.ConfigParser()
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+conf: configparser.ConfigParser = configparser.ConfigParser()
+root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 conf.read(root_path + "/config.ini")
 
 root_path = os.path.dirname(os.path.abspath(__file__))
@@ -30,15 +30,15 @@ cursor: redshift_connector.Cursor = conn.cursor()
 for _sql in sqls:
     cursor.execute(_sql)
 
-result: typing.Tuple = cursor.fetchall()
+result: typing.Tuple[typing.List[int], ...] = cursor.fetchall()
 print("fetch {result} rows".format(result=result))
 
 print("start calculate fetch time")
 for val in [True, False]:
     print("merge_socket_read={val}".format(val=val))
-    start_time = time.time()
+    start_time: float = time.time()
     cursor.execute("select * from performance", merge_socket_read=val)
-    results = cursor.fetchall()
+    results: typing.Tuple[typing.List[int], ...] = cursor.fetchall()
     print("Took {0} seconds.".format(time.time() - start_time))
     print("fetch {result} rows".format(result=len(results)))
 

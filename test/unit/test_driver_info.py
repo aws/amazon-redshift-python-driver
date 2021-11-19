@@ -1,7 +1,5 @@
 import re
 
-import pytest
-
 from redshift_connector.utils import DriverInfo
 
 
@@ -14,7 +12,7 @@ def test_version_is_str():
 
 
 def test_version_proper_format():
-    version_regex = re.compile(r"^\d+(\.\d+){2,3}$")
+    version_regex: re.Pattern = re.compile(r"^\d+(\.\d+){2,3}$")
     assert version_regex.match(DriverInfo.version())
 
 

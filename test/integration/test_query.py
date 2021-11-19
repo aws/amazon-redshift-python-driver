@@ -1,5 +1,6 @@
 import configparser
 import os
+import typing
 from datetime import datetime as Datetime
 from datetime import timezone as Timezone
 from warnings import filterwarnings
@@ -8,8 +9,8 @@ import pytest  # type: ignore
 
 import redshift_connector
 
-conf = configparser.ConfigParser()
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+conf: configparser.ConfigParser = configparser.ConfigParser()
+root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 conf.read(root_path + "/config.ini")
 
 
@@ -18,15 +19,15 @@ conf.read(root_path + "/config.ini")
 
 
 @pytest.fixture
-def db_table(request, con):
+def db_table(request, con: redshift_connector.Connection) -> redshift_connector.Connection:
     filterwarnings("ignore", "DB-API extension cursor.next()")
     filterwarnings("ignore", "DB-API extension cursor.__iter__()")
-    con.paramstyle = "format"
+    con.paramstyle = "format"  # type: ignore
     with con.cursor() as cursor:
         cursor.execute("DROP TABLE IF EXISTS t1")
-        cursor.execute("CREATE TEMPORARY TABLE t1 (f1 int primary key, " "f2 bigint not null, f3 varchar(50) null) ")
+        cursor.execute("CREATE TEMPORARY TABLE t1 (f1 int primary key, f2 bigint not null, f3 varchar(50) null) ")
 
-    def fin():
+    def fin() -> None:
         try:
             with con.cursor() as cursor:
                 cursor.execute("drop table if exists t1")
@@ -61,8 +62,8 @@ def test_parallel_queries(db_table):
 def test_parallel_open_portals(con):
     with con.cursor() as c1, con.cursor() as c2:
         c1count, c2count = 0, 0
-        q = "select * from generate_series(1, %s)"
-        params = (100,)
+        q: str = "select * from generate_series(1, %s)"
+        params: typing.Tuple[int] = (100,)
         c1.execute(q, params)
         c2.execute(q, params)
         for c2row in c2:
@@ -99,7 +100,7 @@ def test_create(db_table):
 def test_insert_returning(db_table):
     with db_table.cursor() as cursor:
         cursor.execute("CREATE TABLE t2 (id int, data varchar(20))")
-        row_id = 1
+        row_id: int = 1
         # Test INSERT ... RETURNING with one row...
         cursor.execute("INSERT INTO t2 VALUES (%s, %s)", (row_id, "test1"))
 
@@ -112,7 +113,7 @@ def test_insert_returning(db_table):
         cursor.execute("INSERT INTO t2 VALUES (2, 'test2'), (3, 'test3'), (4,'test4') ")
         assert cursor.rowcount == 3
         cursor.execute("SELECT * FROM t2")
-        ids = cursor.fetchall()
+        ids: typing.Tuple[typing.List[typing.Union[int, str], ...]] = cursor.fetchall()
         assert len(ids) == 4
 
 
@@ -121,7 +122,7 @@ def test_insert_returning(db_table):
 # support the row_count when execute 'SELECT' and 'COPY'
 def test_row_count(db_table):
     with db_table.cursor() as cursor:
-        expected_count = 57
+        expected_count: int = 57
         cursor.executemany(
             "INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", tuple((i, i, None) for i in range(expected_count))
         )
@@ -207,7 +208,7 @@ def test_transactions(db_table):
 
 def test_in(cursor):
     cursor.execute("SELECT typname FROM pg_type WHERE oid = any(%s)", ([16, 23],))
-    ret = cursor.fetchall()
+    ret: typing.Tuple[typing.List[str], ...] = cursor.fetchall()
     assert ret[0][0] == "bool"
 
 
@@ -269,14 +270,14 @@ def test_get_schemas(con):
                 awsuser=conf.get("ci-cluster", "test_user")
             )
         )
-        res = cursor.get_schemas(schema_pattern="schema_test1")
+        res: typing.Tuple = cursor.get_schemas(schema_pattern="schema_test1")
         assert res[0][0] == "schema_test1"
 
 
 def test_get_primary_keys(con):
     with con.cursor() as cursor:
         cursor.execute("CREATE TABLE table_primary_key (f1 int primary key, f3 varchar(20) null) ")
-        key = cursor.get_primary_keys(table="table_primary_key")
+        key: typing.Tuple[typing.List[typing.Any]] = cursor.get_primary_keys(table="table_primary_key")
         assert key[0][3] == "f1"
 
         cursor.execute(
@@ -296,7 +297,7 @@ def test_get_primary_keys(con):
 def test_get_columns(con):
     with con.cursor() as cursor:
         cursor.execute("create table book (bookname varchar, author varchar, price int)")
-        columns = cursor.get_columns(tablename_pattern="book")
+        columns: typing.Tuple[typing.List[str]] = cursor.get_columns(tablename_pattern="book")
         assert len(columns) == 3
 
         cursor.execute(
@@ -315,7 +316,7 @@ def test_get_columns(con):
 
 def test_get_tables(con):
     with con.cursor() as cursor:
-        num = len(cursor.get_tables(types=["TABLE"]))
+        num: int = len(cursor.get_tables(types=["TABLE"]))
         cursor.execute("create table test_exist (f1 varchar)")
         new_num = len(cursor.get_tables(types=["TABLE"]))
         assert new_num - num == 1
@@ -338,7 +339,7 @@ def test_get_tables(con):
 def test_merge_read(con):
     with con.cursor() as cursor:
         cursor.execute("create temp table m1(c1 integer);")
-        sqls = [
+        sqls: typing.List[str] = [
             "insert into m1 values(1);",
             "insert into m1 values(2);",
             "insert into m1 values(3);",
@@ -347,7 +348,7 @@ def test_merge_read(con):
         ]
         for sql in sqls:
             cursor.execute(sql)
-        rows = cursor.fetchall()
+        rows: typing.Tuple[typing.List[int]] = cursor.fetchall()
         for val in [True, False]:
             cursor.execute("select * from m1", merge_socket_read=val)
             res = cursor.fetchall()

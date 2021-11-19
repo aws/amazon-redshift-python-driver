@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore
 
 from redshift_connector import RedshiftProperty
 from redshift_connector.utils.logging_utils import mask_secure_info_in_props

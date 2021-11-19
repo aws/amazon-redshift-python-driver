@@ -1,15 +1,16 @@
 import configparser
 import os
 import typing
-from warnings import filterwarnings
 
 import pytest  # type: ignore
-from pytest_mock import mocker
 
 import redshift_connector
 
-conf = configparser.ConfigParser()
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# from warnings import filterwarnings
+
+
+conf: configparser.ConfigParser = configparser.ConfigParser()
+root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 conf.read(root_path + "/config.ini")
 
 cross_table_name: str = "alldt_test"

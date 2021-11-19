@@ -10,7 +10,7 @@ from redshift_connector.plugin import OktaCredentialsProvider
 from redshift_connector.plugin.credential_provider_constants import okta_headers
 
 
-def make_valid_okta_credentials_provider():
+def make_valid_okta_credentials_provider() -> typing.Tuple[OktaCredentialsProvider, RedshiftProperty]:
     rp: RedshiftProperty = RedshiftProperty()
     rp.user_name = "AzureDiamond"
     rp.password = "hunter2"

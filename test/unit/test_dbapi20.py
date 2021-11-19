@@ -7,7 +7,7 @@ driver = redshift_connector
 
 def test_apilevel():
     # Must exist
-    apilevel = driver.apilevel
+    apilevel: str = driver.apilevel
 
     # Must equal 2.0
     assert apilevel == "2.0"
@@ -16,7 +16,7 @@ def test_apilevel():
 def test_threadsafety():
     try:
         # Must exist
-        threadsafety = driver.threadsafety
+        threadsafety: int = driver.threadsafety
         # Must be a valid value
         assert threadsafety in (0, 1, 2, 3)
     except AttributeError:
@@ -26,7 +26,7 @@ def test_threadsafety():
 def test_paramstyle():
     try:
         # Must exist
-        paramstyle = driver.paramstyle
+        paramstyle: str = driver.paramstyle
         # Must be a valid value
         assert paramstyle in ("qmark", "numeric", "named", "format", "pyformat")
     except AttributeError:

@@ -1,7 +1,6 @@
 import typing
-from test import db_kwargs
 
-import pytest
+import pytest  # type: ignore
 
 import redshift_connector
 
@@ -21,20 +20,24 @@ profile can be modified as needed.
 """
 
 
-creds = {"aws_access_key_id": "replace_me", "aws_session_token": "replace_me", "aws_secret_access_key": "replace_me"}
+creds: typing.Dict[str, str] = {
+    "aws_access_key_id": "replace_me",
+    "aws_session_token": "replace_me",
+    "aws_secret_access_key": "replace_me",
+}
 
 auth_profile_name: str = "PythonManualTest"
 
 
 @pytest.fixture(autouse=True)
-def handle_redshift_auth_profile(request, db_kwargs):
+def handle_redshift_auth_profile(request, db_kwargs: typing.Dict[str, typing.Union[str, bool, int]]) -> None:
 
     import json
 
-    import boto3
-    from botocore.exceptions import ClientError
+    import boto3  # type: ignore
+    from botocore.exceptions import ClientError  # type: ignore
 
-    payload = json.dumps(
+    payload: str = json.dumps(
         {
             "host": db_kwargs["host"],
             "db_user": db_kwargs["user"],
@@ -48,7 +51,7 @@ def handle_redshift_auth_profile(request, db_kwargs):
     try:
         client = boto3.client(
             "redshift",
-            **{**creds, **{"region_name": db_kwargs["region"]}},
+            **{**creds, **{"region_name": typing.cast(str, db_kwargs["region"])}},
             verify=False,
         )
         client.create_authentication_profile(
@@ -57,14 +60,14 @@ def handle_redshift_auth_profile(request, db_kwargs):
     except ClientError:
         raise
 
-    def fin():
+    def fin() -> None:
         import boto3
         from botocore.exceptions import ClientError
 
         try:
             client = boto3.client(
                 "redshift",
-                **{**creds, **{"region_name": db_kwargs["region"]}},
+                **{**creds, **{"region_name": typing.cast(str, db_kwargs["region"])}},
                 verify=False,
             )
             client.delete_authentication_profile(

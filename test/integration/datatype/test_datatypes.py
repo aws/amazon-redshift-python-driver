@@ -44,7 +44,7 @@ def create_datatype_test_resources(request):
 def test_datatype_recv_support(db_kwargs, datatype, client_protocol):
     db_kwargs["client_protocol_version"] = client_protocol
     table_name: str = get_table_name(datatype)
-    exp_results: typing.Tuple[typing.Tuple[str, ...], ...] = test_data[datatype.name]
+    exp_results: typing.Tuple[typing.Tuple[typing.Any, ...], ...] = test_data[datatype.name]
 
     with redshift_connector.connect(**db_kwargs) as con:
         assert con._client_protocol_version == client_protocol

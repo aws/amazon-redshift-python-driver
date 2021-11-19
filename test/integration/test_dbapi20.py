@@ -1,3 +1,4 @@
+import typing
 import warnings
 
 import pytest  # type: ignore
@@ -5,33 +6,33 @@ import pytest  # type: ignore
 import redshift_connector
 
 driver = redshift_connector
-table_prefix = "dbapi20test_"  # If you need to specify a prefix for tables
+table_prefix: str = "dbapi20test_"  # If you need to specify a prefix for tables
 
-ddl1 = "create table %sbooze (name varchar(20))" % table_prefix
-ddl2 = "create table %sbarflys (name varchar(20))" % table_prefix
-xddl1 = "drop table if exists %sbooze" % table_prefix
-xddl2 = "drop table if exists %sbarflys" % table_prefix
+ddl1: str = "create table %sbooze (name varchar(20))" % table_prefix
+ddl2: str = "create table %sbarflys (name varchar(20))" % table_prefix
+xddl1: str = "drop table if exists %sbooze" % table_prefix
+xddl2: str = "drop table if exists %sbarflys" % table_prefix
 
 # Name of stored procedure to convert
 # string->lowercase
-lowerfunc = "lower"
+lowerfunc: str = "lower"
 
 
 # Some drivers may need to override these helpers, for example adding
 # a 'commit' after the execute.
-def executeDDL1(cursor):
+def execute_ddl_1(cursor: redshift_connector.Cursor) -> None:
     cursor.execute(xddl1)
     cursor.execute(ddl1)
 
 
-def executeDDL2(cursor):
+def execute_ddl_2(cursor: redshift_connector.Cursor) -> None:
     cursor.execute(xddl2)
     cursor.execute(ddl2)
 
 
 @pytest.fixture
-def db(request, con):
-    def fin():
+def db(request, con: redshift_connector.Connection) -> redshift_connector.Connection:
+    def fin() -> None:
         with con.cursor() as cur:
             for ddl in (xddl1, xddl2):
                 # try:
@@ -46,7 +47,7 @@ def db(request, con):
     return con
 
 
-def test_ExceptionsAsConnectionAttributes(con):
+def test_exceptions_as_connection_attributes(con):
     # OPTIONAL EXTENSION
     # Test for the optional DB API 2.0 extension, where the exceptions
     # are exposed as attributes on the Connection object
@@ -89,23 +90,23 @@ def test_cursor(con):
 def test_cursor_isolation(con):
     # Make sure cursors created from the same connection have
     # the documented transaction isolation level
-    cur1 = con.cursor()
-    cur2 = con.cursor()
-    executeDDL1(cur1)
+    cur1: redshift_connector.Cursor = con.cursor()
+    cur2: redshift_connector.Cursor = con.cursor()
+    execute_ddl_1(cur1)
     cur1.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
     cur2.execute("select name from %sbooze" % table_prefix)
-    booze = cur2.fetchall()
+    booze: typing.Tuple = cur2.fetchall()
     assert len(booze) == 1
     assert len(booze[0]) == 1
     assert booze[0][0] == "Victoria Bitter"
 
 
 def test_description(con):
-    cur = con.cursor()
-    executeDDL1(cur)
-    assert cur.description is None, (
-        "cursor.description should be none after executing a " "statement that can return no rows (such as DDL)"
-    )
+    cur: redshift_connector.Cursor = con.cursor()
+    execute_ddl_1(cur)
+    assert (
+        cur.description is None
+    ), "cursor.description should be none after executing a statement that can return no rows (such as DDL)"
     cur.execute("select name from %sbooze" % table_prefix)
     assert len(cur.description) == 1, "cursor.description describes too many columns"
     assert len(cur.description[0]) == 7, "cursor.description[x] tuples must have 7 elements"
@@ -115,25 +116,27 @@ def test_description(con):
     )
 
     # Make sure self.description gets reset
-    executeDDL2(cur)
-    assert cur.description is None, (
-        "cursor.description not being set to None when executing " "no-result statements (eg. DDL)"
-    )
+    execute_ddl_2(cur)
+    assert (
+        cur.description is None
+    ), "cursor.description not being set to None when executing no-result statements (eg. DDL)"
 
 
 def test_rowcount(cursor):
-    executeDDL1(cursor)
-    assert cursor.rowcount == -1, "cursor.rowcount should be -1 after executing no-result " "statements"
+    execute_ddl_1(cursor)
+    assert cursor.rowcount == -1, "cursor.rowcount should be -1 after executing no-result statements"
     cursor.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
-    assert cursor.rowcount in (-1, 1), (
-        "cursor.rowcount should == number or rows inserted, or " "set to -1 after executing an insert statement"
-    )
+    assert cursor.rowcount in (
+        -1,
+        1,
+    ), "cursor.rowcount should == number or rows inserted, or set to -1 after executing an insert statement"
     cursor.execute("select name from %sbooze" % table_prefix)
-    assert cursor.rowcount in (-1, 1), (
-        "cursor.rowcount should == number of rows returned, or " "set to -1 after executing a select statement"
-    )
-    executeDDL2(cursor)
-    assert cursor.rowcount == -1, "cursor.rowcount not being reset to -1 after executing " "no-result statements"
+    assert cursor.rowcount in (
+        -1,
+        1,
+    ), "cursor.rowcount should == number of rows returned, or set to -1 after executing a select statement"
+    execute_ddl_2(cursor)
+    assert cursor.rowcount == -1, "cursor.rowcount not being reset to -1 after executing no-result statements"
 
 
 def test_callproc(cursor):
@@ -153,13 +156,13 @@ $proc$;
 
 
 def test_close(con):
-    cur = con.cursor()
+    cur: redshift_connector.Cursor = con.cursor()
     con.close()
 
     # cursor.execute should raise an Error if called after connection
     # closed
     with pytest.raises(driver.Error):
-        executeDDL1(cur)
+        execute_ddl_1(cur)
 
     # connection.commit should raise an Error if called after connection'
     # closed.'
@@ -172,12 +175,12 @@ def test_close(con):
 
 
 def test_execute(con):
-    cur = con.cursor()
+    cur: redshift_connector.Cursor = con.cursor()
     _paraminsert(cur)
 
 
 def _paraminsert(cur):
-    executeDDL1(cur)
+    execute_ddl_1(cur)
     cur.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
     assert cur.rowcount in (-1, 1)
 
@@ -197,18 +200,18 @@ def _paraminsert(cur):
     assert cur.rowcount in (-1, 1)
 
     cur.execute("select name from %sbooze" % table_prefix)
-    res = cur.fetchall()
+    res: typing.Tuple = cur.fetchall()
     assert len(res) == 2, "cursor.fetchall returned too few rows"
-    beers = [res[0][0], res[1][0]]
+    beers: typing.List = [res[0][0], res[1][0]]
     beers.sort()
-    assert beers[0] == "Cooper's", "cursor.fetchall retrieved incorrect data, or data inserted " "incorrectly"
-    assert beers[1] == "Victoria Bitter", "cursor.fetchall retrieved incorrect data, or data inserted " "incorrectly"
+    assert beers[0] == "Cooper's", "cursor.fetchall retrieved incorrect data, or data inserted incorrectly"
+    assert beers[1] == "Victoria Bitter", "cursor.fetchall retrieved incorrect data, or data inserted incorrectly"
 
 
 def test_executemany(cursor):
-    executeDDL1(cursor)
-    largs = [("Cooper's",), ("Boag's",)]
-    margs = [{"beer": "Cooper's"}, {"beer": "Boag's"}]
+    execute_ddl_1(cursor)
+    largs: typing.List[typing.Tuple[str]] = [("Cooper's",), ("Boag's",)]
+    margs: typing.List[typing.Dict[str, str]] = [{"beer": "Cooper's"}, {"beer": "Boag's"}]
     if driver.paramstyle == "qmark":
         cursor.executemany("insert into %sbooze values (?)" % table_prefix, largs)
     elif driver.paramstyle == "numeric":
@@ -223,13 +226,13 @@ def test_executemany(cursor):
         assert False, "Unknown paramstyle"
 
     assert cursor.rowcount in (-1, 2), (
-        "insert using cursor.executemany set cursor.rowcount to " "incorrect value %r" % cursor.rowcount
+        "insert using cursor.executemany set cursor.rowcount to incorrect value %r" % cursor.rowcount
     )
 
     cursor.execute("select name from %sbooze" % table_prefix)
-    res = cursor.fetchall()
+    res: typing.Tuple = cursor.fetchall()
     assert len(res) == 2, "cursor.fetchall retrieved incorrect number of rows"
-    beers = [res[0][0], res[1][0]]
+    beers: typing.List = [res[0][0], res[1][0]]
     beers.sort()
     assert beers[0] == "Boag's", "incorrect data retrieved"
     assert beers[1] == "Cooper's", "incorrect data retrieved"
@@ -243,12 +246,12 @@ def test_fetchone(cursor):
 
     # cursor.fetchone should raise an Error if called after
     # executing a query that cannnot return rows
-    executeDDL1(cursor)
+    execute_ddl_1(cursor)
     with pytest.raises(driver.Error):
         cursor.fetchone()
 
     cursor.execute("select name from %sbooze" % table_prefix)
-    assert cursor.fetchone() is None, "cursor.fetchone should return None if a query retrieves " "no rows"
+    assert cursor.fetchone() is None, "cursor.fetchone should return None if a query retrieves no rows"
     assert cursor.rowcount in (-1, 0)
 
     # cursor.fetchone should raise an Error if called after
@@ -258,21 +261,21 @@ def test_fetchone(cursor):
         cursor.fetchone()
 
     cursor.execute("select name from %sbooze" % table_prefix)
-    r = cursor.fetchone()
+    r: typing.Optional[typing.List] = cursor.fetchone()
     assert len(r) == 1, "cursor.fetchone should have retrieved a single row"
     assert r[0] == "Victoria Bitter", "cursor.fetchone retrieved incorrect data"
     assert cursor.fetchone() is None, "cursor.fetchone should return None if no more rows available"
     assert cursor.rowcount in (-1, 1)
 
 
-samples = ["Carlton Cold", "Carlton Draft", "Mountain Goat", "Redback", "Victoria Bitter", "XXXX"]
+samples: typing.List[str] = ["Carlton Cold", "Carlton Draft", "Mountain Goat", "Redback", "Victoria Bitter", "XXXX"]
 
 
-def _populate():
+def _populate() -> typing.List[str]:
     """Return a list of sql commands to setup the DB for the fetch
     tests.
     """
-    populate = ["insert into %sbooze values ('%s')" % (table_prefix, s) for s in samples]
+    populate: typing.List[str] = ["insert into %sbooze values ('%s')" % (table_prefix, s) for s in samples]
     return populate
 
 
@@ -282,20 +285,20 @@ def test_fetchmany(cursor):
     with pytest.raises(driver.Error):
         cursor.fetchmany(4)
 
-    executeDDL1(cursor)
+    execute_ddl_1(cursor)
     for sql in _populate():
         cursor.execute(sql)
 
     cursor.execute("select name from %sbooze" % table_prefix)
-    r = cursor.fetchmany()
-    assert len(r) == 1, "cursor.fetchmany retrieved incorrect number of rows, " "default of arraysize is one."
+    r: typing.Tuple[typing.Optional[typing.List[str]]] = cursor.fetchmany()
+    assert len(r) == 1, "cursor.fetchmany retrieved incorrect number of rows, default of arraysize is one."
     cursor.arraysize = 10
     r = cursor.fetchmany(3)  # Should get 3 rows
     assert len(r) == 3, "cursor.fetchmany retrieved incorrect number of rows"
     r = cursor.fetchmany(4)  # Should get 2 more
     assert len(r) == 2, "cursor.fetchmany retrieved incorrect number of rows"
     r = cursor.fetchmany(4)  # Should be an empty sequence
-    assert len(r) == 0, "cursor.fetchmany should return an empty sequence after " "results are exhausted"
+    assert len(r) == 0, "cursor.fetchmany should return an empty sequence after results are exhausted"
     assert cursor.rowcount in (-1, 6)
 
     # Same as above, using cursor.arraysize
@@ -311,7 +314,9 @@ def test_fetchmany(cursor):
 
     cursor.arraysize = 6
     cursor.execute("select name from %sbooze" % table_prefix)
-    rows = cursor.fetchmany()  # Should get all rows
+    rows: typing.Union[
+        typing.Tuple[typing.List[str], ...], typing.List[str]
+    ] = cursor.fetchmany()  # Should get all rows
     assert cursor.rowcount in (-1, 6)
     assert len(rows) == 6
     assert len(rows) == 6
@@ -323,15 +328,15 @@ def test_fetchmany(cursor):
         assert rows[i] == samples[i], "incorrect data retrieved by cursor.fetchmany"
 
     rows = cursor.fetchmany()  # Should return an empty list
-    assert len(rows) == 0, (
-        "cursor.fetchmany should return an empty sequence if " "called after the whole result set has been fetched"
-    )
+    assert (
+        len(rows) == 0
+    ), "cursor.fetchmany should return an empty sequence if called after the whole result set has been fetched"
     assert cursor.rowcount in (-1, 6)
 
-    executeDDL2(cursor)
+    execute_ddl_2(cursor)
     cursor.execute("select name from %sbarflys" % table_prefix)
     r = cursor.fetchmany()  # Should get empty sequence
-    assert len(r) == 0, "cursor.fetchmany should return an empty sequence if " "query retrieved no rows"
+    assert len(r) == 0, "cursor.fetchmany should return an empty sequence if query retrieved no rows"
     assert cursor.rowcount in (-1, 0)
 
 
@@ -342,7 +347,7 @@ def test_fetchall(cursor):
     with pytest.raises(driver.Error):
         cursor.fetchall()
 
-    executeDDL1(cursor)
+    execute_ddl_1(cursor)
     for sql in _populate():
         cursor.execute(sql)
 
@@ -352,41 +357,41 @@ def test_fetchall(cursor):
         cursor.fetchall()
 
     cursor.execute("select name from %sbooze" % table_prefix)
-    rows = cursor.fetchall()
+    rows: typing.Tuple[typing.List[str], ...] = cursor.fetchall()
     assert cursor.rowcount in (-1, len(samples))
     assert len(rows) == len(samples), "cursor.fetchall did not retrieve all rows"
-    rows = [r[0] for r in rows]
+    rows: typing.List[str] = [r[0] for r in rows]
     rows.sort()
     for i in range(0, len(samples)):
         assert rows[i] == samples[i], "cursor.fetchall retrieved incorrect rows"
     rows = cursor.fetchall()
-    assert len(rows) == 0, (
-        "cursor.fetchall should return an empty list if called " "after the whole result set has been fetched"
-    )
+    assert (
+        len(rows) == 0
+    ), "cursor.fetchall should return an empty list if called after the whole result set has been fetched"
     assert cursor.rowcount in (-1, len(samples))
 
-    executeDDL2(cursor)
+    execute_ddl_2(cursor)
     cursor.execute("select name from %sbarflys" % table_prefix)
     rows = cursor.fetchall()
     assert cursor.rowcount in (-1, 0)
-    assert len(rows) == 0, "cursor.fetchall should return an empty list if " "a select query returns no rows"
+    assert len(rows) == 0, "cursor.fetchall should return an empty list if a select query returns no rows"
 
 
 def test_mixedfetch(cursor):
-    executeDDL1(cursor)
+    execute_ddl_1(cursor)
     for sql in _populate():
         cursor.execute(sql)
 
     cursor.execute("select name from %sbooze" % table_prefix)
-    rows1 = cursor.fetchone()
-    rows23 = cursor.fetchmany(2)
-    rows4 = cursor.fetchone()
-    rows56 = cursor.fetchall()
+    rows1: typing.Tuple[typing.List[str]] = cursor.fetchone()
+    rows23: typing.Tuple[typing.List[str], ...] = cursor.fetchmany(2)
+    rows4: typing.Tuple[typing.List[str], ...] = cursor.fetchone()
+    rows56: typing.Tuple[typing.List[str], ...] = cursor.fetchall()
     assert cursor.rowcount in (-1, 6)
     assert len(rows23) == 2, "fetchmany returned incorrect number of rows"
     assert len(rows56) == 2, "fetchall returned incorrect number of rows"
 
-    rows = [rows1[0]]
+    rows: typing.List[typing.Union[str, typing.List[str]]] = [rows1[0]]
     rows.extend([rows23[0][0], rows23[1][0]])
     rows.append(rows4[0])
     rows.extend([rows56[0][0], rows56[1][0]])
@@ -413,18 +418,18 @@ def test_nextset(cursor):
         return
 
     try:
-        executeDDL1(cursor)
-        sql = _populate()
+        execute_ddl_1(cursor)
+        sql: typing.List[str] = _populate()
         for sql in _populate():
             cursor.execute(sql)
 
         help_nextset_setUp(cursor)
 
         cursor.callproc("deleteme")
-        numberofrows = cursor.fetchone()
+        numberofrows: typing.List[int] = cursor.fetchone()
         assert numberofrows[0] == len(samples)
         assert cursor.nextset()
-        names = cursor.fetchall()
+        names: typing.List[str] = cursor.fetchall()
         assert len(names) == len(samples)
         s = cursor.nextset()
         assert s is None, "No more return sets, should return None"
@@ -450,10 +455,10 @@ def test_setoutputsize_basic(cursor):
 
 
 def test_None(cursor):
-    executeDDL1(cursor)
+    execute_ddl_1(cursor)
     cursor.execute("insert into %sbooze values (NULL)" % table_prefix)
     cursor.execute("select name from %sbooze" % table_prefix)
-    r = cursor.fetchall()
+    r: typing.Tuple[typing.List[None]] = cursor.fetchall()
     assert len(r) == 1
     assert len(r[0]) == 1
     assert r[0][0] is None, "NULL value not returned as None"

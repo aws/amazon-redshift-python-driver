@@ -3,14 +3,14 @@ import os
 import sys
 import typing
 
-import botocore
+import botocore  # type: ignore
 import pytest  # type: ignore
 
 import redshift_connector
 from redshift_connector import DriverInfo
 
-conf = configparser.ConfigParser()
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
+conf: configparser.ConfigParser = configparser.ConfigParser()
+root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
 conf.read(root_path + "/config.ini")
 
 
@@ -47,8 +47,7 @@ if "java" in sys.platform:
 
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
-def testIdpPassword(idp_arg):
-    idp_arg = idp_arg
+def test_idp_password(idp_arg):
     idp_arg["password"] = "wrong_password"
 
     with pytest.raises(
@@ -59,7 +58,7 @@ def testIdpPassword(idp_arg):
 
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
-def testClusterIdentifier(idp_arg):
+def test_cluster_identifier(idp_arg):
     wrong_identifier = "redshift-cluster-11"
     idp_arg["cluster_identifier"] = wrong_identifier
 
@@ -68,7 +67,7 @@ def testClusterIdentifier(idp_arg):
 
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
-def testRegion(idp_arg):
+def test_region(idp_arg):
     wrong_region = "us-east-22"
     idp_arg["region"] = wrong_region
 
@@ -80,7 +79,7 @@ def testRegion(idp_arg):
 
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
-def testCredentialsProvider(idp_arg):
+def test_credentials_provider(idp_arg):
     with redshift_connector.connect(**idp_arg):
         pass
 

@@ -10,7 +10,7 @@ encoded_saml_response: bytes = base64.b64encode(zlib.compress(saml_response)[2:-
 
 # HTTP response containing SAML response can be formatted two ways.
 # 1. HTTP response containing things other than the SAML response
-valid_http_response_with_header_equal_delim = (
+valid_http_response_with_header_equal_delim: bytes = (
     b"POST /redshift/ HTTP/1.1\r\nHost: localhost:7890\r\nConnection: keep-alive\r\nContent-Length: "
     b"11639\r\nCache-Control: max-age=0\r\nUpgrade-Insecure-Requests: 1\r\nOrigin: null\r\nContent-Type: "
     b"application/x-www-form-urlencoded\r\nUser-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) "
@@ -21,7 +21,9 @@ valid_http_response_with_header_equal_delim = (
     b"en;q=0.9\r\n\r\nSAMLResponse=" + encoded_saml_response + b"&RelayState="
 )
 
-valid_http_response_with_header_colon_delim = b"POST\r\nRelayState: \r\nSAMLResponse:\r\n" + encoded_saml_response
+valid_http_response_with_header_colon_delim: bytes = (
+    b"POST\r\nRelayState: \r\nSAMLResponse:\r\n" + encoded_saml_response
+)
 
 # 2. HTTP response containing *only* the SAML response
 valid_http_response_no_header: bytes = b"SAMLResponse=" + encoded_saml_response + b"&RelayState="

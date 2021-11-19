@@ -3,7 +3,6 @@ import typing
 from unittest.mock import MagicMock
 
 import pytest  # type: ignore
-from pytest_mock import mocker
 
 from redshift_connector.credentials_holder import (
     ABCAWSCredentialsHolder,

@@ -1,7 +1,7 @@
 import typing
 from test.conftest import _get_default_connection_args, conf
 
-import pytest
+import pytest  # type: ignore
 
 import redshift_connector
 

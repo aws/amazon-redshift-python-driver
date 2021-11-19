@@ -1,12 +1,10 @@
 import typing
-from collections import deque
 from test.utils import pandas_only
 from unittest.mock import Mock, PropertyMock, patch
 
 import pytest  # type: ignore
-from pytest_mock import mocker
 
-from redshift_connector import Connection, Cursor, InterfaceError, ProgrammingError
+from redshift_connector import Connection, Cursor, InterfaceError
 
 IS_SINGLE_DATABASE_METADATA_TOGGLE: typing.List[bool] = [True, False]
 

@@ -1,3 +1,4 @@
+import typing
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest  # type: ignore
@@ -8,7 +9,7 @@ from redshift_connector.plugin import AzureCredentialsProvider
 from redshift_connector.plugin.credential_provider_constants import azure_headers
 
 
-def make_valid_azure_credentials_provider():
+def make_valid_azure_credentials_provider() -> typing.Tuple[AzureCredentialsProvider, RedshiftProperty]:
     rp: RedshiftProperty = RedshiftProperty()
     rp.user_name = "AzureDiamond"
     rp.password = "hunter2"

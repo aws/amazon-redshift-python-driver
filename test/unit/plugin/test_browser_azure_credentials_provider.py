@@ -2,11 +2,10 @@ import typing
 import webbrowser
 from test.unit.mocks.mock_socket import MockSocket
 from test.unit.plugin.data import browser_azure_data
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import patch
 
 import pytest  # type: ignore
 import requests
-from pytest_mock import mocker
 
 from redshift_connector import RedshiftProperty
 from redshift_connector.error import InterfaceError
@@ -19,7 +18,7 @@ if typing.TYPE_CHECKING:
 
 
 @pytest.fixture(autouse=True)
-def cleanup_mock_socket():
+def cleanup_mock_socket() -> None:
     # cleans up class attribute that mocks data the socket receives
     MockSocket.mocked_data = None
 

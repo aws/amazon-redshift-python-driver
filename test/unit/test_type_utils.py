@@ -1,3 +1,4 @@
+import typing
 from datetime import date, datetime, time
 from decimal import Decimal
 from enum import Enum
@@ -24,15 +25,15 @@ def test_null_send(_input):
 
 
 class Apple(Enum):
-    macintosh = 1
-    granny_smith = 2
-    ambrosia = 3
+    macintosh: int = 1
+    granny_smith: int = 2
+    ambrosia: int = 3
 
 
 class Orange(Enum):
-    navel = 1
-    blood = 2
-    cara_cara = 3
+    navel: int = 1
+    blood: int = 2
+    cara_cara: int = 3
 
 
 @pytest.mark.parametrize("_input", [(Apple.macintosh, b"1"), (Orange.cara_cara, b"3")])
@@ -69,7 +70,7 @@ def test_numeric_out(_input):
     assert type_utils.numeric_out(in_val) == exp_val
 
 
-timestamp_send_integer_data = [
+timestamp_send_integer_data: typing.List[typing.Tuple[bytes, datetime]] = [
     (b"00000000", datetime.max),
     (b"12345678", datetime.max),
     (INFINITY_MICROSECONDS.to_bytes(length=8, byteorder="big"), datetime.max),

@@ -22,21 +22,21 @@ THIS IS A MANUAL TEST REQUIRING LEADER NODE ACCESS ON A REDSHIFT CLUSTER
 
 
 class PerformanceTestDatatypes(Enum):
-    int2 = "perf_integer2"
-    int4 = "perf_integer"
-    int8 = "perf_biginteger8"
-    float4 = "perf_real4"
-    float8 = "perf_double"
-    date = "perf_date"
-    timestamp = "perf_timestamp"
-    decimal8 = "perf_numeric8"
-    decimal16 = "perf_numeric16"
-    bool = "perf_bool"
-    char = "perf_char16"
-    varchar = "perf_varchar"
-    time = "perf_time"
-    timetz = "perf_timetz"
-    timestamptz = "perf_timestamptz"
+    int2: str = "perf_integer2"
+    int4: str = "perf_integer"
+    int8: str = "perf_biginteger8"
+    float4: str = "perf_real4"
+    float8: str = "perf_double"
+    date: str = "perf_date"
+    timestamp: str = "perf_timestamp"
+    decimal8: str = "perf_numeric8"
+    decimal16: str = "perf_numeric16"
+    bool: str = "perf_bool"
+    char: str = "perf_char16"
+    varchar: str = "perf_varchar"
+    time: str = "perf_time"
+    timetz: str = "perf_timetz"
+    timestamptz: str = "perf_timestamptz"
 
     @classmethod
     def list(cls) -> typing.List["PerformanceTestDatatypes"]:

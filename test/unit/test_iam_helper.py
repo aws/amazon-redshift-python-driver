@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, call
 
 import pytest  # type: ignore
 from dateutil.tz import tzutc
-from pytest_mock import mocker
+from pytest_mock import mocker  # type: ignore
 
 from redshift_connector import InterfaceError, ProgrammingError, RedshiftProperty
 from redshift_connector.auth import AWSCredentialsProvider
@@ -61,7 +61,7 @@ def make_basic_redshift_property(**kwargs) -> RedshiftProperty:
 
 @pytest.mark.usefixtures("mock_set_iam_credentials")
 def test_set_iam_properties_fails_when_non_str_credential_provider():
-    keywords: typing.Dict = {
+    keywords: typing.Dict[str, typing.Union[int, bool]] = {
         "credentials_provider": 1,
         "iam": True,
     }
@@ -86,7 +86,7 @@ ssl_mode_descriptions: typing.List[typing.Tuple[typing.Optional[str], str]] = [
 @pytest.mark.parametrize("ssl_param", ssl_mode_descriptions)
 def test_set_iam_properties_enforce_min_ssl_mode(ssl_param):
     test_input, expected_mode = ssl_param
-    keywords: typing.Dict = {"sslmode": test_input, "ssl": True}
+    keywords: typing.Dict[str, typing.Union[str, bool]] = {"sslmode": test_input, "ssl": True}
     rp: RedshiftProperty = make_basic_redshift_property(**keywords)
     if test_input is None:
         assert rp.sslmode == expected_mode
@@ -102,7 +102,7 @@ client_protocol_version_values: typing.List[int] = ClientProtocolVersion.list()
 
 @pytest.mark.parametrize("_input", client_protocol_version_values)
 def test_set_iam_properties_enforce_client_protocol_version(_input):
-    keywords: typing.Dict = {"client_protocol_version": _input}
+    keywords: typing.Dict[str, int] = {"client_protocol_version": _input}
     rp: RedshiftProperty = make_basic_redshift_property(**keywords)
     assert rp.client_protocol_version == _input
 
@@ -687,7 +687,7 @@ def test_set_iam_properties_redshift_auth_profile_does_override(mocker):
 
 
 def test_read_auth_profile_raises_exception_if_profile_dne(mocker):
-    from botocore import exceptions
+    from botocore import exceptions  # type: ignore
 
     req_params: typing.Dict = {
         "auth_profile": "testProfile",

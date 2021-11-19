@@ -129,15 +129,15 @@ test_error_responses_data: typing.List[typing.Tuple[bytes, typing.Dict, typing.T
 
 
 @pytest.mark.parametrize("_input", test_error_responses_data)
-def test_handle_ERROR_RESPONSE(_input):
+def test_handle_error_response(_input):
     server_msg, expected_decoded_msg, expected_error = _input
-    mock_connection = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.handle_ERROR_RESPONSE(server_msg, None)
     assert type(mock_connection.error) == expected_error
     assert str(expected_decoded_msg) in str(mock_connection.error)
 
 
-def test_handle_COPY_DONE():
+def test_handle_copy_done():
     mock_connection = Connection.__new__(Connection)
     assert hasattr(mock_connection, "_copy_done") is False
     mock_connection.handle_COPY_DONE(None, None)
@@ -203,12 +203,12 @@ test_row_description_extended_metadata = [
 
 @pytest.mark.parametrize("_input", test_row_description_extended_metadata)
 @pytest.mark.parametrize("protocol", [ClientProtocolVersion.EXTENDED_RESULT_METADATA])
-def test_handle_ROW_DESCRIPTION_extended_metadata(_input, protocol):
+def test_handle_row_description_extended_metadata(_input, protocol):
     data, exp_result = _input
-    mock_connection = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = protocol
     mock_connection.pg_types = dict(PG_TYPES)
-    mock_cursor = Cursor.__new__(Cursor)
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 
     mock_connection.handle_ROW_DESCRIPTION(data, mock_cursor)
@@ -219,7 +219,7 @@ def test_handle_ROW_DESCRIPTION_extended_metadata(_input, protocol):
     assert "func" in mock_cursor.ps["row_desc"][0]
 
 
-test_row_description_base = [
+test_row_description_base: typing.List[typing.Tuple[bytes, typing.List[typing.Dict[str, typing.Union[int, bytes]]]]] = [
     (
         b"\x00\x01proname\x00\x00\x00\x04\xe7\x00\x01\x00\x00\x00\x13\x00\x80\xff\xff\xff\xff\x00\x00pg_catalog\x00pg_proc\x00proname\x00dev\x00\x10\x01",
         [
@@ -239,12 +239,12 @@ test_row_description_base = [
 
 
 @pytest.mark.parametrize("_input", test_row_description_base)
-def test_handle_ROW_DESCRIPTION_base(_input):
+def test_handle_row_description_base(_input):
     data, exp_result = _input
-    mock_connection = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = ClientProtocolVersion.BASE_SERVER.value
     mock_connection.pg_types = dict(PG_TYPES)
-    mock_cursor = Cursor.__new__(Cursor)
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 
     mock_connection.handle_ROW_DESCRIPTION(data, mock_cursor)
@@ -255,18 +255,18 @@ def test_handle_ROW_DESCRIPTION_base(_input):
     assert "func" in mock_cursor.ps["row_desc"][0]
 
 
-def test_handle_ROW_DESCRIPTION_missing_ps_raises():
-    mock_connection = Connection.__new__(Connection)
-    mock_cursor = Cursor.__new__(Cursor)
+def test_handle_row_description_missing_ps_raises():
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = None
 
     with pytest.raises(InterfaceError, match="Cursor is missing prepared statement"):
         mock_connection.handle_ROW_DESCRIPTION(b"\x00", mock_cursor)
 
 
-def test_handle_ROW_DESCRIPTION_missing_row_desc_raises():
-    mock_connection = Connection.__new__(Connection)
-    mock_cursor = Cursor.__new__(Cursor)
+def test_handle_row_description_missing_row_desc_raises():
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {}
 
     with pytest.raises(InterfaceError, match="Prepared Statement is missing row description"):
@@ -284,7 +284,7 @@ test_is_multidatabases_catalog_enable_in_server_data: typing.List[typing.Tuple[t
 @pytest.mark.parametrize("_input", test_is_multidatabases_catalog_enable_in_server_data)
 def test_is_multidatabases_catalog_enable_in_server(_input):
     param_status, exp_val = _input
-    mock_connection = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses: deque = deque()
 
     if param_status is not None:
@@ -307,7 +307,7 @@ test_is_single_database_metadata_data: typing.List[typing.Tuple[typing.Optional[
 def test_is_single_database_metadata(_input):
     param_status, database_metadata_current_db_only_val, exp_val = _input
 
-    mock_connection = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses: deque = deque()
     mock_connection._database_metadata_current_db_only = database_metadata_current_db_only_val
 
@@ -318,13 +318,13 @@ def test_is_single_database_metadata(_input):
 
 
 def test_client_os_version_is_present():
-    mock_connection = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     assert mock_connection.client_os_version is not None
     assert isinstance(mock_connection.client_os_version, str)
 
 
 def test_client_os_version_is_not_present():
-    mock_connection = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
 
     with patch("platform.platform", side_effect=Exception("not for you")):
         assert mock_connection.client_os_version == "unknown"

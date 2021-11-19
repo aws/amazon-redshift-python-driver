@@ -1,9 +1,6 @@
-import typing
 from unittest.mock import MagicMock, patch
 
-import boto3  # type: ignore
 import pytest  # type: ignore
-from pytest_mock import mocker
 
 from redshift_connector import InterfaceError
 from redshift_connector.auth.aws_credentials_provider import (

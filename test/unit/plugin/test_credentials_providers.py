@@ -18,8 +18,8 @@ import pytest  # type: ignore
 
 import redshift_connector
 
-conf = configparser.ConfigParser()
-root_path = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
+conf: configparser.ConfigParser = configparser.ConfigParser()
+root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
 conf.read(root_path + "/config.ini")
 
 

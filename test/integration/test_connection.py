@@ -8,7 +8,6 @@ import struct
 import sys
 
 import pytest  # type: ignore
-from pytest_mock import mocker
 
 import redshift_connector
 from redshift_connector import DriverInfo
@@ -53,7 +52,7 @@ def trust_all_certificates(request):
     """Decorator function that will make it so the context of the decorated
     method will run with our TrustManager that accepts all certificates"""
     # Only do this if running under Jython
-    is_java = "java" in sys.platform
+    is_java: bool = "java" in sys.platform
 
     if is_java:
         from javax.net.ssl import SSLContext
@@ -67,7 +66,7 @@ def trust_all_certificates(request):
     request.addfinalizer(fin)
 
 
-def testSocketMissing():
+def test_socket_missing():
     conn_params = {
         "unix_sock": "/file-does-not-exist",
         "user": "doesn't-matter",
@@ -79,7 +78,7 @@ def testSocketMissing():
         redshift_connector.connect(**conn_params)
 
 
-def testDatabaseMissing(db_kwargs):
+def test_database_missing(db_kwargs):
     db_kwargs["database"] = "missing-db"
     with pytest.raises(redshift_connector.ProgrammingError):
         redshift_connector.connect(**db_kwargs)
@@ -89,7 +88,7 @@ def testDatabaseMissing(db_kwargs):
 # redshift_connector_md5
 
 
-def testMd5(db_kwargs):
+def test_md5(db_kwargs):
     db_kwargs["database"] = "redshift_connector_md5"
 
     # Should only raise an exception saying db doesn't exist
@@ -98,7 +97,7 @@ def testMd5(db_kwargs):
 
 
 @pytest.mark.usefixtures("trust_all_certificates")
-def testSsl(db_kwargs):
+def test_ssl(db_kwargs):
     db_kwargs["ssl"] = True
     db_kwargs["sslmode"] = "verify-ca"
     with redshift_connector.connect(**db_kwargs):
@@ -110,7 +109,7 @@ def testSsl(db_kwargs):
 
 # This requires a line in pg_hba.conf that requires 'password' for the
 # database redshift_connector_password
-def testPassword(db_kwargs):
+def test_password(db_kwargs):
     db_kwargs["database"] = "redshift_connector_password"
 
     # Should only raise an exception saying db doesn't exist
@@ -118,7 +117,7 @@ def testPassword(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
-def testUnicodeDatabaseName(db_kwargs):
+def test_unicode_database_name(db_kwargs):
     db_kwargs["database"] = "redshift_connector_sn\uFF6Fw"
 
     # Should only raise an exception saying db doesn't exist
@@ -126,7 +125,7 @@ def testUnicodeDatabaseName(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
-def testBytesDatabaseName(db_kwargs):
+def test_bytes_database_name(db_kwargs):
     """ Should only raise an exception saying db doesn't exist """
 
     db_kwargs["database"] = bytes("redshift_connector_sn\uFF6Fw", "utf8")
@@ -134,10 +133,10 @@ def testBytesDatabaseName(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
-def testBytesPassword(con, db_kwargs):
+def test_bytes_password(con, db_kwargs):
     # Create user
-    username = "boltzman"
-    password = "C1cccccha\uFF6Fs"
+    username: str = "boltzman"
+    password: str = "C1cccccha\uFF6Fs"
     with con.cursor() as cur:
         cur.execute("drop user if exists {};".format(username))
         cur.execute("create user {} with password '{}';".format(username, password))
@@ -169,7 +168,7 @@ def test_broken_pipe(con, db_kwargs):
 def test_application_name_integer(db_kwargs):
     db_kwargs["application_name"] = 1
     with pytest.raises(
-        redshift_connector.InterfaceError, match="The parameter application_name can't be of type " "<class 'int'>."
+        redshift_connector.InterfaceError, match="The parameter application_name can't be of type <class 'int'>."
     ):
         redshift_connector.connect(**db_kwargs)
 

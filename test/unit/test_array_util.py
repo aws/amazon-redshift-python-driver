@@ -32,8 +32,8 @@ walk_array_data: typing.List = [
 @pytest.mark.parametrize("_input", walk_array_data)
 def test_walk_array(_input):
     in_val, exp_vals = _input
-    x = array_util.walk_array(in_val)
-    idx = 0
+    x: typing.Generator = array_util.walk_array(in_val)
+    idx: int = 0
     for a, b, c in x:
         assert a == exp_vals[idx][0]
         assert b == exp_vals[idx][1]

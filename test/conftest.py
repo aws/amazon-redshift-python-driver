@@ -1,6 +1,7 @@
 import configparser
 import os
 import sys
+import typing
 
 import pytest  # type: ignore
 
@@ -24,7 +25,7 @@ conf.read(root_path + "/config.ini")
 #             f.write(rep.longreprtext + "\n")
 
 
-def _get_default_connection_args():
+def _get_default_connection_args() -> typing.Dict[str, typing.Union[str, bool, int]]:
     """
     Helper function defining default database connection parameter values.
     Returns
@@ -44,7 +45,7 @@ def _get_default_connection_args():
     }
 
 
-def _get_default_iam_connection_args():
+def _get_default_iam_connection_args() -> typing.Dict[str, typing.Union[str, bool, int]]:
     args = _get_default_connection_args()
     del args["host"]
     del args["port"]
@@ -53,16 +54,16 @@ def _get_default_iam_connection_args():
 
 
 @pytest.fixture(scope="class")
-def db_kwargs():
+def db_kwargs() -> typing.Dict[str, typing.Union[str, bool, int]]:
     return _get_default_connection_args()
 
 
-def db_groups():
+def db_groups() -> typing.List[str]:
     return conf.get("cluster-setup", "groups", fallback="mock_groups").split(sep=",")
 
 
 @pytest.fixture(scope="class")
-def perf_db_kwargs():
+def perf_db_kwargs() -> typing.Dict[str, typing.Union[str, bool]]:
     db_connect = {
         "database": conf.get("performance-database", "database", fallback="mock_database"),
         "host": conf.get("performance-database", "host", fallback="mock_host"),
@@ -76,7 +77,7 @@ def perf_db_kwargs():
 
 
 @pytest.fixture(scope="class")
-def okta_idp():
+def okta_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "password": conf.get("okta-idp", "password", fallback="mock_password"),
@@ -91,7 +92,7 @@ def okta_idp():
 
 
 @pytest.fixture(scope="class")
-def okta_browser_idp():
+def okta_browser_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "password": conf.get("okta-browser-idp", "password", fallback="mock_password"),
@@ -106,7 +107,7 @@ def okta_browser_idp():
 
 
 @pytest.fixture(scope="class")
-def azure_browser_idp():
+def azure_browser_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "password": conf.get("azure-browser-idp", "password", fallback="mock_password"),
@@ -123,7 +124,7 @@ def azure_browser_idp():
 
 
 @pytest.fixture(scope="class")
-def jumpcloud_browser_idp():
+def jumpcloud_browser_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "password": conf.get("jumpcloud-browser-idp", "password", fallback="mock_password"),
@@ -138,7 +139,7 @@ def jumpcloud_browser_idp():
 
 
 @pytest.fixture(scope="class")
-def ping_browser_idp():
+def ping_browser_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "iam": conf.getboolean("ping-one-idp", "iam", fallback="mock_iam"),
         "credentials_provider": conf.get("ping-one-idp", "credentials_provider", fallback="PingCredentialsProvider"),
@@ -152,7 +153,7 @@ def ping_browser_idp():
 
 
 @pytest.fixture(scope="class")
-def azure_idp():
+def azure_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "password": conf.get("azure-idp", "password", fallback="mock_password"),
@@ -167,7 +168,7 @@ def azure_idp():
 
 
 @pytest.fixture(scope="class")
-def adfs_idp():
+def adfs_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "password": conf.get("adfs-idp", "password", fallback="mock_password"),
@@ -183,7 +184,7 @@ def adfs_idp():
 
 
 @pytest.fixture(scope="class")
-def jwt_google_idp():
+def jwt_google_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "iam": conf.getboolean("jwt-google-idp", "iam", fallback="mock_iam"),
@@ -198,7 +199,7 @@ def jwt_google_idp():
 
 
 @pytest.fixture(scope="class")
-def jwt_azure_v2_idp():
+def jwt_azure_v2_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),
         "iam": conf.getboolean("jwt-azure-v2-idp", "iam", fallback="mock_iam"),
@@ -213,10 +214,10 @@ def jwt_azure_v2_idp():
 
 
 @pytest.fixture
-def con(request, db_kwargs):
-    conn = redshift_connector.connect(**db_kwargs)
+def con(request, db_kwargs) -> redshift_connector.Connection:
+    conn: redshift_connector.Connection = redshift_connector.connect(**db_kwargs)
 
-    def fin():
+    def fin() -> None:
         conn.rollback()
         try:
             conn.close()
@@ -228,10 +229,10 @@ def con(request, db_kwargs):
 
 
 @pytest.fixture
-def cursor(request, con):
-    cursor = con.cursor()
+def cursor(request, con) -> redshift_connector.Cursor:
+    cursor: redshift_connector.Cursor = con.cursor()
 
-    def fin():
+    def fin() -> None:
         cursor.close()
 
     request.addfinalizer(fin)
@@ -239,10 +240,10 @@ def cursor(request, con):
 
 
 @pytest.fixture
-def idp_arg(request):
+def idp_arg(request) -> typing.Dict[str, typing.Union[str, bool, int]]:
     return request.getfixturevalue(request.param)
 
 
 @pytest.fixture
-def is_java():
+def is_java() -> bool:
     return "java" in sys.platform.lower()

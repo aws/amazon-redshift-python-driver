@@ -1,7 +1,7 @@
 import typing
 from warnings import warn
 
-import pytest
+import pytest  # type: ignore
 
 import redshift_connector
 from redshift_connector.config import ClientProtocolVersion

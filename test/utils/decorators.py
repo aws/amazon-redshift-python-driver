@@ -1,4 +1,4 @@
-import pytest
+import pytest  # type: ignore
 
 
 def is_numpy_installed() -> bool:
