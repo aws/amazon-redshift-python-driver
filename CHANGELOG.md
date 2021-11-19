@@ -2,6 +2,18 @@ Changelog
 =========
 
 
+v2.0.900 (2021-11-19)
+---------------------
+- Chore: update package classifiers. [Brooke White]
+- Chore: support boto3>=1.9.201,<2.0.0, botocore>=1.12.201,<2.0.0.
+  [Brooke White]
+- Refactor(test): code clean up. [Brooke White]
+- Tests(plugin, adfs): run AdfsCredentialsProvider integration tests.
+  [Brooke White]
+- Fix(docs): correct minimum supported Python version (#66) [Ramiro
+  Morales, Ramiro Morales]
+
+
 v2.0.889 (2021-10-25)
 ---------------------
 - Test(datatype, timetz): ensure tz is always utc. [Brooke White]
