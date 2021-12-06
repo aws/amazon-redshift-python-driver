@@ -245,7 +245,8 @@ class Cursor:
         from redshift_connector.core import convert_paramstyle
 
         try:
-            statement, vals = convert_paramstyle("format", operation, args)
+            statement, make_args = convert_paramstyle("format", operation)
+            vals = make_args(args)
             self.execute(statement, vals)
 
         except AttributeError as e:
