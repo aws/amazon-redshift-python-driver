@@ -110,21 +110,6 @@ class IamHelper:
             )
         elif info.iam is True:
 
-            if not any(
-                (
-                    info.credentials_provider,
-                    info.access_key_id,
-                    info.secret_access_key,
-                    info.session_token,
-                    info.profile,
-                    info.auth_profile,
-                )
-            ):
-                raise InterfaceError(
-                    "Invalid connection property setting. Credentials provider, AWS credentials, Redshift auth profile "
-                    "or AWS profile must be provided when IAM is enabled"
-                )
-
             if info.cluster_identifier is None:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
