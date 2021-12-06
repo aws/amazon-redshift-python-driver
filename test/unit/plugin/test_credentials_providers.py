@@ -59,12 +59,3 @@ def test_ssl_and_iam_invalid_should_fail(idp_arg):
         match="Invalid connection property setting",
     ):
         redshift_connector.connect(**idp_arg)
-
-    idp_arg["ssl"] = True
-    idp_arg["iam"] = True
-    idp_arg["credentials_provider"] = None
-    with pytest.raises(
-        redshift_connector.InterfaceError,
-        match="Invalid connection property setting",
-    ):
-        redshift_connector.connect(**idp_arg)

@@ -235,7 +235,7 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
             "iam": True,
             "ssl": True,
         },
-        "Invalid connection property setting. Credentials provider, AWS credentials, Redshift auth profile or AWS profile must be provided when IAM is enabled",
+        "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled",
     ),
     (
         {"iam": True, "ssl": True, "credentials_provider": "SomeProvider"},

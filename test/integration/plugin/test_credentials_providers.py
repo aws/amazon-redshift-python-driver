@@ -130,15 +130,6 @@ def testSslAndIam(idp_arg):
     ):
         redshift_connector.connect(**idp_arg)
 
-    idp_arg["ssl"] = True
-    idp_arg["iam"] = True
-    idp_arg["credentials_provider"] = None
-    with pytest.raises(
-        redshift_connector.InterfaceError,
-        match="Invalid connection property setting",
-    ):
-        redshift_connector.connect(**idp_arg)
-
 
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
 def testWrongCredentialsProvider(idp_arg):
