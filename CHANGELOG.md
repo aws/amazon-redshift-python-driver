@@ -2,6 +2,17 @@ Changelog
 =========
 
 
+v2.0.901 (2021-12-06)
+---------------------
+- Refactor(test, paramstyle): adjust to order result set. [Brooke White]
+- Test(iam, aws_credentials): allow aws creds from env var. [Brooke
+  White]
+- Fix(iam, aws_credentials): allow aws credentials from env var. [Brooke
+  White]
+- Test(paramstyle): add integration tests, rework. [Brooke White]
+- Fix(paramstyle): resolve issue with pyformat. [Brooke White]
+
+
 v2.0.900 (2021-11-19)
 ---------------------
 - Chore: update package classifiers. [Brooke White]
