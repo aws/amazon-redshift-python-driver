@@ -27,7 +27,7 @@ def test_pyformat(cursor, parameters):
     [
         (
             ({"c1": "abc", "c2": "defg", "c3": "hijkl"}, {"c1": "a", "c2": "b", "c3": "c"}),
-            [["abc", "defg", "hijkl"], ["a", "b", "c"]],
+            [["a", "b", "c"], ["abc", "defg", "hijkl"]],
         ),
     ],
 )
@@ -36,7 +36,7 @@ def test_pyformat_multiple_insert(cursor, parameters):
     data, exp_result = parameters
     cursor.execute("create temporary table test_pyformat(c1 varchar, c2 varchar, c3 varchar)")
     cursor.executemany("insert into test_pyformat(c1, c2, c3) values(%(c1)s, %(c2)s, %(c3)s)", data)
-    cursor.execute("select * from test_pyformat")
+    cursor.execute("select * from test_pyformat order by c1")
     res: typing.Tuple[typing.List[str, str, str], ...] = cursor.fetchall()
     assert len(res) == len(exp_result)
     for idx, row in enumerate(res):
@@ -111,7 +111,7 @@ def test_format(cursor, parameters):
 @pytest.mark.parametrize(
     "parameters",
     [
-        ([["abc", "defg", "hijkl"], ["a", "b", "c"]], [["abc", "defg", "hijkl"], ["a", "b", "c"]]),
+        ([["abc", "defg", "hijkl"], ["a", "b", "c"]], [["a", "b", "c"], ["abc", "defg", "hijkl"]]),
     ],
 )
 def test_format_multiple(cursor, parameters):
@@ -119,7 +119,7 @@ def test_format_multiple(cursor, parameters):
     data, exp_result = parameters
     cursor.execute("create temporary table test_format(c1 varchar, c2 varchar, c3 varchar)")
     cursor.executemany("insert into test_format(c1, c2, c3) values(%s, %s, %s)", data)
-    cursor.execute("select * from test_format")
+    cursor.execute("select * from test_format order by c1")
     res: typing.Tuple[typing.List[str, str, str], ...] = cursor.fetchall()
     assert len(res) == len(exp_result)
     for idx, row in enumerate(res):
