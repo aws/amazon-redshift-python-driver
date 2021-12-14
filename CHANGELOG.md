@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+v2.0.902 (2021-12-14)
+---------------------
+- Docs(paramstyle, named): fix example. [Brooke White]
+- Chore: bump lxml >=4.6.5. [Brooke White]
+
+
 v2.0.901 (2021-12-06)
 ---------------------
 - Refactor(test, paramstyle): adjust to order result set. [Brooke White]
