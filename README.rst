@@ -119,7 +119,7 @@ The paramstyle for a cursor can be modified via ``cursor.paramstyle``. The defau
     # named
     redshift_connector.paramstyle = 'named'
     sql = 'insert into foo(bar, jar) VALUES(:p1, :p2)'
-    cursor.execute(sql, p1=1, p2="hello world")
+    cursor.execute(sql, {"p1":1, "p2":"hello world"})
 
     # format
     redshift_connector.paramstyle = 'format'
