@@ -6,7 +6,8 @@ from collections import deque
 from itertools import count, islice
 from typing import TYPE_CHECKING
 from warnings import warn
-
+from psycopg2 import extras
+import csv
 import redshift_connector
 from redshift_connector.config import ClientProtocolVersion, table_type_clauses
 from redshift_connector.error import (
@@ -122,7 +123,8 @@ class Cursor:
     @functools.lru_cache()
     def truncated_row_desc(self: "Cursor"):
         _data: typing.List[
-            typing.Optional[typing.Union[typing.Tuple[typing.Callable, int], typing.Tuple[typing.Callable]]]
+            typing.Optional[typing.Union[typing.Tuple[typing.Callable,
+                                                      int], typing.Tuple[typing.Callable]]]
         ] = []
 
         for cidx in range(len(self.ps["row_desc"])):
@@ -131,7 +133,8 @@ class Cursor:
             ] in (1700,):
                 scale: int
                 if self.ps["row_desc"][cidx]["type_modifier"] != -1:
-                    scale = (self.ps["row_desc"][cidx]["type_modifier"] - 4) & 0xFFFF
+                    scale = (self.ps["row_desc"][cidx]
+                             ["type_modifier"] - 4) & 0xFFFF
                 else:
                     scale = -4 & 0xFFFF
                 _data.append((self.ps["input_funcs"][cidx], scale))
@@ -145,12 +148,14 @@ class Cursor:
     def _getDescription(self: "Cursor") -> typing.Optional[typing.List[typing.Optional[typing.Tuple]]]:
         if self.ps is None:
             return None
-        row_desc: typing.List[typing.Dict[str, typing.Union[bytes, int, typing.Callable]]] = self.ps["row_desc"]
+        row_desc: typing.List[typing.Dict[str, typing.Union[bytes,
+                                                            int, typing.Callable]]] = self.ps["row_desc"]
         if len(row_desc) == 0:
             return None
         columns: typing.List[typing.Optional[typing.Tuple]] = []
         for col in row_desc:
-            columns.append((col["label"], col["type_oid"], None, None, None, None, None))
+            columns.append((col["label"], col["type_oid"],
+                           None, None, None, None, None))
         return columns
 
     ##
@@ -239,9 +244,31 @@ class Cursor:
         self._row_count = -1 if -1 in rowcounts else sum(rowcounts)
         return self
 
+    def insert_data_bulk(self, filename, url, name, links, url_index, name_index):
+        """
+
+           runs a single bulk insert statement into the database.
+
+        """
+
+        sql_query = f"INSERT INTO  {links} ({url}, {name}) VALUES %s"
+
+        with open(filename) as csvfile:
+            reader = csv.reader(csvfile)
+            header = next(reader)
+            values_list = []
+
+            for row in reader:
+                values = (row[url_index], row[name_index])
+                values_list.append(values)
+
+            self.execute(sql_query, values_list)
+
     def callproc(self, procname, parameters=None):
         args = [] if parameters is None else parameters
-        operation = "CALL " + self.__sanitize_str(procname) + "(" + ", ".join(["%s" for _ in args]) + ")"
+        operation = "CALL " + \
+            self.__sanitize_str(procname) + \
+            "(" + ", ".join(["%s" for _ in args]) + ")"
         from redshift_connector.core import convert_paramstyle
 
         try:
@@ -377,11 +404,13 @@ class Cursor:
         try:
             import pandas
         except ModuleNotFoundError:
-            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="pandas"))
+            raise ModuleNotFoundError(
+                MISSING_MODULE_ERROR_MSG.format(module="pandas"))
 
         columns: typing.Optional[typing.List[typing.Union[str, bytes]]] = None
         try:
-            columns = [column[0].decode().lower() for column in self.description]
+            columns = [column[0].decode().lower()
+                       for column in self.description]
         except UnicodeError as e:
             warn(
                 "Unable to decode column names. Byte values will be used for pandas dataframe column labels.",
@@ -396,7 +425,8 @@ class Cursor:
         else:
             fetcheddata = self.fetchall()
 
-        result: typing.List = [tuple(column for column in rows) for rows in fetcheddata]
+        result: typing.List = [tuple(column for column in rows)
+                               for rows in fetcheddata]
         if len(result) == 0:
             return None
         return pandas.DataFrame(result, columns=columns)
@@ -444,10 +474,12 @@ class Cursor:
         try:
             import pandas
         except ModuleNotFoundError:
-            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="pandas"))
+            raise ModuleNotFoundError(
+                MISSING_MODULE_ERROR_MSG.format(module="pandas"))
 
         if not self.__is_valid_table(table):
-            raise InterfaceError("Invalid table name passed to write_dataframe: {}".format(table))
+            raise InterfaceError(
+                "Invalid table name passed to write_dataframe: {}".format(table))
         sanitized_table_name: str = self.__sanitize_str(table)
         arrays: "numpy.ndarray" = df.values
         placeholder: str = ", ".join(["%s"] * len(arrays[0]))
@@ -474,7 +506,8 @@ class Cursor:
         try:
             import numpy
         except ModuleNotFoundError:
-            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="numpy"))
+            raise ModuleNotFoundError(
+                MISSING_MODULE_ERROR_MSG.format(module="numpy"))
 
         if num:
             fetched: typing.Tuple = self.fetchmany(num)
@@ -546,7 +579,8 @@ class Cursor:
         catalog_filter: str = ""
         if catalog is not None and catalog != "":
             if self._c.is_single_database_metadata is True or api_supported_only_for_connected_database is True:
-                catalog_filter += " AND current_database() = {catalog}".format(catalog=self.__escape_quotes(catalog))
+                catalog_filter += " AND current_database() = {catalog}".format(
+                    catalog=self.__escape_quotes(catalog))
             else:
                 if database_col_name is None or database_col_name == "":
                     database_col_name = "database_name"
@@ -714,7 +748,8 @@ class Cursor:
         sql_args: typing.Tuple[str, ...] = tuple()
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
-            sql, sql_args = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+            sql, sql_args = self.__build_local_schema_tables_query(
+                catalog, schema_pattern, table_name_pattern, types)
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
             if self._c.is_single_database_metadata is True:
                 sql, sql_args = self.__build_universal_schema_tables_query(
@@ -838,7 +873,8 @@ class Cursor:
                                 type, table_type_clauses.keys()
                             )
                         )
-                    clauses: typing.Optional[typing.Dict[str, str]] = table_type_clauses[type]
+                    clauses: typing.Optional[typing.Dict[str,
+                                                         str]] = table_type_clauses[type]
                     if clauses is not None:
                         cluase: str = clauses[use_schemas]
                         orclause += " OR ( {cluase} ) ".format(cluase=cluase)
@@ -1241,11 +1277,14 @@ class Cursor:
         sql += self._get_catalog_filter_conditions(catalog, True, None)
 
         if schema_pattern is not None and schema_pattern != "":
-            sql += " AND n.nspname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND n.nspname LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern))
         if tablename_pattern is not None and tablename_pattern != "":
-            sql += " AND c.relname LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            sql += " AND c.relname LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern))
         if columnname_pattern is not None and columnname_pattern != "":
-            sql += " AND attname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            sql += " AND attname LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern))
 
         sql += " ORDER BY TABLE_SCHEM,c.relname,attnum ) "
 
@@ -1419,11 +1458,14 @@ class Cursor:
             " WHERE true "
         )
         if schema_pattern is not None and schema_pattern != "":
-            sql += " AND schemaname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND schemaname LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern))
         if tablename_pattern is not None and tablename_pattern != "":
-            sql += " AND tablename LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            sql += " AND tablename LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern))
         if columnname_pattern is not None and columnname_pattern != "":
-            sql += " AND columnname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            sql += " AND columnname LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern))
 
         return sql
 
@@ -1436,11 +1478,14 @@ class Cursor:
         filter_clause: str = ""
 
         if schema_pattern is not None and schema_pattern != "":
-            filter_clause += " AND schema_name LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            filter_clause += " AND schema_name LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern))
         if tablename_pattern is not None and tablename_pattern != "":
-            filter_clause += " AND table_name LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            filter_clause += " AND table_name LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern))
         if columnname_pattern is not None and columnname_pattern != "":
-            filter_clause += " AND COLUMN_NAME LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            filter_clause += " AND COLUMN_NAME LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern))
 
         return filter_clause
 
@@ -2097,11 +2142,14 @@ class Cursor:
         sql += self._get_catalog_filter_conditions(catalog, True, None)
 
         if schema_pattern is not None and schema_pattern != "":
-            sql += " AND schemaname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND schemaname LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern))
         if tablename_pattern is not None and tablename_pattern != "":
-            sql += " AND tablename LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            sql += " AND tablename LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern))
         if columnname_pattern is not None and columnname_pattern != "":
-            sql += " AND columnname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            sql += " AND columnname LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern))
 
         sql += " ORDER BY table_schem,table_name,ORDINAL_POSITION "
 
