@@ -561,6 +561,7 @@ class Connection:
 
                     ssl_context: SSLContext = SSLContext()
                     ssl_context.verify_mode = CERT_REQUIRED
+                    ssl_context.load_default_certs()
                     ssl_context.load_verify_locations(path)
 
                     # Int32(8) - Message length, including self.
