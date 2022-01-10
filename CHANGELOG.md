@@ -2,6 +2,21 @@ Changelog
 =========
 
 
+v2.0.903 (2022-01-10)
+---------------------
+- Feat(datatype, abstime): support abstime. [Brooke White]
+- Chore(tests): enable system table query tests in CI. [Brooke White]
+- Docs: add integrations, exception handling, resources. [Brooke White]
+- Chore: disable manual serverless tests. [Brooke White]
+- Feat(datatype, interval): support interval, timedelta. [Brooke White]
+- Feat(connection): support redshift serverless. [Brooke White]
+- Chore(deps): update requests requirement (#83) [dependabot[bot]]
+- Fix(connection): load system certificates (#76) [Brooke White]
+
+  fix(connection): load system certificates
+- Load system certificates in addition to redshift's cert. [evgenyx00]
+
+
 v2.0.902 (2021-12-14)
 ---------------------
 - Docs(paramstyle, named): fix example. [Brooke White]
