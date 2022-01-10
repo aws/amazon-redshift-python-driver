@@ -42,7 +42,7 @@ system_tables: typing.List[str] = [
     "pg_settings",
     "pg_stats",
     "pg_tables",
-    # "pg_user",  # has unsupported type oid 702
+    "pg_user",
     "pg_views",
     # "pg_authid",
     # "pg_auth_members",
@@ -81,7 +81,6 @@ system_tables: typing.List[str] = [
 # conversion issue. no validation of result set occurs.
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("table_name", system_tables)
 def test_process_system_table_datatypes(db_kwargs, client_protocol, table_name):
