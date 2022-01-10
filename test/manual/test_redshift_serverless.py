@@ -22,16 +22,19 @@ How to use:
 """
 
 
+@pytest.mark.skip(reason="manual")
 def test_native_auth(serverless_native_db_kwargs):
     with redshift_connector.connect(**serverless_native_db_kwargs):
         pass
 
 
+@pytest.mark.skip(reason="manual")
 def test_iam_auth(serverless_iam_db_kwargs):
     with redshift_connector.connect(**serverless_iam_db_kwargs):
         pass
 
 
+@pytest.mark.skip(reason="manual")
 def test_idp_auth(okta_idp):
     okta_idp["host"] = "my_redshift_serverless_endpoint"
 
