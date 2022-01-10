@@ -21,6 +21,7 @@ from redshift_connector.config import (
     _client_encoding,
     timegm,
 )
+from redshift_connector.interval import Interval
 from redshift_connector.pg_types import (
     PGEnum,
     PGJson,
@@ -115,6 +116,7 @@ d_pack, d_unpack = pack_funcs("d")
 f_pack, f_unpack = pack_funcs("f")
 iii_pack, iii_unpack = pack_funcs("iii")
 ii_pack, ii_unpack = pack_funcs("ii")
+qhh_pack, qhh_unpack = pack_funcs("qhh")
 qii_pack, qii_unpack = pack_funcs("qii")
 dii_pack, dii_unpack = pack_funcs("dii")
 ihihih_pack, ihihih_unpack = pack_funcs("ihihih")
@@ -235,19 +237,15 @@ def timestamptz_recv_integer(data: bytes, offset: int, length: int) -> typing.Un
             return Datetime.max
 
 
-# def interval_send_integer(v: typing.Union[Interval, Timedelta]) -> bytes:
-#     microseconds: int = v.microseconds
-#     try:
-#         microseconds += int(v.seconds * 1e6)  # type: ignore
-#     except AttributeError:
-#         pass
-#
-#     try:
-#         months = v.months  # type: ignore
-#     except AttributeError:
-#         months = 0
-#
-#     return typing.cast(bytes, qii_pack(microseconds, v.days, months))
+def interval_send_integer(v: typing.Union[Timedelta, Interval]) -> bytes:
+    microseconds: int = int(v.total_seconds() * 1e6)
+
+    try:
+        months = v.months  # type: ignore
+    except AttributeError:
+        months = 0
+
+    return typing.cast(bytes, qhh_pack(microseconds, 0, months))
 
 
 glbls: typing.Dict[str, type] = {"Decimal": Decimal}
@@ -292,15 +290,13 @@ def numeric_in(data: bytes, offset: int, length: int) -> Decimal:
 #     return UUID(bytes=data[offset:offset+length])
 
 
-# def interval_recv_integer(data: bytes, offset: int, length: int) -> typing.Union[Timedelta, Interval]:
-#     microseconds, days, months = typing.cast(
-#         typing.Tuple[int, ...], qii_unpack(data, offset)
-#     )
-#     if months == 0:
-#         seconds, micros = divmod(microseconds, 1e6)
-#         return Timedelta(days, seconds, micros)
-#     else:
-#         return Interval(microseconds, days, months)
+def interval_recv_integer(data: bytes, offset: int, length: int) -> typing.Union[Timedelta, Interval]:
+    microseconds, days, months = typing.cast(typing.Tuple[int, ...], qhh_unpack(data, offset))
+    seconds, micros = divmod(microseconds, 1e6)
+    if months != 0:
+        return Interval(microseconds, days, months)
+    else:
+        return Timedelta(days, seconds, micros)
 
 
 def timetz_recv_binary(data: bytes, offset: int, length: int) -> time:
@@ -630,7 +626,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         TIMESTAMP: (FC_BINARY, timestamp_recv_integer),  # timestamp
         TIMESTAMPTZ: (FC_BINARY, timestamptz_recv_integer),  # timestamptz
         TIMETZ: (FC_BINARY, timetz_recv_binary),  # timetz
-        # 1186: (FC_BINARY, interval_recv_integer),
+        INTERVAL: (FC_BINARY, interval_recv_integer),
         # 1231: (FC_TEXT, array_in),  # NUMERIC[]
         # 1263: (FC_BINARY, array_recv),  # cstring[]
         NUMERIC: (FC_BINARY, numeric_in_binary),  # NUMERIC
@@ -691,8 +687,8 @@ py_types: typing.Dict[typing.Union[type, int], typing.Tuple[int, int, typing.Cal
     TIMESTAMPTZ: (TIMESTAMPTZ, FC_BINARY, timestamptz_send_integer),
     PGJson: (JSON, FC_TEXT, text_out),
     # PGJsonb: (3802, FC_TEXT, text_out),
-    # Timedelta: (1186, FC_BINARY, interval_send_integer),
-    # Interval: (1186, FC_BINARY, interval_send_integer),
+    Timedelta: (INTERVAL, FC_BINARY, interval_send_integer),  # interval
+    Interval: (1186, FC_BINARY, interval_send_integer),
     Decimal: (NUMERIC, FC_TEXT, numeric_out),  # Decimal
     PGTsvector: (3614, FC_TEXT, text_out),
     # UUID: (2950, FC_BINARY, uuid_send),  # uuid

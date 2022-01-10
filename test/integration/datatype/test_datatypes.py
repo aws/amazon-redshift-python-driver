@@ -94,7 +94,7 @@ def test_redshift_specific_recv_support(db_kwargs, _input, client_protocol):
             results: typing.Tuple = cursor.fetchall()
             assert len(results) == 1
             assert len(results[0]) == 1
-            assert results[0][0] == bytes(exp_val, encoding="utf-8").hex()
+            assert results[0][0] == exp_val
 
 
 @pytest.mark.skip(reason="manual")

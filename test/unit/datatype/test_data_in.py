@@ -1,5 +1,5 @@
 import typing
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 from enum import Enum, auto
 from math import isclose
@@ -7,6 +7,7 @@ from math import isclose
 import pytest  # type: ignore
 
 import redshift_connector
+from redshift_connector.interval import Interval
 from redshift_connector.utils import type_utils
 
 
@@ -36,6 +37,7 @@ class Datatypes(Enum):
     text_array: typing.Callable = type_utils.array_recv_text
     text_array_binary: typing.Callable = type_utils.array_recv_binary
     geometry: typing.Callable = type_utils.text_recv
+    interval: typing.Callable = type_utils.interval_recv_integer
 
 
 test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {
@@ -328,6 +330,16 @@ test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {
             194,
             "0103000020E61000000100000005000000000000000000000000000000000000000000000000000000000000000000F03F000000000000F03F000000000000F03F000000000000F03F000000000000000000000000000000000000000000000000",
         ),
+    ],
+    Datatypes.interval: [
+        (b"\x00\x01\x00\x00\x00\x0c\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01", 6, 12, Interval(months=1)),
+        (
+            b"\x00\x01\x00\x00\x00\x0c\x00\x00\x00d\x954\xe0\x00\x00\x00\x00\x01",
+            6,
+            12,
+            Interval(months=1, microseconds=432000000000),
+        ),
+        (b"\x00\x01\x00\x00\x00\x0c\x00\x00\x00d\x954\xe0\x00\x00\x00\x00\x00", 6, 12, timedelta(days=5)),
     ],
 }
 
