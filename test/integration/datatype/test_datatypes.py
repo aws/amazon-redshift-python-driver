@@ -2,6 +2,8 @@ import configparser
 import datetime
 import os
 import typing
+from datetime import datetime as Datetime
+from datetime import timezone
 from math import isclose
 from test.integration.datatype._generate_test_datatype_tables import (  # type: ignore
     DATATYPES_WITH_MS,
@@ -160,3 +162,22 @@ def test_redshift_timetz_client_tz_applied(db_kwargs, _input, client_protocol):
             results: typing.Tuple = cursor.fetchone()
             assert len(results) == 1
             assert results[0] == t_time
+
+
+abstime_vals: typing.List[typing.Tuple[str, Datetime]] = [
+    ("infinity", Datetime(year=2038, month=1, day=19, hour=3, minute=14, second=4, tzinfo=timezone.utc)),
+    ("-infinity", Datetime(year=1901, month=12, day=13, hour=20, minute=45, second=52, tzinfo=timezone.utc)),
+    ("2022-06-10", Datetime(year=2022, month=6, day=10, tzinfo=timezone.utc)),
+]
+
+
+@pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
+@pytest.mark.parametrize("_input", abstime_vals)
+def test_abstime(db_kwargs, _input, client_protocol):
+    insert_val, exp_val = _input
+
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select '{}'::abstime".format(insert_val))
+            res = cursor.fetchone()
+            assert res[0] == exp_val

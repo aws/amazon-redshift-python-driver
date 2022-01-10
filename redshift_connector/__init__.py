@@ -44,6 +44,7 @@ from redshift_connector.utils import (
     mask_secure_info_in_props,
 )
 from redshift_connector.utils.type_utils import (
+    ABSTIME,
     BIGINT,
     BIGINTEGER,
     BOOLEAN,
@@ -406,6 +407,7 @@ __all__: typing.Any = [
     "PGText",
     "PGVarchar",
     "__version__",
+    "ABSTIME",
     "BIGINT",
     "BIGINTEGER",
     "BOOLEAN",

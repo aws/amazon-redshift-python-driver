@@ -32,6 +32,7 @@ from redshift_connector.pg_types import (
 )
 
 ANY_ARRAY = 2277
+ABSTIME = 702
 BIGINT = 20
 BIGINT_ARRAY = 1016
 BOOLEAN = 16
@@ -207,6 +208,33 @@ def timestamp_recv_integer(data: bytes, offset: int, length: int) -> typing.Unio
             return Datetime.min
         else:
             return Datetime.max
+
+
+def abstime_recv(data: bytes, offset: int, length: int) -> Datetime:
+    """
+    Converts abstime values represented as integer, representing seconds, to Python datetime.Datetime using UTC.
+    """
+    if length != 4:
+        raise Exception("Malformed column value of type abstime received")
+
+    time: float = i_unpack(data, offset)[0]
+    time *= 1000000  # Time in micro secs
+    secs: float = time / 1000000
+    nanos: int = int(time - secs * 1000000)
+    if nanos < 0:
+        secs -= 1
+        nanos += 1000000
+
+    nanos *= 1000
+
+    millis: float = secs * float(1000)
+
+    total_secs: float = (millis / 1e3) + (nanos / 1e9)
+    server_date: Datetime = Datetime.fromtimestamp(total_secs)
+    # As of Version 3.0, times are no longer read and written using Greenwich Mean Time;
+    # the input and output routines default to the local time zone.
+    # Ref https://www.postgresql.org/docs/6.3/c0804.htm#abstime
+    return server_date.astimezone(Timezone.utc)
 
 
 # data is 64-bit integer representing microseconds since 2000-01-01
@@ -588,6 +616,7 @@ def varbytehex_recv(data: bytes, idx: int, length: int) -> str:
 pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultdict(
     lambda: (FC_TEXT, text_recv),
     {
+        ABSTIME: (FC_BINARY, abstime_recv),  # abstime
         BOOLEAN: (FC_BINARY, bool_recv),  # boolean
         # 17: (FC_BINARY, bytea_recv),  # bytea
         NAME: (FC_BINARY, text_recv),  # name type
