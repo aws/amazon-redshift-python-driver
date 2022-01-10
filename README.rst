@@ -57,7 +57,15 @@ Tutorials
 - `002 - Data Science Library Integrations <https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/002%20-%20Data%20Science%20Library%20Integrations.ipynb>`_
 - `003 - Amazon Redshift Feature Support <https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/003%20-%20Amazon%20Redshift%20Feature%20Support.ipynb>`_
 
-We are working to add more documentation and would love your feedback. Please reach out to the team by `opening an issue <https://github.com/aws/amazon-redshift-python-driver/issues/new/choose>`_ or `starting a discussion <https://github.com/aws/amazon-redshift-python-driver/discussions/new>`_ to help us fill in the gaps in our documentation.
+We are working to add more documentation and would love your feedback. Please reach out to the team by `opening an issue <https://github.com/aws/amazon-redshift-python-driver/issues/new/choose>`__ or `starting a discussion <https://github.com/aws/amazon-redshift-python-driver/discussions/new>`_ to help us fill in the gaps in our documentation.
+
+Integrations
+~~~~~~~~~~~~
+``redshift_connector`` integrates with various open source projects to provide an interface to Amazon Redshift. Please `open an issue <https://github.com/aws/amazon-redshift-python-driver/issues/new/choose>`__ with our project to request new integrations or get support for a ``redshift_connector`` issue seen in an existing integration.
+
+- `apache-airflow <https://github.com/apache/airflow>`_
+- `querybook <https://github.com/pinterest/querybook>`_
+- `sqlalchemy-redshift <https://github.com/sqlalchemy-redshift/sqlalchemy-redshift>`_
 
 Basic Example
 ~~~~~~~~~~~~~
@@ -132,9 +140,12 @@ The paramstyle for a cursor can be modified via ``cursor.paramstyle``. The defau
     cursor.execute(sql, {"bar": 1, "jar": "hello world"})
 
 
+Exception Handling
+~~~~~~~~~~~~~~~~~~~
+``redshift_connector`` uses the guideline for exception handling specified in the `Python DB-API <https://www.python.org/dev/peps/pep-0249/#exceptions>`_. For exception definitions, please see `redshift_connector/error.py <https://github.com/aws/amazon-redshift-python-driver/blob/master/redshift_connector/error.py>`_
 
 Example using IAM Credentials
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 IAM Credentials can be supplied directly to ``connect(...)`` using an AWS profile as shown below:
 
 .. code-block:: python
@@ -420,3 +431,5 @@ You can run tests by using ``pytest test/unit``. This will run all unit tests. I
 Additional Resources
 ~~~~~~~~~~~~~~~~~~~~
 - `LICENSE <https://github.com/aws/amazon-redshift-python-driver/blob/master/LICENSE>`_
+- `Python Database API Specification v2.0 (PEP 249) <https://www.python.org/dev/peps/pep-0249/>`_
+- `PostgreSQL Frontend/Backend Protocol <https://www.postgresql.org/docs/9.3/protocol.html>`_
