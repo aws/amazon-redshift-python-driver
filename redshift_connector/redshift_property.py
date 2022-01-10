@@ -1,6 +1,9 @@
 import typing
 
 from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
+from redshift_connector.error import ProgrammingError
+
+SERVERLESS_HOST_PATTERN: str = r"(.+)\.(.+).redshift-serverless(-dev)?\.amazonaws\.com(.)*"
 
 
 class RedshiftProperty:
@@ -105,13 +108,17 @@ class RedshiftProperty:
             # The user name.
             self.user_name: str = ""
             self.web_identity_token: typing.Optional[str] = None
+            # The AWS Account Id
+            self.account_id: typing.Optional[str] = None
 
         else:
             for k, v in kwargs.items():
                 setattr(self, k, v)
 
     def __str__(self: "RedshiftProperty") -> str:
-        return str(self.__dict__)
+        rp = self.__dict__
+        rp["is_serverless_host"] = self.is_serverless_host
+        return str(rp)
 
     def put_all(self, other):
         """
@@ -128,3 +135,37 @@ class RedshiftProperty:
         """
         if value is not None:
             setattr(self, key, value)
+
+    @property
+    def is_serverless_host(self: "RedshiftProperty") -> bool:
+        """
+        If the host indicate Redshift serverless will be used for connection.
+        """
+        if not self.host:
+            return False
+
+        import re
+
+        return bool(re.fullmatch(pattern=SERVERLESS_HOST_PATTERN, string=str(self.host)))
+
+    def set_account_id_from_host(self: "RedshiftProperty") -> None:
+        """
+        Returns the AWS account id as parsed from the Redshift serverless endpoint.
+        """
+        import re
+
+        m2 = re.fullmatch(pattern=SERVERLESS_HOST_PATTERN, string=self.host)
+
+        if m2:
+            self.put(key="account_id", value=m2.group(1))
+
+    def set_region_from_host(self: "RedshiftProperty") -> None:
+        """
+        Returns the AWS region as parsed from the Redshift serverless endpoint.
+        """
+        import re
+
+        m2 = re.fullmatch(pattern=SERVERLESS_HOST_PATTERN, string=self.host)
+
+        if m2:
+            self.put(key="region", value=m2.group(2))

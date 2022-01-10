@@ -11,6 +11,7 @@ from pytest_mock import mocker  # type: ignore
 from redshift_connector import InterfaceError, ProgrammingError, RedshiftProperty
 from redshift_connector.auth import AWSCredentialsProvider
 from redshift_connector.config import ClientProtocolVersion
+from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.iam_helper import IamHelper
 from redshift_connector.plugin import (
     AdfsCredentialsProvider,
@@ -351,6 +352,52 @@ def test_set_iam_credentials_via_aws_credentials(mocker):
     assert spy.call_args[0][1] == redshift_property
 
 
+@mock.patch("boto3.client")
+def test_set_iam_credentials_for_serverless_uses_redshift_serverless_client(mock_boto_client, serverless_iam_db_kwargs):
+    rp: RedshiftProperty = RedshiftProperty()
+
+    for k, v in serverless_iam_db_kwargs.items():
+        rp.put(k, v)
+
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_holder.has_associated_session = False
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+
+    # ensure client creation
+    assert mock_boto_client.called is True
+    assert mock_boto_client.call_count == 1
+    assert mock_boto_client.call_args[1]["service_name"] == "redshift-serverless"
+
+
+@mock.patch("boto3.client")
+def test_set_iam_credentials_for_serverless_calls_get_credentials(mock_boto_client, mocker, serverless_iam_db_kwargs):
+    rp: RedshiftProperty = RedshiftProperty()
+
+    for k, v in serverless_iam_db_kwargs.items():
+        rp.put(k, v)
+
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_holder.has_associated_session = False
+
+    spy = mocker.spy(rp, "put")
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+
+    # ensure describe_configuration is called
+    mock_boto_client.assert_has_calls([call().get_credentials(dbName=rp.db_name)])
+    # ensure host, port values were set
+    assert spy.called
+
+    # ensure RedshiftProperty.put method was called
+    assert "user_name" in [c[0][0] for c in spy.call_args_list]
+    assert "password" in [c[0][0] for c in spy.call_args_list]
+
+
 def test_dynamically_loading_credential_holder(mocker):
     external_class_name: str = "test.unit.MockCredentialsProvider"
     mocker.patch("{}.get_credentials".format(external_class_name))
@@ -375,9 +422,9 @@ def test_get_credentials_cache_key():
     rp.cluster_identifier = "6"
     rp.auto_create = False
 
-    res_cache_key: str = IamHelper.get_credentials_cache_key(rp)
+    res_cache_key: str = IamHelper.get_credentials_cache_key(rp, None)
     assert res_cache_key is not None
-    assert res_cache_key == "2;1;3,4,5;6;False"
+    assert res_cache_key == "2;1;3,4,5;6;False;900"
 
 
 def test_get_credentials_cache_key_no_db_groups():
@@ -387,9 +434,9 @@ def test_get_credentials_cache_key_no_db_groups():
     rp.cluster_identifier = "6"
     rp.auto_create = False
 
-    res_cache_key: str = IamHelper.get_credentials_cache_key(rp)
+    res_cache_key: str = IamHelper.get_credentials_cache_key(rp, None)
     assert res_cache_key is not None
-    assert res_cache_key == "2;1;;6;False"
+    assert res_cache_key == "2;1;6;False;900"
 
 
 @mock.patch("boto3.client.get_cluster_credentials")
@@ -401,6 +448,7 @@ def test_set_cluster_credentials_caches_credentials(
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
     mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_provider.get_cache_key.return_value = "mocked"
     mock_cred_holder.has_associated_session = False
 
     rp: RedshiftProperty = make_redshift_property()
@@ -478,11 +526,11 @@ def test_set_cluster_credentials_ignores_cache_when_disabled(
     }
     # populate the cache
     IamHelper.credentials_cache.clear()
-    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] = mock_cred_obj
+    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp, mock_cred_provider)] = mock_cred_obj
 
     IamHelper.set_cluster_credentials(mock_cred_provider, rp)
     assert len(IamHelper.credentials_cache) == 1
-    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] is mock_cred_obj
+    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp, mock_cred_provider)] is mock_cred_obj
     assert mock_boto_client.called is True
 
     # we should not have retrieved user/password from the cache
@@ -521,11 +569,11 @@ def test_set_cluster_credentials_uses_cache_if_possible(
     }
     # populate the cache
     IamHelper.credentials_cache.clear()
-    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] = mock_cred_obj
+    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp, mock_cred_provider)] = mock_cred_obj
 
     IamHelper.set_cluster_credentials(mock_cred_provider, rp)
     assert len(IamHelper.credentials_cache) == 1
-    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] is mock_cred_obj
+    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp, mock_cred_provider)] is mock_cred_obj
     assert mock_boto_client.called is True
 
     assert rp.user_name == mock_cred_obj["DbUser"]
@@ -563,13 +611,13 @@ def test_set_cluster_credentials_refreshes_stale_credentials(
     }
     # populate the cache
     IamHelper.credentials_cache.clear()
-    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] = mock_cred_obj
+    IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp, mock_cred_provider)] = mock_cred_obj
 
     IamHelper.set_cluster_credentials(mock_cred_provider, rp)
     assert len(IamHelper.credentials_cache) == 1
     # ensure new temporary credentials have been replaced in cache
-    assert IamHelper.get_credentials_cache_key(rp) in IamHelper.credentials_cache
-    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp)] is not mock_cred_obj
+    assert IamHelper.get_credentials_cache_key(rp, mock_cred_provider) in IamHelper.credentials_cache
+    assert IamHelper.credentials_cache[IamHelper.get_credentials_cache_key(rp, mock_cred_provider)] is not mock_cred_obj
     assert mock_boto_client.called is True
 
     mock_boto_client.assert_has_calls(
