@@ -746,7 +746,9 @@ class Cursor:
                     catalog, schema_pattern, table_name_pattern, types
                 )
         elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
-            sql, sql_args = self.__build_external_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+            sql, sql_args = self.__build_external_schema_tables_query(
+                catalog, schema_pattern, table_name_pattern, types
+            )
 
         if len(sql_args) > 0:
             temp = self.paramstyle
