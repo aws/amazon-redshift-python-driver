@@ -739,13 +739,9 @@ class Cursor:
                 catalog, schema_pattern, table_name_pattern, types)
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
             if self._c.is_single_database_metadata is True:
-                sql, sql_args = self.__build_universal_schema_tables_query(
-                    catalog, schema_pattern, table_name_pattern, types
-                )
+                sql, sql_args = self.__build_universal_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
             else:
-                sql, sql_args = self.__build_universal_all_schema_tables_query(
-                    catalog, schema_pattern, table_name_pattern, types
-                )
+                sql, sql_args = self.__build_universal_all_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
         elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
             sql, sql_args = self.__build_external_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
 
