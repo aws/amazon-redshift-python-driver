@@ -735,13 +735,16 @@ class Cursor:
         sql_args: typing.Tuple[str, ...] = tuple()
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
-            sql, sql_args = self.__build_local_schema_tables_query(
-                catalog, schema_pattern, table_name_pattern, types)
+            sql, sql_args = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
             if self._c.is_single_database_metadata is True:
-                sql, sql_args = self.__build_universal_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+                sql, sql_args = self.__build_universal_schema_tables_query(
+                    catalog, schema_pattern, table_name_pattern, types
+                )
             else:
-                sql, sql_args = self.__build_universal_all_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+                sql, sql_args = self.__build_universal_all_schema_tables_query(
+                    catalog, schema_pattern, table_name_pattern, types
+                )
         elif schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
             sql, sql_args = self.__build_external_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
 
