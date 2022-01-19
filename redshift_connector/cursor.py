@@ -6,7 +6,6 @@ from collections import deque
 from itertools import count, islice
 from typing import TYPE_CHECKING
 from warnings import warn
-from psycopg2 import extras
 import csv
 import redshift_connector
 from redshift_connector.config import ClientProtocolVersion, table_type_clauses
