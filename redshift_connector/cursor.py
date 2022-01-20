@@ -6,7 +6,6 @@ from collections import deque
 from itertools import count, islice
 from typing import TYPE_CHECKING
 from warnings import warn
-import csv
 import redshift_connector
 from redshift_connector.config import ClientProtocolVersion, table_type_clauses
 from redshift_connector.error import (
@@ -266,7 +265,11 @@ class Cursor:
             raise InterfaceError("Invalid table name passed to insert_data_bulk: {}".format(table_name))
         if not self.__has_valid_columns(table_name, column_names):
             raise InterfaceError("Invalid column names passed to insert_data_bulk: {}".format(table_name))
-        
+        try:
+            import csv
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="csv"))
+
         sql_query = f"INSERT INTO  {table_name} ("
         for column_name in column_names:
             sql_query = sql_query + f", {column_name}"
