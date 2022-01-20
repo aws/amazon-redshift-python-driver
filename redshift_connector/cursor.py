@@ -239,25 +239,50 @@ class Cursor:
         self._row_count = -1 if -1 in rowcounts else sum(rowcounts)
         return self
 
-    def insert_data_bulk(self, filename, url, name, links, url_index, name_index):
+    def insert_data_bulk(self: "Cursor", filename,table_name, column_indexes,column_names,delimeter)-> "Cursor":
+  
+        """runs a single bulk insert statement into the database.
+           
+           This method is part of the `DBAPI 2.0 specification
+           <http://www.python.org/dev/peps/pep-0249/>`_.
+
+            :param filename: str
+                The name of the file to read from.
+            :param table_name: str
+                The name of the table to insert to.
+            :param column_names:list
+                The name of the columns in the table to insert to.  
+            :param column_indexes:list
+                The indexes of the columns in the table to insert to.
+            :param delimeter: str
+                The delimeter to use when reading the file.
+
+            Returns
+            
+            -------
+            The Cursor object used for executing the specified database operation: :class:`Cursor`
+
         """
-
-           runs a single bulk insert statement into the database.
-
-        """
-
-        sql_query = f"INSERT INTO  {links} ({url}, {name}) VALUES %s"
+      
+        sql_query = f"INSERT INTO  {table_name} ("
+        for column_name in column_names:
+            sql_query = sql_query + f", {column_name}"
+        
+        sql_query = sql_query + ") VALUES %s"
 
         with open(filename) as csvfile:
             reader = csv.reader(csvfile)
-            header = next(reader)
+            next(reader)
             values_list = []
-
+            
             for row in reader:
-                values = (row[url_index], row[name_index])
-                values_list.append(values)
-
+                values=row.split(delimeter)
+                param_set=[]
+                for index in column_indexes:
+                    param_set.append(values[index])
+                values_list.append(tuple(param_set))
             self.execute(sql_query, values_list)
+        return self
 
     def callproc(self, procname, parameters=None):
         args = [] if parameters is None else parameters
