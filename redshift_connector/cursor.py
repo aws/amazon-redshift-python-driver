@@ -243,8 +243,7 @@ class Cursor:
   
         """runs a single bulk insert statement into the database.
            
-           This method is part of the `DBAPI 2.0 specification
-           <http://www.python.org/dev/peps/pep-0249/>`_.
+           This method is native to redshift_connector.
 
             :param filename: str
                 The name of the file to read from.
@@ -263,7 +262,11 @@ class Cursor:
             The Cursor object used for executing the specified database operation: :class:`Cursor`
 
         """
-      
+        if not self.__is_valid_table(table_name):
+            raise InterfaceError("Invalid table name passed to insert_data_bulk: {}".format(table_name))
+        if not self.__has_valid_columns(table_name, column_names):
+            raise InterfaceError("Invalid column names passed to insert_data_bulk: {}".format(table_name))
+        
         sql_query = f"INSERT INTO  {table_name} ("
         for column_name in column_names:
             sql_query = sql_query + f", {column_name}"
@@ -283,6 +286,30 @@ class Cursor:
                 values_list.append(tuple(param_set))
             self.execute(sql_query, values_list)
         return self
+    
+    def __has_valid_columns(self: "Cursor", table: str, columns: typing.List[str]) -> bool:
+        split_table_name: typing.List[str] = table.split(".")
+        q: str = "select 1 from information_schema.columns where table_name = ? and column_name = ?"
+        if len(split_table_name) == 2:
+            q += " and table_schema = ?"
+            param_list = [[split_table_name[1], c, split_table_name[0]] for c in columns]
+        else:
+            param_list = [[split_table_name[0], c] for c in columns]
+        temp = self.paramstyle
+        self.paramstyle = "qmark"
+        try:
+           for params in param_list:
+               self.execute(q, params)
+               res = self.fetchone()
+               if res[0] != 1:
+                   raise InterfaceError("Invalid column name: {} specified for table: {}".format(params[1], table))
+        except:
+            raise
+        finally:
+            # reset paramstyle to it's original value
+            self.paramstyle = temp
+
+        return True
 
     def callproc(self, procname, parameters=None):
         args = [] if parameters is None else parameters
