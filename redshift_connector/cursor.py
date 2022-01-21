@@ -269,25 +269,30 @@ class Cursor:
             import csv
         except ModuleNotFoundError:
             raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="csv"))
-
+        if len(column_names)!=len(column_indexes):
+            raise InterfaceError("Column names and indexes must be the same length")
         sql_query = f"INSERT INTO  {table_name} ("
         for column_name in column_names:
             sql_query = sql_query + f", {column_name}"
-        
         sql_query = sql_query + ") VALUES %s"
-
-        with open(filename) as csvfile:
-            reader = csv.reader(csvfile)
-            next(reader)
-            values_list = []
-            
-            for row in reader:
-                values=row.split(delimeter)
-                param_set=[]
-                for index in column_indexes:
-                    param_set.append(values[index])
-                values_list.append(tuple(param_set))
-            self.execute(sql_query, values_list)
+        try:
+            with open(filename) as csv_file:
+                reader = csv.reader(csv_file)
+                next(reader)
+                values_list = []
+                for row in reader:
+                    values=row.split(delimeter)
+                    if len(values) != len(column_indexes):
+                        raise InterfaceError("The csv provided has a column mismatch with the column names provided for table: {}".format(table_name))
+                    if len(values)<max(column_indexes):
+                        raise InterfaceError("The csv provided has less columns than the maximum index of column you provided for table: {}".format(table_name))
+                    param_set=[]
+                    for column_index in column_indexes:
+                        param_set.append(values[column_index])
+                    values_list.append(tuple(param_set))
+                self.execute(sql_query, values_list)
+        except Exception as e:
+            raise InterfaceError(e)
         return self
     
     def __has_valid_columns(self: "Cursor", table: str, columns: typing.List[str]) -> bool:
