@@ -251,15 +251,10 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
             assert arg in spy.call_args[0][1]
 
 
-@pytest.mark.parametrize("filename",)
-@pytest.mark.parametrize("table_name",)
-@pytest.mark.parametrize("column_indexes",)
-@pytest.mark.parametrize("delimeter",)
-@pytest.mark.parametrize("column_names",)
-def test_insert_data_bulk(filename,table_name, column_indexes,column_names,delimeter,mocker):
-    
 
     
+
+
 
 
 
