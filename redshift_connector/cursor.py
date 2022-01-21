@@ -273,7 +273,8 @@ class Cursor:
             raise InterfaceError("Column names and indexes must be the same length")
         sql_query = f"INSERT INTO  {table_name} ("
         for column_name in column_names:
-            sql_query = sql_query + f", {column_name}"
+            sql_query = sql_query + f"{column_name},"
+        sql_query = sql_query[:-1]
         sql_query = sql_query + ") VALUES %s"
         try:
             with open(filename) as csv_file:
