@@ -265,34 +265,33 @@ class Cursor:
             raise InterfaceError("Invalid table name passed to insert_data_bulk: {}".format(table_name))
         if not self.__has_valid_columns(table_name, column_names):
             raise InterfaceError("Invalid column names passed to insert_data_bulk: {}".format(table_name))
-        try:
-            import csv
-        except ModuleNotFoundError:
-            raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="csv"))
+        orig_paramstyle = self.paramstyle
+        import csv
         if len(column_names)!=len(column_indexes):
             raise InterfaceError("Column names and indexes must be the same length")
         sql_query = f"INSERT INTO  {table_name} ("
-        for column_name in column_names:
-            sql_query = sql_query + f"{column_name},"
-        sql_query = sql_query[:-1]
-        sql_query = sql_query + ") VALUES %s"
+        sql_query += ', '.join(column_names)
+        sql_query += ") VALUES "
+        sql_param_list_template = '(' + ', '.join(["%s"]*len(column_indexes)) + ')'
+        # for column_name in column_names:
+        #     sql_query = sql_query + f"{column_name},"
+        # sql_query = sql_query[:-1]
+        # sql_query = sql_query + ") VALUES %s"
         try:
             with open(filename) as csv_file:
-                reader = csv.reader(csv_file)
+                reader = csv.reader(csv_file, delimiter=delimeter)
                 next(reader)
                 values_list = []
+                row_count = 0
                 for row in reader:
-                    values=row.split(delimeter)
-                    if len(values) != len(column_indexes):
-                        raise InterfaceError("The csv provided has a column mismatch with the column names provided for table: {}".format(table_name))
-                    if len(values)<max(column_indexes):
-                        raise InterfaceError("The csv provided has less columns than the maximum index of column you provided for table: {}".format(table_name))
-                    param_set=[]
                     for column_index in column_indexes:
-                        param_set.append(values[column_index])
-                    values_list.append(tuple(param_set))
+                        values_list.append(row[column_index])
+                    row_count += 1
+                sql_param_lists = [sql_param_list_template] * row_count
+                sql_query += ', '.join(sql_param_lists) + ";"
                 self.execute(sql_query, values_list)
         except Exception as e:
+            Cursor.paramstyle = orig_paramstyle
             raise InterfaceError(e)
         return self
     
