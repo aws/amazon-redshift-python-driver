@@ -267,7 +267,7 @@ class Cursor:
             raise InterfaceError("Invalid column names passed to insert_data_bulk: {}".format(table_name))
         orig_paramstyle = self.paramstyle
         import csv
-        if len(column_names)!=len(column_indexes):
+        if len(column_names) != len(column_indexes):
             raise InterfaceError("Column names and indexes must be the same length")
         sql_query = f"INSERT INTO  {table_name} ("
         sql_query += ', '.join(column_names)
