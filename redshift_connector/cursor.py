@@ -287,7 +287,7 @@ class Cursor:
                 sql_query += ', '.join(sql_param_lists) + ";"
                 self.execute(sql_query, values_list)
         except Exception as e:
-            Cursor.paramstyle = orig_paramstyle
+            self.paramstyle = orig_paramstyle
             raise InterfaceError(e)
         return self
     
