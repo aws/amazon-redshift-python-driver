@@ -239,6 +239,101 @@ class Cursor:
         self._row_count = -1 if -1 in rowcounts else sum(rowcounts)
         return self
 
+    def insert_data_bulk(
+        self: "Cursor", filename, table_name, column_indexes, column_names, delimeter
+    ) -> "Cursor":
+
+        """runs a single bulk insert statement into the database.
+
+        This method is native to redshift_connector.
+
+         :param filename: str
+             The name of the file to read from.
+         :param table_name: str
+             The name of the table to insert to.
+         :param column_names:list
+             The name of the columns in the table to insert to.
+         :param column_indexes:list
+             The indexes of the columns in the table to insert to.
+         :param delimeter: str
+             The delimeter to use when reading the file.
+
+         Returns
+
+         -------
+         The Cursor object used for executing the specified database operation: :class:`Cursor`
+
+        """
+        if not self.__is_valid_table(table_name):
+            raise InterfaceError(
+                "Invalid table name passed to insert_data_bulk: {}".format(table_name)
+            )
+        if not self.__has_valid_columns(table_name, column_names):
+            raise InterfaceError(
+                "Invalid column names passed to insert_data_bulk: {}".format(table_name)
+            )
+        orig_paramstyle = self.paramstyle
+        import csv
+
+        if len(column_names) != len(column_indexes):
+            raise InterfaceError("Column names and indexes must be the same length")
+        sql_query = f"INSERT INTO  {table_name} ("
+        sql_query += ", ".join(column_names)
+        sql_query += ") VALUES "
+        sql_param_list_template = "(" + ", ".join(["%s"] * len(column_indexes)) + ")"
+        try:
+            with open(filename) as csv_file:
+                reader = csv.reader(csv_file, delimiter=delimeter)
+                next(reader)
+                values_list = []
+                row_count = 0
+                for row in reader:
+                    for column_index in column_indexes:
+                        values_list.append(row[column_index])
+                    row_count += 1
+                sql_param_lists = [sql_param_list_template] * row_count
+                sql_query += ", ".join(sql_param_lists) + ";"
+                self.execute(sql_query, values_list)
+        except Exception as e:
+            raise InterfaceError(e)
+        finally:
+            # reset paramstyle to it's original value
+            self.paramstyle = orig_paramstyle
+
+        return self
+
+    def __has_valid_columns(
+        self: "Cursor", table: str, columns: typing.List[str]
+    ) -> bool:
+        split_table_name: typing.List[str] = table.split(".")
+        q: str = "select 1 from information_schema.columns where table_name = ? and column_name = ?"
+        if len(split_table_name) == 2:
+            q += " and table_schema = ?"
+            param_list = [
+                [split_table_name[1], c, split_table_name[0]] for c in columns
+            ]
+        else:
+            param_list = [[split_table_name[0], c] for c in columns]
+        temp = self.paramstyle
+        self.paramstyle = "qmark"
+        try:
+            for params in param_list:
+                self.execute(q, params)
+                res = self.fetchone()
+                if typing.cast(typing.List[int], res)[0] != 1:
+                    raise InterfaceError(
+                        "Invalid column name: {} specified for table: {}".format(
+                            params[1], table
+                        )
+                    )
+        except:
+            raise
+        finally:
+            # reset paramstyle to it's original value
+            self.paramstyle = temp
+
+        return True
+
     def callproc(self, procname, parameters=None):
         args = [] if parameters is None else parameters
         operation = "CALL " + self.__sanitize_str(procname) + "(" + ", ".join(["%s" for _ in args]) + ")"

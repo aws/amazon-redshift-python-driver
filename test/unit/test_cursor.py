@@ -1,6 +1,6 @@
 import typing
 from test.utils import pandas_only
-from unittest.mock import Mock, PropertyMock, patch
+from unittest.mock import Mock, PropertyMock, patch ,mock_open
 
 import pytest  # type: ignore
 
@@ -249,3 +249,114 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
     for arg in (schema_pattern, table_name_pattern):
         if arg is not None:
             assert arg in spy.call_args[0][1]
+
+
+@pytest.mark.parametrize("indexes, names", [([1], []), ([], ["c1"])])
+def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker):
+    # mock fetchone to return "True" to ensure the table_name and column_name
+    # validation steps pass
+    mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
+
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    # mock out the connection
+    mock_cursor._c = Mock()
+    mock_cursor.paramstyle = "qmark"
+
+    with pytest.raises(
+        InterfaceError, match="Column names and indexes must be the same length"
+    ):
+        mock_cursor.insert_data_bulk(
+            filename="test_file",
+            table_name="test_table",
+            column_indexes=indexes,
+            column_names=names,
+            delimeter=",",
+        )
+
+
+in_mem_csv = """\
+col1,col2,col3
+1,3,foo
+2,5,bar
+-1,7,baz"""
+
+insert_bulk_data = [
+    (
+        [0],
+        ["col1"],
+        ("INSERT INTO  test_table (col1) VALUES (%s), (%s), (%s);", ["1", "2", "-1"]),
+    ),
+    (
+        [1],
+        ["col2"],
+        ("INSERT INTO  test_table (col2) VALUES (%s), (%s), (%s);", ["3", "5", "7"]),
+    ),
+    (
+        [2],
+        ["col3"],
+        (
+            "INSERT INTO  test_table (col3) VALUES (%s), (%s), (%s);",
+            ["foo", "bar", "baz"],
+        ),
+    ),
+    (
+        [0, 1],
+        ["col1", "col2"],
+        (
+            "INSERT INTO  test_table (col1, col2) VALUES (%s, %s), (%s, %s), (%s, %s);",
+            ["1", "3", "2", "5", "-1", "7"],
+        ),
+    ),
+    (
+        [0, 2],
+        ["col1", "col3"],
+        (
+            "INSERT INTO  test_table (col1, col3) VALUES (%s, %s), (%s, %s), (%s, %s);",
+            ["1", "foo", "2", "bar", "-1", "baz"],
+        ),
+    ),
+    (
+        [1, 2],
+        ["col2", "col3"],
+        (
+            "INSERT INTO  test_table (col2, col3) VALUES (%s, %s), (%s, %s), (%s, %s);",
+            ["3", "foo", "5", "bar", "7", "baz"],
+        ),
+    ),
+    (
+        [0, 1, 2],
+        ["col1", "col2", "col3"],
+        (
+            "INSERT INTO  test_table (col1, col2, col3) VALUES (%s, %s, %s), (%s, %s, %s), (%s, %s, %s);",
+            ["1", "3", "foo", "2", "5", "bar", "-1", "7", "baz"],
+        ),
+    ),
+]
+
+
+@patch("builtins.open", new_callable=mock_open, read_data=in_mem_csv)
+@pytest.mark.parametrize("indexes,names,exp_execute_args", insert_bulk_data)
+def test_insert_data_column_stmt(mocked_csv, indexes, names, exp_execute_args, mocker):
+    # mock fetchone to return "True" to ensure the table_name and column_name
+    # validation steps pass
+    mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+
+    # spy on the execute method, so we can check value of sql_query
+    spy = mocker.spy(mock_cursor, "execute")
+
+    # mock out the connection
+    mock_cursor._c = Mock()
+    mock_cursor.paramstyle = "qmark"
+
+    mock_cursor.insert_data_bulk(
+        filename="mocked_csv",
+        table_name="test_table",
+        column_indexes=indexes,
+        column_names=names,
+        delimeter=",",
+    )
+
+    assert spy.called is True
+    assert spy.call_args[0][0] == exp_execute_args[0]
+    assert spy.call_args[0][1] == exp_execute_args[1]
