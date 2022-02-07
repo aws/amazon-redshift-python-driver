@@ -63,6 +63,7 @@ from redshift_connector.utils import (
     date_in,
     date_recv_binary,
     float_array_recv,
+    geographyhex_recv,
     h_pack,
     h_unpack,
     i_pack,
@@ -90,6 +91,7 @@ from redshift_connector.utils import (
 from redshift_connector.utils.type_utils import (
     BIGINT,
     DATE,
+    GEOGRAPHY,
     INTEGER,
     INTEGER_ARRAY,
     NUMERIC,
@@ -685,6 +687,7 @@ class Connection:
         if self._client_protocol_version >= ClientProtocolVersion.BINARY.value:
             self.pg_types[NUMERIC] = (FC_BINARY, numeric_in_binary)
             self.pg_types[DATE] = (FC_BINARY, date_recv_binary)
+            self.pg_types[GEOGRAPHY] = (FC_BINARY, geographyhex_recv)  # GEOGRAPHY
             self.pg_types[TIME] = (FC_BINARY, time_recv_binary)
             self.pg_types[TIMETZ] = (FC_BINARY, timetz_recv_binary)
             self.pg_types[1002] = (FC_BINARY, array_recv_binary)  # CHAR[]
@@ -700,6 +703,7 @@ class Connection:
             self.pg_types[NUMERIC] = (FC_TEXT, numeric_in)
             self.pg_types[TIME] = (FC_TEXT, time_in)
             self.pg_types[DATE] = (FC_TEXT, date_in)
+            self.pg_types[GEOGRAPHY] = (FC_TEXT, text_recv)  # GEOGRAPHY
             self.pg_types[TIMETZ] = (FC_BINARY, timetz_recv_binary)
             self.pg_types[1002] = (FC_TEXT, array_recv_text)  # CHAR[]
             self.pg_types[SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]

@@ -400,6 +400,8 @@ Incoming data from Amazon Redshift is treated as follows:
 +--------------------------+-------------------+
 | VARBYTE                  | bytes             |
 +--------------------------+-------------------+
+| GEOGRAPHY                | str               |
++--------------------------+-------------------+
 
 Logging
 ~~~~~~~~~~~~

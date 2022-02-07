@@ -1,5 +1,6 @@
 import enum
 import typing
+from binascii import hexlify
 from codecs import decode as codecs_decode
 from collections import defaultdict
 from datetime import date
@@ -49,6 +50,7 @@ DATE = 1082
 DATE_ARRAY = 1182
 FLOAT = 701
 FLOAT_ARRAY = 1022
+GEOGRAPHY = 3001
 GEOMETRY = 3000
 GEOMETRYHEX = 3999
 INET = 869
@@ -564,6 +566,10 @@ def hexencoding_lookup_no_case(input_value: int) -> int:
         return ascii_invalid_value
 
 
+def geographyhex_recv(data: bytes, idx: int, length: int) -> str:
+    return hexlify(data[idx : idx + length]).decode(_client_encoding)
+
+
 def geometryhex_recv(data: bytes, idx: int, length: int) -> str:
     error_flag: bool = False
     pointer: int = idx
@@ -661,6 +667,7 @@ pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultd
         NUMERIC: (FC_BINARY, numeric_in_binary),  # NUMERIC
         # 2275: (FC_BINARY, text_recv),  # cstring
         # 2950: (FC_BINARY, uuid_recv),  # uuid
+        GEOGRAPHY: (FC_BINARY, geographyhex_recv),  # GEOGRAPHY
         GEOMETRY: (FC_TEXT, text_recv),  # GEOMETRY
         GEOMETRYHEX: (FC_TEXT, geometryhex_recv),  # GEOMETRYHEX
         # 3802: (FC_TEXT, json_in),  # jsonb

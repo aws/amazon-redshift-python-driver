@@ -82,7 +82,6 @@ for datatype in redshift_test_data:
         redshift_datatype_testcases.append((datatype, test_case))
 
 
-@pytest.mark.skip(reason="wip")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("_input", redshift_datatype_testcases)
 def test_redshift_specific_recv_support(db_kwargs, _input, client_protocol):
@@ -96,10 +95,12 @@ def test_redshift_specific_recv_support(db_kwargs, _input, client_protocol):
             results: typing.Tuple = cursor.fetchall()
             assert len(results) == 1
             assert len(results[0]) == 1
-            assert results[0][0] == exp_val
+            if datatype in ("varbyte", "geography"):
+                assert results[0][0].lower() == exp_val.lower()
+            else:
+                assert results[0][0] == exp_val
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("_input", redshift_test_data[RedshiftDatatypes.varbyte.name])
 def test_redshift_varbyte_insert(db_kwargs, _input, client_protocol):
@@ -117,7 +118,6 @@ def test_redshift_varbyte_insert(db_kwargs, _input, client_protocol):
             assert results[0][1] == bytes(data, encoding="utf-8").hex()
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize(
     "_input",

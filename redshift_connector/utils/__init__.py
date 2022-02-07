@@ -21,6 +21,7 @@ from .type_utils import (
     date_in,
     date_recv_binary,
     float_array_recv,
+    geographyhex_recv,
     h_pack,
     h_unpack,
     i_pack,

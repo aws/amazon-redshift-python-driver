@@ -23,6 +23,7 @@ class RedshiftDatatypes(Enum):
     """
 
     super = auto()
+    geography = auto()
     geometry = auto()
     varbyte = auto()
 
@@ -154,6 +155,21 @@ redshift_test_data: typing.Dict[
             "ffffffffffffff",
         )
     ],
+    # TODO: re-enable
+    # RedshiftDatatypes.geography.name: (
+    #     (
+    #         "ST_GeogFromText('POINT(1 1)')",
+    #         '0101000020E6100000000000000000F03F000000000000F03F'
+    #     ),
+    #     (
+    #         "ST_GeogFromText('POINT(2 2)')",
+    #         '0101000020E610000000000000000000400000000000000040'
+    #     ),
+    #     (
+    #         "ST_GeogFromText('SRID=4267;POINT(-77.0092 38.889588)')",
+    #         '0101000020AB100000E3C798BB964053C000750305DE714340'
+    #     )
+    # )
 }
 
 
