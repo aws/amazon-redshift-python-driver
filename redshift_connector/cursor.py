@@ -262,14 +262,10 @@ class Cursor:
         self._redshift_row_count = -1 if -1 in redshift_rowcounts else sum(rowcounts)
         return self
 
-    def insert_data_bulk(
-        self: "Cursor", filename, table_name, column_indexes, column_names, delimeter
-    ) -> "Cursor":
+    def insert_data_bulk(self: "Cursor", filename, table_name, column_indexes, column_names, delimeter) -> "Cursor":
 
         """runs a single bulk insert statement into the database.
-
         This method is native to redshift_connector.
-
          :param filename: str
              The name of the file to read from.
          :param table_name: str
@@ -280,21 +276,14 @@ class Cursor:
              The indexes of the columns in the table to insert to.
          :param delimeter: str
              The delimeter to use when reading the file.
-
          Returns
-
          -------
          The Cursor object used for executing the specified database operation: :class:`Cursor`
-
         """
         if not self.__is_valid_table(table_name):
-            raise InterfaceError(
-                "Invalid table name passed to insert_data_bulk: {}".format(table_name)
-            )
+            raise InterfaceError("Invalid table name passed to insert_data_bulk: {}".format(table_name))
         if not self.__has_valid_columns(table_name, column_names):
-            raise InterfaceError(
-                "Invalid column names passed to insert_data_bulk: {}".format(table_name)
-            )
+            raise InterfaceError("Invalid column names passed to insert_data_bulk: {}".format(table_name))
         orig_paramstyle = self.paramstyle
         import csv
 
@@ -325,16 +314,12 @@ class Cursor:
 
         return self
 
-    def __has_valid_columns(
-        self: "Cursor", table: str, columns: typing.List[str]
-    ) -> bool:
+    def __has_valid_columns(self: "Cursor", table: str, columns: typing.List[str]) -> bool:
         split_table_name: typing.List[str] = table.split(".")
         q: str = "select 1 from information_schema.columns where table_name = ? and column_name = ?"
         if len(split_table_name) == 2:
             q += " and table_schema = ?"
-            param_list = [
-                [split_table_name[1], c, split_table_name[0]] for c in columns
-            ]
+            param_list = [[split_table_name[1], c, split_table_name[0]] for c in columns]
         else:
             param_list = [[split_table_name[0], c] for c in columns]
         temp = self.paramstyle
@@ -344,11 +329,7 @@ class Cursor:
                 self.execute(q, params)
                 res = self.fetchone()
                 if typing.cast(typing.List[int], res)[0] != 1:
-                    raise InterfaceError(
-                        "Invalid column name: {} specified for table: {}".format(
-                            params[1], table
-                        )
-                    )
+                    raise InterfaceError("Invalid column name: {} specified for table: {}".format(params[1], table))
         except:
             raise
         finally:

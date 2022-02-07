@@ -1,6 +1,6 @@
 import typing
 from test.utils import pandas_only
-from unittest.mock import Mock, PropertyMock, patch ,mock_open
+from unittest.mock import Mock, PropertyMock, mock_open, patch
 
 import pytest  # type: ignore
 
@@ -262,9 +262,7 @@ def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker
     mock_cursor._c = Mock()
     mock_cursor.paramstyle = "qmark"
 
-    with pytest.raises(
-        InterfaceError, match="Column names and indexes must be the same length"
-    ):
+    with pytest.raises(InterfaceError, match="Column names and indexes must be the same length"):
         mock_cursor.insert_data_bulk(
             filename="test_file",
             table_name="test_table",
