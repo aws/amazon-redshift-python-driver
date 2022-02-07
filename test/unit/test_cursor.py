@@ -1,5 +1,6 @@
 import typing
 from io import StringIO
+from math import ceil
 from test.utils import pandas_only
 from unittest.mock import Mock, PropertyMock, mock_open, patch
 
@@ -263,13 +264,13 @@ def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker
     mock_cursor._c = Mock()
     mock_cursor.paramstyle = "qmark"
 
-    with pytest.raises(InterfaceError, match="Column names and indexes must be the same length"):
+    with pytest.raises(InterfaceError, match="Column names and parameter indexes must be the same length"):
         mock_cursor.insert_data_bulk(
             filename="test_file",
             table_name="test_table",
-            column_indexes=indexes,
+            parameter_indices=indexes,
             column_names=names,
-            delimeter=",",
+            delimiter=",",
         )
 
 
@@ -347,11 +348,48 @@ def test_insert_data_column_stmt(mocked_csv, indexes, names, exp_execute_args, m
     mock_cursor.insert_data_bulk(
         filename="mocked_csv",
         table_name="test_table",
-        column_indexes=indexes,
+        parameter_indices=indexes,
         column_names=names,
-        delimeter=",",
+        delimiter=",",
+        batch_size=3,
     )
 
     assert spy.called is True
     assert spy.call_args[0][0] == exp_execute_args[0]
     assert spy.call_args[0][1] == exp_execute_args[1]
+
+
+@pytest.mark.parametrize("batch_size", [1, 2, 3, 4])
+@patch("builtins.open", new_callable=mock_open)
+def test_insert_data_uses_batch_size(mocked_csv, batch_size, mocker):
+    # mock fetchone to return "True" to ensure the table_name and column_name
+    # validation steps pass
+    mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+
+    # spy on the execute method, so we can check value of sql_query
+    spy = mocker.spy(mock_cursor, "execute")
+
+    # mock out the connection
+    mock_cursor._c = Mock()
+    mock_cursor.paramstyle = "qmark"
+
+    mocked_csv.side_effect = [StringIO("""\col1,col2,col3\n1,3,foo\n2,5,bar\n-1,7,baz""")]
+
+    mock_cursor.insert_data_bulk(
+        filename="mocked_csv",
+        table_name="test_table",
+        parameter_indices=[0, 1, 2],
+        column_names=["col1", "col2", "col3"],
+        delimiter=",",
+        batch_size=batch_size,
+    )
+
+    assert spy.called is True
+    actual_insert_stmts_executed = 0
+
+    for call in spy.mock_calls:
+        if len(call[1]) == 2 and "INSERT INTO" in call[1][0]:
+            actual_insert_stmts_executed += 1
+
+    assert actual_insert_stmts_executed == ceil(3 / batch_size)

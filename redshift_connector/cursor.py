@@ -262,7 +262,15 @@ class Cursor:
         self._redshift_row_count = -1 if -1 in redshift_rowcounts else sum(rowcounts)
         return self
 
-    def insert_data_bulk(self: "Cursor", filename, table_name, column_indexes, column_names, delimeter) -> "Cursor":
+    def insert_data_bulk(
+        self: "Cursor",
+        filename: str,
+        table_name: str,
+        parameter_indices: typing.List[int],
+        column_names: typing.List[str],
+        delimiter: str,
+        batch_size: int = 1,
+    ) -> "Cursor":
 
         """runs a single bulk insert statement into the database.
         This method is native to redshift_connector.
@@ -272,14 +280,18 @@ class Cursor:
              The name of the table to insert to.
          :param column_names:list
              The name of the columns in the table to insert to.
-         :param column_indexes:list
-             The indexes of the columns in the table to insert to.
-         :param delimeter: str
-             The delimeter to use when reading the file.
+         :param parameter_indices:list
+             The indexes of the columns in the file to insert to.
+         :param delimiter: str
+             The delimiter to use when reading the file.
+        :param batch_size: int
+            The number of rows to insert per insert statement. Minimum allowed value is 1.
          Returns
          -------
          The Cursor object used for executing the specified database operation: :class:`Cursor`
         """
+        if batch_size < 1:
+            raise InterfaceError("batch_size must be greater than 1")
         if not self.__is_valid_table(table_name):
             raise InterfaceError("Invalid table name passed to insert_data_bulk: {}".format(table_name))
         if not self.__has_valid_columns(table_name, column_names):
@@ -287,25 +299,36 @@ class Cursor:
         orig_paramstyle = self.paramstyle
         import csv
 
-        if len(column_names) != len(column_indexes):
-            raise InterfaceError("Column names and indexes must be the same length")
-        sql_query = f"INSERT INTO  {table_name} ("
-        sql_query += ", ".join(column_names)
-        sql_query += ") VALUES "
-        sql_param_list_template = "(" + ", ".join(["%s"] * len(column_indexes)) + ")"
+        if len(column_names) != len(parameter_indices):
+            raise InterfaceError("Column names and parameter indexes must be the same length")
+        base_stmt = f"INSERT INTO  {table_name} ("
+        base_stmt += ", ".join(column_names)
+        base_stmt += ") VALUES "
+        sql_param_list_template = "(" + ", ".join(["%s"] * len(parameter_indices)) + ")"
         try:
             with open(filename) as csv_file:
-                reader = csv.reader(csv_file, delimiter=delimeter)
+                reader = csv.reader(csv_file, delimiter=delimiter)
                 next(reader)
-                values_list = []
+                values_list: typing.List[str] = []
                 row_count = 0
                 for row in reader:
-                    for column_index in column_indexes:
+                    if row_count == batch_size:
+                        sql_param_lists = [sql_param_list_template] * row_count
+                        insert_stmt = base_stmt + ", ".join(sql_param_lists) + ";"
+                        self.execute(insert_stmt, values_list)
+                        row_count = 0
+                        values_list.clear()
+
+                    for column_index in parameter_indices:
                         values_list.append(row[column_index])
+
                     row_count += 1
-                sql_param_lists = [sql_param_list_template] * row_count
-                sql_query += ", ".join(sql_param_lists) + ";"
-                self.execute(sql_query, values_list)
+
+                if row_count:
+                    sql_param_lists = [sql_param_list_template] * row_count
+                    insert_stmt = base_stmt + ", ".join(sql_param_lists) + ";"
+                    self.execute(insert_stmt, values_list)
+
         except Exception as e:
             raise InterfaceError(e)
         finally:
