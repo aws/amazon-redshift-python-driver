@@ -1,4 +1,5 @@
 import typing
+from io import StringIO
 from test.utils import pandas_only
 from unittest.mock import Mock, PropertyMock, mock_open, patch
 
@@ -272,12 +273,6 @@ def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker
         )
 
 
-in_mem_csv = """\
-col1,col2,col3
-1,3,foo
-2,5,bar
--1,7,baz"""
-
 insert_bulk_data = [
     (
         [0],
@@ -332,7 +327,7 @@ insert_bulk_data = [
 ]
 
 
-@patch("builtins.open", new_callable=mock_open, read_data=in_mem_csv)
+@patch("builtins.open", new_callable=mock_open)
 @pytest.mark.parametrize("indexes,names,exp_execute_args", insert_bulk_data)
 def test_insert_data_column_stmt(mocked_csv, indexes, names, exp_execute_args, mocker):
     # mock fetchone to return "True" to ensure the table_name and column_name
@@ -346,6 +341,8 @@ def test_insert_data_column_stmt(mocked_csv, indexes, names, exp_execute_args, m
     # mock out the connection
     mock_cursor._c = Mock()
     mock_cursor.paramstyle = "qmark"
+
+    mocked_csv.side_effect = [StringIO("""\col1,col2,col3\n1,3,foo\n2,5,bar\n-1,7,baz""")]
 
     mock_cursor.insert_data_bulk(
         filename="mocked_csv",
