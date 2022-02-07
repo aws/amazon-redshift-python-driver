@@ -60,10 +60,9 @@ class Cursor:
         - There was no rowcount associated with the last ``execute()``.
         - At least one of the statements executed as part of an
           ``executemany()`` had no row count associated with it.
-        - Using a ``SELECT`` query statement on PostgreSQL server older than
+        - Using a ``SELECT`` query statement on Amazon Redshift server older than
           version 9.
-        - Using a ``COPY`` query statement on PostgreSQL server version 8.1 or
-          older.
+        - Using a ``COPY`` query statement.
 
         This attribute is part of the `DBAPI 2.0 specification
         <http://www.python.org/dev/peps/pep-0249/>`_.
@@ -198,9 +197,9 @@ class Cursor:
             ``pyformat``, the argument value may be either an array or a
             mapping.
 
-        :param stream: This is a extension for use with the PostgreSQL
+        :param stream: This is a extension for use with the Amazon Redshift
             `COPY
-            <http://www.postgresql.org/docs/current/static/sql-copy.html>`_
+            <https://docs.aws.amazon.com/redshift/latest/dg/r_COPY.html>`_
             command. For a COPY FROM the parameter must be a readable file-like
             object, and for COPY TO it must be writable.
 

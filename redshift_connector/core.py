@@ -728,6 +728,35 @@ class Connection:
         return self._database_metadata_current_db_only or not self._is_multi_databases_catalog_enable_in_server
 
     def handle_ERROR_RESPONSE(self: "Connection", data, ps):
+        """
+        Handler for ErrorResponse message received via Amazon Redshift wire protocol, represented by b'E' code.
+
+        ErrorResponse (B)
+            Byte1('E')
+                Identifies the message as an error.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+                The message body consists of one or more identified fields, followed by a zero byte as a terminator. Fields may appear in any order. For each field there is the following:
+
+            Byte1
+            A code identifying the field type; if zero, this is the message terminator and no string follows. The presently defined field types are listed in Section 42.5. Since more field types may be added in future, frontends should silently ignore fields of unrecognized type.
+
+            String
+                The field value.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         msg: typing.Dict[str, str] = dict(
             (s[:1].decode(_client_encoding), s[1:].decode(_client_encoding)) for s in data.split(NULL_BYTE) if s != b""
         )
@@ -743,23 +772,159 @@ class Connection:
         self.error = cls(msg)
 
     def handle_EMPTY_QUERY_RESPONSE(self: "Connection", data, ps):
+        """
+        Handler for EmptyQueryResponse message received via Amazon Redshift wire protocol, represented by b'I' code.
+
+        EmptyQueryResponse (B)
+            Byte1('I')
+                Identifies the message as a response to an empty query string. (This substitutes for CommandComplete.)
+
+            Int32(4)
+                Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         self.error = ProgrammingError("query was empty")
 
     def handle_CLOSE_COMPLETE(self: "Connection", data, ps):
+        """
+        Handler for CloseComplete message received via Amazon Redshift wire protocol, represented by b'3' code. Currently a
+        no-op.
+
+        CloseComplete (B)
+            Byte1('3')
+                Identifies the message as a Close-complete indicator.
+
+            Int32(4)
+                Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         pass
 
     def handle_PARSE_COMPLETE(self: "Connection", data, ps):
-        # Byte1('1') - Identifier.
-        # Int32(4) - Message length, including self.
+        """
+        Handler for ParseComplete message received via Amazon Redshift wire protocol, represented by b'1' code. Currently a
+        no-op.
+
+        ParseComplete (B)
+            Byte1('1')
+                Identifies the message as a Parse-complete indicator.
+
+            Int32(4)
+            Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         pass
 
     def handle_BIND_COMPLETE(self: "Connection", data, ps):
+        """
+        Handler for BindComplete message received via Amazon Redshift wire protocol, represented by b'2' code. Currently a
+        no-op.
+
+        BindComplete (B)
+            Byte1('2')
+                Identifies the message as a Bind-complete indicator.
+
+            Int32(4)
+                Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         pass
 
     def handle_PORTAL_SUSPENDED(self: "Connection", data, cursor: Cursor):
+        """
+        Handler for PortalSuspend message received via Amazon Redshift wire protocol, represented by b's' code. Currently a
+        no-op.
+
+        PortalSuspended (B)
+            Byte1('s')
+                Identifies the message as a portal-suspended indicator. Note this only appears if an Execute message's row-count limit was reached.
+
+            Int32(4)
+                Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given statements execution.
+
+        Returns
+        -------
+        None:None
+        """
         pass
 
     def handle_PARAMETER_DESCRIPTION(self: "Connection", data, ps):
+        """
+        Handler for ParameterDescription message received via Amazon Redshift wire protocol, represented by b't' code.
+
+        ParameterDescription (B)
+            Byte1('t')
+                Identifies the message as a parameter description.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            Int16
+                The number of parameters used by the statement (may be zero).
+
+                Then, for each parameter, there is the following:
+
+            Int32
+                Specifies the object ID of the parameter data type.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         # Well, we don't really care -- we're going to send whatever we
         # want and let the database deal with it.  But thanks anyways!
 
@@ -768,22 +933,123 @@ class Connection:
         pass
 
     def handle_COPY_DONE(self: "Connection", data, ps):
+        """
+        Handler for CopyDone message received via Amazon Redshift wire protocol, represented by b'c' code.
+
+        CopyDone (F & B)
+            Byte1('c')
+                Identifies the message as a COPY-complete indicator.
+
+            Int32(4)
+                Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         self._copy_done = True
 
     def handle_COPY_OUT_RESPONSE(self: "Connection", data, ps):
-        # Int8(1) - 0 textual, 1 binary
-        # Int16(2) - Number of columns
-        # Int16(N) - Format codes for each column (0 text, 1 binary)
+        """
+        Handler for CopyOutResponse message received via Amazon Redshift wire protocol, represented by b'H' code.
 
+        CopyOutResponse (B)
+            Byte1('H')
+                Identifies the message as a Start Copy Out response. This message will be followed by copy-out data.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            Int8
+                0 indicates the overall COPY format is textual (rows separated by newlines, columns separated by separator characters, etc). 1 indicates the overall copy format is binary (similar to DataRow format). See COPY for more information.
+
+            Int16
+                The number of columns in the data to be copied (denoted N below).
+
+            Int16[N]
+                The format codes to be used for each column. Each must presently be zero (text) or one (binary). All must be zero if the overall copy format is textual.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         is_binary, num_cols = bh_unpack(data)
         # column_formats = unpack_from('!' + 'h' * num_cols, data, 3)
         if ps.stream is None:
             raise InterfaceError("An output stream is required for the COPY OUT response.")
 
     def handle_COPY_DATA(self: "Connection", data, ps) -> None:
+        """
+        Handler for CopyData message received via Amazon Redshift wire protocol, represented by b'd' code.
+
+        CopyData (F & B)
+            Byte1('d')
+                Identifies the message as COPY data.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            Byten
+                Data that forms part of a COPY data stream. Messages sent from the backend will always correspond to single data rows, but messages sent by frontends may divide the data stream arbitrarily.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         ps.stream.write(data)
 
     def handle_COPY_IN_RESPONSE(self: "Connection", data, ps):
+        """
+        Handler for CopyInResponse message received via Amazon Redshift wire protocol, represented by b'G' code.
+
+        CopyInResponse (B)
+            Byte1('G')
+                Identifies the message as a Start Copy In response. The frontend must now send copy-in data (if not prepared to do so, send a CopyFail message).
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            Int8
+                0 indicates the overall COPY format is textual (rows separated by newlines, columns separated by separator characters, etc). 1 indicates the overall copy format is binary (similar to DataRow format). See COPY for more information.
+
+            Int16
+                The number of columns in the data to be copied (denoted N below).
+
+            Int16[N]
+                The format codes to be used for each column. Each must presently be zero (text) or one (binary). All must be zero if the overall copy format is textual.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         # Int16(2) - Number of columns
         # Int16(N) - Format codes for each column (0 text, 1 binary)
         is_binary, num_cols = bh_unpack(data)
@@ -808,13 +1074,37 @@ class Connection:
         self._flush()
 
     def handle_NOTIFICATION_RESPONSE(self: "Connection", data, ps):
-        ##
-        # A message sent if this connection receives a NOTIFY that it was
-        # LISTENing for.
-        # <p>
-        # Stability: When limited to accessing
-        # properties from a notification event dispatch, stability is
-        # guaranteed for v1.xx.
+        """
+        Handler for NotificationResponse message received via Amazon Redshift wire protocol, represented by
+        b'A' code. A message sent if this connection receives a NOTIFY that it was listening for.
+
+        NotificationResponse (B)
+            Byte1('A')
+                Identifies the message as a notification response.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            Int32
+                The process ID of the notifying backend process.
+
+            String
+                The name of the condition that the notify has been raised on.
+
+            String
+                Additional information passed from the notifying process. (Currently, this feature is unimplemented so the field is always an empty string.)
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         backend_pid = i_unpack(data)[0]
         idx: int = 4
         null: int = data.find(NULL_BYTE, idx) - idx
@@ -907,20 +1197,41 @@ class Connection:
             self._sock = None
 
     def handle_AUTHENTICATION_REQUEST(self: "Connection", data: bytes, cursor: Cursor) -> None:
-        # Int32 -   An authentication code that represents different
-        #           authentication messages:
-        #               0 = AuthenticationOk
-        #               5 = MD5 pwd
-        #               2 = Kerberos v5 (not supported)
-        #               3 = Cleartext pwd
-        #               4 = crypt() pwd (not supported)
-        #               6 = SCM credential (not supported)
-        #               7 = GSSAPI (not supported)
-        #               8 = GSSAPI data (not supported)
-        #               9 = SSPI (not supported)
-        # Some authentication messages have additional data following the
-        # authentication code.  That data is documented in the appropriate
-        # class.
+        """
+        Handler for AuthenticationRequest message received via Amazon Redshift wire protocol, represented by
+        b'R' code.
+
+        AuthenticationRequest (B)
+            Byte1('R')
+                Identifies the message as an authentication request.
+            Int32(8)
+                Length of message contents in bytes, including self.
+            Int32(1)
+                An authentication code that represents different authentication messages:
+                  0 = AuthenticationOk
+                  5 = MD5 pwd
+                  2 = Kerberos v5 (not supported)
+                  3 = Cleartext pwd
+                  4 = crypt() pwd (not supported)
+                  6 = SCM credential (not supported)
+                  7 = GSSAPI (not supported)
+                  8 = GSSAPI data (not supported)
+                  9 = SSPI (not supported)
+
+        Please note that some authentication messages have additional data following the authentication code.
+        That data is documented in the appropriate conditional branch below.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given statements execution.
+
+        Returns
+        -------
+        None:None
+        """
         auth_code: int = i_unpack(data)[0]
         if auth_code == 0:
             pass
@@ -980,6 +1291,30 @@ class Connection:
             raise InterfaceError("Authentication method " + str(auth_code) + " not recognized by redshift_connector.")
 
     def handle_READY_FOR_QUERY(self: "Connection", data: bytes, ps) -> None:
+        """
+        Handler for ReadyForQuery message received via Amazon Redshift wire protocol, represented by b'Z' code.
+
+        ReadyForQuery (B)
+            Byte1('Z')
+                Identifies the message type. ReadyForQuery is sent whenever the backend is ready for a new query cycle.
+
+            Int32(5)
+                Length of message contents in bytes, including self.
+
+            Byte1
+                Current backend transaction status indicator. Possible values are 'I' if idle (not in a transaction block); 'T' if in a transaction block; or 'E' if in a failed transaction block (queries will be rejected until block is ended).
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         # Byte1 -   Status indicator.
         self.in_transaction = data != IDLE
 
@@ -1039,9 +1374,55 @@ class Connection:
 
         return tuple(params)
 
-    # get the metadata of each row in database
-    # and store these metadata into ps dictionary
     def handle_ROW_DESCRIPTION(self: "Connection", data, cursor: Cursor) -> None:
+        """
+        Handler for RowDescription message received via Amazon Redshift wire protocol, represented by b'T' code.
+        Sets ``Connection.ps`` to store metadata.
+
+        RowDescription (B)
+            Byte1('T')
+                Identifies the message as a row description.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            Int16
+                Specifies the number of fields in a row (may be zero).
+
+                Then, for each field, there is the following:
+
+            String
+                The field name.
+
+            Int32
+                If the field can be identified as a column of a specific table, the object ID of the table; otherwise zero.
+
+            Int16
+                If the field can be identified as a column of a specific table, the attribute number of the column; otherwise zero.
+
+            Int32
+                The object ID of the field's data type.
+
+            Int16
+                The data type size (see pg_type.typlen). Note that negative values denote variable-width types.
+
+            Int32
+                The type modifier (see pg_attribute.atttypmod). The meaning of the modifier is type-specific.
+
+            Int16
+                The format code being used for the field. Currently will be zero (text) or one (binary). In a RowDescription returned from the statement variant of Describe, the format code is not yet known and will always be zero.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given statements execution.
+
+        Returns
+        -------
+        None:None
+        """
         if cursor.ps is None:
             raise InterfaceError("Cursor is missing prepared statement")
         elif "row_desc" not in cursor.ps:
@@ -1298,27 +1679,93 @@ class Connection:
             raise InterfaceError("connection is closed")
 
     def send_EXECUTE(self: "Connection", cursor: Cursor) -> None:
-        # Byte1('E') - Identifies the message as an execute message.
-        # Int32 -   Message length, including self.
-        # String -  The name of the portal to execute.
-        # Int32 -   Maximum number of rows to return, if portal
-        #           contains a query # that returns rows.
-        #           0 = no limit.
+        """
+        Sends an Execute message in ordinance with Amazon Redshift wire protocol.
+
+        Execute (F)
+            Byte1('E')
+                Identifies the message as an Execute command.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            String
+                The name of the portal to execute (an empty string selects the unnamed portal).
+
+            Int32
+                Maximum number of rows to return, if portal contains a query that returns rows (ignored otherwise). Zero denotes "no limit".
+
+        Parameters
+        ----------
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given statements execution.
+
+        Returns
+        -------
+        None:None
+        """
         self._write(EXECUTE_MSG)
         self._write(FLUSH_MSG)
 
     def handle_NO_DATA(self: "Connection", msg, ps) -> None:
+        """
+        Handler for NoData message received via Amazon Redshift wire protocol, represented by b'B' code. Currently a no-op.
+
+        NoData (B)
+            Byte1('n')
+                Identifies the message as a no-data indicator.
+
+            Int32(4)
+                Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param msg: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         pass
 
-    # Handle the command complete message
-    # consists of b'C', length of message in bytes
-    # and the command tag which is a single number identify
-    # how many SQL commands was completed
-    # not support for 'SELECT' and 'COPY' query
     def handle_COMMAND_COMPLETE(self: "Connection", data: bytes, cursor: Cursor) -> None:
         """
-        Modifies the cursor object and prepared statement when receiving COMMAND COMPLETE b'C' message from Redshift
-        server.
+        Handler for CommandComplete message received via Amazon Redshift wire protocol, represented by b'C' code.
+        Modifies the cursor object and prepared statement.
+
+        CommandComplete (B)
+            Byte1('C')
+                Identifies the message as a command-completed response.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            String
+                The command tag. This is usually a single word that identifies which SQL command was completed.
+
+                For an INSERT command, the tag is INSERT oid rows, where rows is the number of rows inserted. oid is the object ID of the inserted row if rows is 1 and the target table has OIDs; otherwise oid is 0.
+
+                For a DELETE command, the tag is DELETE rows where rows is the number of rows deleted.
+
+                For an UPDATE command, the tag is UPDATE rows where rows is the number of rows updated.
+
+                For a MOVE command, the tag is MOVE rows where rows is the number of rows the cursor's position has been changed by.
+
+                For a FETCH command, the tag is FETCH rows where rows is the number of rows that have been retrieved from the cursor.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given statements execution.
+
+        Returns
+        -------
+        None:None
         """
         values: typing.List[bytes] = data[:-1].split(b" ")
         command = values[0]
@@ -1344,12 +1791,27 @@ class Connection:
 
     def handle_DATA_ROW(self: "Connection", data: bytes, cursor: Cursor) -> None:
         """
-        Processes incoming data rows from Amazon Redshift into Python data types, storing the transformed row in the cursor object's `_cached_rows`.
-        :param data: bytearray
-            The raw bytes sent by the Amazon Redshift server.
+        Handler for DataRow message received via Amazon Redshift wire protocol, represented by b'D' code. Processes
+        incoming data rows from Amazon Redshift into Python data types, storing the transformed row in the cursor
+        object's `_cached_rows`.
+
+        NoData (B)
+            Byte1('n')
+                Identifies the message as a no-data indicator.
+
+            Int32(4)
+                Length of message contents in bytes, including self.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
         :param cursor: `Cursor`
             The `Cursor` object associated with the given statements execution.
-        :return: None
+
+        Returns
+        -------
+        None:None
         """
         data_idx: int = 2
         row: typing.List = []
@@ -1367,6 +1829,18 @@ class Connection:
         cursor._cached_rows.append(row)
 
     def handle_messages(self: "Connection", cursor: Cursor) -> None:
+        """
+        Reads messages formatted in ordinance with Amazon Redshift wire protocol, modifying the connection and cursor.
+
+        Parameters
+        ----------
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given connection object.
+
+        Returns
+        -------
+        None:None
+        """
         code = self.error = None
 
         while code != READY_FOR_QUERY:
@@ -1377,6 +1851,18 @@ class Connection:
             raise self.error
 
     def handle_messages_merge_socket_read(self: "Connection", cursor: Cursor):
+        """
+        An optimized version of :func:`Connection.handle_messages` which reduces reads.
+
+        Parameters
+        ----------
+        :param cursor: `Cursor`
+            The `Cursor` object associated with the given connection object.
+
+        Returns
+        -------
+        None:None
+        """
         code = self.error = None
         # read 5 bytes of message firstly
         code, data_len = ci_unpack(self._read(5))
@@ -1396,27 +1882,98 @@ class Connection:
         if self.error is not None:
             raise self.error
 
-    # Byte1('C') - Identifies the message as a close command.
-    # Int32 - Message length, including self.
-    # Byte1 - 'S' for prepared statement, 'P' for portal.
-    # String - The name of the item to close.
     def close_prepared_statement(self: "Connection", statement_name_bin: bytes) -> None:
+        """
+        Handler for Close message received via Amazon Redshift wire protocol, represented by b'C' code. Clears attributes
+        associated with the prepared statement from the current connection object.
+
+        Close (F)
+            Byte1('C')
+                Identifies the message as a Close command.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            Byte1
+                'S' to close a prepared statement; or 'P' to close a portal.
+
+            String
+                The name of the prepared statement or portal to close (an empty string selects the unnamed prepared statement or portal).
+
+        Parameters
+        ----------
+        :param statement_name_bin: bytes:
+            Message content
+
+        Returns
+        -------
+        None:None
+        """
         self._send_message(CLOSE, STATEMENT + statement_name_bin)
         self._write(SYNC_MSG)
         self._flush()
         self.handle_messages(self._cursor)
 
-    # Byte1('N') - Identifier
-    # Int32 - Message length
-    # Any number of these, followed by a zero byte:
-    #   Byte1 - code identifying the field type (see responseKeys)
-    #   String - field value
     def handle_NOTICE_RESPONSE(self: "Connection", data: bytes, ps) -> None:
+        """
+        Handler for NoticeResponse message received via Amazon Redshift wire protocol, represented by b'N' code. Adds the
+        received notice to ``Connection.notices``.
+
+        NoticeResponse (B)
+            Byte1('N')
+                Identifies the message as a notice.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+                The message body consists of one or more identified fields, followed by a zero byte as a terminator. Fields may appear in any order. For each field there is the following:
+
+            Byte1
+                A code identifying the field type; if zero, this is the message terminator and no string follows. The presently defined field types are listed in Section 42.5. Since more field types may be added in future, frontends should silently ignore fields of unrecognized type.
+
+            String
+                The field value.
+
+        Parameters
+        ----------
+        :param data: bytes:
+            Message content
+        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
+            Prepared Statement from associated Cursor
+
+        Returns
+        -------
+        None:None
+        """
         self.notices.append(dict((s[0:1], s[1:]) for s in data.split(NULL_BYTE)))
 
-    # Handle the parameters status from database including version, time, data type
-    # need to be noticed that the redshift based on the version 8 of PostgreSql
     def handle_PARAMETER_STATUS(self: "Connection", data: bytes, ps) -> None:
+        """
+        Handler for ParameterStatus message received via Amazon Redshift wire protocol, represented by b'S' code. Modifies
+        the connection object inline with parameter values received in preperation for statment execution.
+
+        ParameterStatus (B)
+            Byte1('S')
+                Identifies the message as a run-time parameter status report.
+
+            Int32
+                Length of message contents in bytes, including self.
+
+            String
+                The name of the run-time parameter being reported.
+
+            String
+                The current value of the parameter.
+
+        Parameters
+        ----------
+        :param statement_name_bin: bytes:
+            Message content
+
+        Returns
+        -------
+        None:None
+        """
         pos: int = data.find(NULL_BYTE)
         key, value = data[:pos], data[pos + 1 : -1]
         self.parameter_statuses.append((key, value))
@@ -1539,9 +2096,9 @@ class Connection:
 
     def xid(self: "Connection", format_id, global_transaction_id, branch_qualifier) -> typing.Tuple:
         """Create a Transaction IDs (only global_transaction_id is used in pg)
-        format_id and branch_qualifier are not used in postgres
+        format_id and branch_qualifier are not used in Amazon Redshift
         global_transaction_id may be any string identifier supported by
-        postgres.
+        Amazon Redshift.
 
         Returns
         -------

@@ -2,7 +2,7 @@ from redshift_connector.config import max_int4, max_int8, min_int4, min_int8
 
 
 class Interval:
-    """An Interval represents a measurement of time.  In PostgreSQL, an
+    """An Interval represents a measurement of time.  In Amazon Redshift, an
     interval is defined in the measure of months, days, and microseconds; as
     such, the interval type represents the same information.
 

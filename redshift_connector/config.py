@@ -55,7 +55,7 @@ pg_array_types: typing.Dict[int, int] = {
 # Python encodings:
 #   http://www.python.org/doc/2.4/lib/standard-encodings.html
 #
-# Commented out encodings don't require a name change between PostgreSQL and
+# Commented out encodings don't require a name change between Amazon Redshift and
 # Python.  If the py side is None, then the encoding isn't supported.
 pg_to_py_encodings: typing.Dict[str, typing.Optional[str]] = {
     # Not supported:
