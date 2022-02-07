@@ -95,6 +95,7 @@ class Cursor:
         self.arraysize: int = 1
         self.ps: typing.Optional[typing.Dict[str, typing.Any]] = None
         self._row_count: int = -1
+        self._redshift_row_count: int = -1
         self._cached_rows: deque = deque()
         if paramstyle is None:
             self.paramstyle: str = redshift_connector.paramstyle
@@ -116,7 +117,27 @@ class Cursor:
 
     @property
     def rowcount(self: "Cursor") -> int:
+        """
+        This read-only attribute specifies the number of rows that the last .execute*() produced
+        (for DQL statements like SELECT) or affected (for DML statements like UPDATE or INSERT).
+
+        The attribute is -1 in case no .execute*() has been performed on the cursor or the rowcount of the last
+        operation is cannot be determined by the interface.
+        """
         return self._row_count
+
+    @property
+    def redshift_rowcount(self: "Cursor") -> int:
+        """
+        Native to ``redshift_connector``, this read-only attribute specifies the number of rows that the last .execute*() produced.
+
+        For DQL statements (like SELECT) the number of rows is derived by ``redshift_connector`` rather than
+        provided by the server. For DML statements (like UPDATE or INSERT) this value is provided by the server.
+
+        This property's behavior is subject to change inline with modifications made to query execution.
+        Use ``rowcount`` as an alternative to this property.
+        """
+        return self._redshift_row_count
 
     @typing.no_type_check
     @functools.lru_cache()
@@ -232,11 +253,14 @@ class Cursor:
         The Cursor object used for executing the specified database operation: :class:`Cursor`
         """
         rowcounts: typing.List[int] = []
+        redshift_rowcounts: typing.List[int] = []
         for parameters in param_sets:
             self.execute(operation, parameters)
             rowcounts.append(self._row_count)
+            redshift_rowcounts.append(self._redshift_row_count)
 
         self._row_count = -1 if -1 in rowcounts else sum(rowcounts)
+        self._redshift_row_count = -1 if -1 in redshift_rowcounts else sum(rowcounts)
         return self
 
     def insert_data_bulk(

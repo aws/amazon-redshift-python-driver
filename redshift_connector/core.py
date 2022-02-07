@@ -1241,6 +1241,7 @@ class Connection:
 
         cursor._cached_rows.clear()
         cursor._row_count = -1
+        cursor._redshift_row_count = -1
 
         # Byte1('B') - Identifies the Bind command.
         # Int32 - Message length, including self.
@@ -1315,6 +1316,10 @@ class Connection:
     # how many SQL commands was completed
     # not support for 'SELECT' and 'COPY' query
     def handle_COMMAND_COMPLETE(self: "Connection", data: bytes, cursor: Cursor) -> None:
+        """
+        Modifies the cursor object and prepared statement when receiving COMMAND COMPLETE b'C' message from Redshift
+        server.
+        """
         values: typing.List[bytes] = data[:-1].split(b" ")
         command = values[0]
         if command in self._commands_with_count:
@@ -1323,6 +1328,12 @@ class Connection:
                 cursor._row_count = row_count
             else:
                 cursor._row_count += row_count
+            cursor._redshift_row_count = cursor._row_count
+        elif command == b"SELECT":
+            # Redshift server does not support row count for SELECT statement
+            # so we derive this from the size of the rows associated with the
+            # cursor object
+            cursor._redshift_row_count = len(cursor._cached_rows)
 
         if command in (b"ALTER", b"CREATE"):
             for scache in self._caches.values():

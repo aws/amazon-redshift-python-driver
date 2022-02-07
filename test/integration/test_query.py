@@ -104,15 +104,21 @@ def test_insert_returning(db_table):
         # Test INSERT ... RETURNING with one row...
         cursor.execute("INSERT INTO t2 VALUES (%s, %s)", (row_id, "test1"))
 
-        assert cursor.rowcount == 1
+        assert 1 == cursor.rowcount
+        assert 1 == cursor.redshift_rowcount
 
         cursor.execute("SELECT data FROM t2 WHERE id = %s", (row_id,))
+        assert 1 == cursor.redshift_rowcount
+
         assert "test1" == cursor.fetchone()[0]
 
         # Test with multiple rows...
         cursor.execute("INSERT INTO t2 VALUES (2, 'test2'), (3, 'test3'), (4,'test4') ")
-        assert cursor.rowcount == 3
+        assert 3 == cursor.rowcount
+        assert 3 == cursor.redshift_rowcount
+
         cursor.execute("SELECT * FROM t2")
+        assert 4 == cursor.redshift_rowcount
         ids: typing.Tuple[typing.List[typing.Union[int, str], ...]] = cursor.fetchall()
         assert len(ids) == 4
 
@@ -134,12 +140,14 @@ def test_row_count(db_table):
 
         # Check row_count without doing any reading first...
         assert -1 == cursor.rowcount
+        assert expected_count == cursor.redshift_rowcount
 
         # Check rowcount after reading some rows, make sure it still
         # works...
         for i in range(expected_count // 2):
             cursor.fetchone()
         assert -1 == cursor.rowcount
+        assert expected_count == cursor.redshift_rowcount
 
     with db_table.cursor() as cursor:
         # Restart the cursor, read a few rows, and then check rowcount
@@ -148,10 +156,12 @@ def test_row_count(db_table):
         for i in range(expected_count // 3):
             cursor.fetchone()
         assert -1 == cursor.rowcount
+        assert expected_count == cursor.redshift_rowcount
 
         # Should be -1 for a command with no results
         cursor.execute("DROP TABLE t1")
         assert -1 == cursor.rowcount
+        assert -1 == cursor.redshift_rowcount
 
 
 def test_row_count_fetch(db_table):
@@ -160,6 +170,7 @@ def test_row_count_fetch(db_table):
         cursor.execute("SELECT * FROM t1")
         cursor.fetchall()
         assert -1 == cursor.rowcount
+        assert 1 == cursor.redshift_rowcount
 
 
 def test_row_count_update(db_table):
@@ -170,7 +181,8 @@ def test_row_count_update(db_table):
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (4, 1000, None))
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (5, 10000, None))
         cursor.execute("UPDATE t1 SET f3 = %s WHERE f2 > 101", ("Hello!",))
-        assert cursor.rowcount == 2
+        assert 2 == cursor.rowcount
+        assert 2 == cursor.redshift_rowcount
 
 
 def test_int_oid(cursor):
@@ -199,7 +211,9 @@ def test_transactions(db_table):
     with db_table.cursor() as cursor:
         cursor.execute("commit")
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (1, 1, "Zombie"))
-        assert cursor.rowcount == 1
+        assert 1 == cursor.rowcount
+        assert 1 == cursor.redshift_rowcount
+
         cursor.execute("rollback")
         cursor.execute("select * from t1")
 
