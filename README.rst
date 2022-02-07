@@ -56,6 +56,7 @@ Tutorials
 - `001 - Connecting to Amazon Redshift <https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/001%20-%20Connecting%20to%20Amazon%20Redshift.ipynb>`_
 - `002 - Data Science Library Integrations <https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/002%20-%20Data%20Science%20Library%20Integrations.ipynb>`_
 - `003 - Amazon Redshift Feature Support <https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/003%20-%20Amazon%20Redshift%20Feature%20Support.ipynb>`_
+- `004 - Amazon Redshift Datatypes <https://github.com/aws/amazon-redshift-python-driver/blob/master/tutorials/004%20-%20Amazon%20Redshift%20Datatypes.ipynb>`_
 
 We are working to add more documentation and would love your feedback. Please reach out to the team by `opening an issue <https://github.com/aws/amazon-redshift-python-driver/issues/new/choose>`__ or `starting a discussion <https://github.com/aws/amazon-redshift-python-driver/discussions/new>`_ to help us fill in the gaps in our documentation.
 
