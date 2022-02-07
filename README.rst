@@ -424,6 +424,10 @@ Contributing
 ~~~~~~~~~~~~
 We look forward to collaborating with you! Please read through  `CONTRIBUTING <https://github.com/aws/amazon-redshift-python-driver/blob/master/CONTRIBUTING.md#Reporting-Bugs/Feature-Requests>`_ before submitting any issues or pull requests.
 
+Changelog Generation
+~~~~~~~~~~~~~~~~~~~~
+An entry in the changelog is generated upon release using `gitchangelog <https://github.com/vaab/gitchangelog>`_. Please use the configuration file, ``.gitchangelog.rc`` when generating the changelog.
+
 Running Tests
 -------------
 You can run tests by using ``pytest test/unit``. This will run all unit tests. Integration tests require providing credentials for an Amazon Redshift cluster as well as IdP attributes in ``test/config.ini``.
