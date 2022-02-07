@@ -2,6 +2,25 @@ Changelog
 =========
 
 
+v2.0.904 (2022-02-07)
+---------------------
+- Docs(readme): clarify pandas df insert. [Brooke White]
+- Docs(tutorials): add redshift datatype examples. [Brooke White]
+- Refactor(cursor, insert_data_bulk): add batch_size parameter. [Brooke
+  White]
+- Test(cursor, test_insert_data_column_stmt): Adjust for py36. [Brooke
+  White]
+- Chore(cursor): lint. [Brooke White]
+- Docs(connection): redshift wire methods. [Brooke White]
+- Feat(cursor): Add redshift_rowcount for SELECT rowcount support.
+  [Brooke White]
+- Feat(datatype): support geography. [Brooke White]
+- Docs(changelog): add generation instructions. [Brooke White]
+- Chore(workflow): set 15 min timeout. [Brooke White]
+- Chore: init GitHub actions. [Brooke White]
+- Feat(cursor): Add method insert_data_bulk (#81) [Yash Goel]
+
+
 v2.0.903 (2022-01-10)
 ---------------------
 - Feat(datatype, abstime): support abstime. [Brooke White]
