@@ -237,7 +237,7 @@ Insert data stored in a ``pandas.DataFrame`` into an Amazon Redshift table
         ),
         columns=["bookname", "author‎"],
     )
-    with db_table.cursor() as cursor:
+    with con.cursor() as cursor:
         cursor.write_dataframe(df, "book")
         cursor.execute("select * from book; ")
         result = cursor.fetchall()
