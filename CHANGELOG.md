@@ -2,6 +2,18 @@ Changelog
 =========
 
 
+v2.0.905 (2022-03-07)
+---------------------
+- Fix(idp, BrowserAzureCredentialsProvider): remove client_secret
+  parameter. [Brooke White]
+- Test(auth): sha256 password. [Brooke White]
+- Feat(auth): support sha256 password. [Brooke White]
+- Docs(readme): add native auth connection params. [Brooke White]
+- Test(native-auth): manual, unit tests and fixture. [Brooke White]
+- Feat: support Redshift native authentication, Add Azure Oauth2 IdP.
+  [Brooke White]
+
+
 v2.0.904 (2022-02-07)
 ---------------------
 - Docs(readme): clarify pandas df insert. [Brooke White]
