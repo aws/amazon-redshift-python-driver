@@ -24,7 +24,6 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
     def __init__(self: "BrowserAzureCredentialsProvider") -> None:
         super().__init__()
         self.idp_tenant: typing.Optional[str] = None
-        self.client_secret: typing.Optional[str] = None
         self.client_id: typing.Optional[str] = None
 
         self.idp_response_timeout: int = 120
@@ -47,7 +46,6 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         # The value of parameter idp_tenant.
         self.idp_tenant = info.idp_tenant
         # The value of parameter client_id.
-        self.client_secret = info.client_secret
         self.client_id = info.client_id
 
         self.idp_response_timeout = info.idp_response_timeout
@@ -122,7 +120,6 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             "scope": "openid",
             "resource": self.client_id,
             "client_id": self.client_id,
-            "client_secret": self.client_secret,
             "redirect_uri": self.redirectUri,
         }
 
