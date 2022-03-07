@@ -1328,6 +1328,61 @@ class Connection:
             # self._write(NULL_BYTE)
             self._flush()
 
+        elif auth_code == 13:  # AUTH_REQ_DIGEST
+            offset: int = 4
+            algo: int = i_unpack(data, offset)[0]
+            algo_names: typing.Tuple[str] = ("SHA256",)
+            offset += 4
+
+            salt_len: int = i_unpack(data, offset)[0]
+            offset += 4
+
+            salt = data[offset : offset + salt_len]
+            offset += salt_len
+
+            server_nonce_len: int = i_unpack(data, offset)[0]
+            offset += 4
+
+            server_nonce: bytes = data[offset : offset + server_nonce_len]
+            offset += server_nonce_len
+
+            ms_since_epoch: int = int((Datetime.utcnow() - Datetime.utcfromtimestamp(0)).total_seconds() * 1000.0)
+            client_nonce: bytes = str(ms_since_epoch).encode("utf-8")
+
+            _logger.debug("handle_AUTHENTICATION_REQUEST: AUTH_REQ_DIGEST")
+            _logger.debug("Algo:{}".format(algo))
+
+            if self.password is None:
+                raise InterfaceError(
+                    "The server requested password-based authentication, but no password was provided."
+                )
+
+            if algo > len(algo_names):
+                raise InterfaceError(
+                    "The server requested password-based authentication, "
+                    "but requested algorithm {} is not supported.".format(algo)
+                )
+
+            from redshift_connector.utils.extensible_digest import ExtensibleDigest
+
+            digest: bytes = ExtensibleDigest.encode(
+                client_nonce=client_nonce,
+                password=typing.cast(bytes, self.password),
+                salt=salt,
+                algo_name=algo_names[algo],
+                server_nonce=server_nonce,
+            )
+
+            _logger.debug("Password(extensible digest)")
+
+            self._write(b"d")
+            self._write(i_pack(4 + 4 + len(digest) + 4 + len(client_nonce)))
+            self._write(i_pack(len(digest)))
+            self._write(digest)
+            self._write(i_pack(len(client_nonce)))
+            self._write(client_nonce)
+            self._flush()
+
         elif auth_code in (2, 4, 6, 7, 8, 9):
             raise InterfaceError("Authentication method " + str(auth_code) + " not supported by redshift_connector.")
         else:
