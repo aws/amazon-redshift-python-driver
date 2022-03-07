@@ -8,17 +8,19 @@ from abc import ABC, abstractmethod
 from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.credential_provider_constants import SAML_RESP_NAMESPACES
+from redshift_connector.plugin.idp_credentials_provider import IdpCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-class SamlCredentialsProvider(ABC):
+class SamlCredentialsProvider(IdpCredentialsProvider, ABC):
     """
     Generic Identity Provider Plugin providing single sign-on access to an Amazon Redshift cluster using an identity provider of your choice.
     """
 
     def __init__(self: "SamlCredentialsProvider") -> None:
+        super().__init__()
         self.user_name: typing.Optional[str] = None
         self.password: typing.Optional[str] = None
         self.idp_host: typing.Optional[str] = None
@@ -177,13 +179,6 @@ class SamlCredentialsProvider(ABC):
     @abstractmethod
     def get_saml_assertion(self: "SamlCredentialsProvider"):
         pass
-
-    @staticmethod
-    def close_window_http_resp() -> bytes:
-        return str.encode(
-            "HTTP/1.1 200 OK\nContent-Type: text/html\n\n"
-            + "<html><body>Thank you for using Amazon Redshift! You can now close this window.</body></html>\n"
-        )
 
     def check_required_parameters(self: "SamlCredentialsProvider") -> None:
         if self.user_name == "" or self.user_name is None:

@@ -110,6 +110,9 @@ class RedshiftProperty:
             self.web_identity_token: typing.Optional[str] = None
             # The AWS Account Id
             self.account_id: typing.Optional[str] = None
+            # The name of the Redshift Native Auth Provider
+            self.provider_name: typing.Optional[str] = None
+            self.scope: str = ""
 
         else:
             for k, v in kwargs.items():

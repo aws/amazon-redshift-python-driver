@@ -1,7 +1,11 @@
 from .adfs_credentials_provider import AdfsCredentialsProvider
 from .azure_credentials_provider import AzureCredentialsProvider
 from .browser_azure_credentials_provider import BrowserAzureCredentialsProvider
+from .browser_azure_oauth2_credentials_provider import (
+    BrowserAzureOAuth2CredentialsProvider,
+)
 from .browser_saml_credentials_provider import BrowserSamlCredentialsProvider
+from .idp_credentials_provider import IdpCredentialsProvider
 from .jwt_credentials_provider import (
     BasicJwtCredentialsProvider,
     JwtCredentialsProvider,

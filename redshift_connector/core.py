@@ -417,6 +417,8 @@ class Connection:
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
         database_metadata_current_db_only: bool = True,
         credentials_provider: typing.Optional[str] = None,
+        provider_name: typing.Optional[str] = None,
+        web_identity_token: typing.Optional[str] = None,
     ):
         """
         Creates a :class:`Connection` to an Amazon Redshift cluster. For more information on establishing a connection to an Amazon Redshift cluster using `federated API access <https://aws.amazon.com/blogs/big-data/federated-api-access-to-amazon-redshift-using-an-amazon-redshift-connector-for-python/>`_ see our examples page.
@@ -455,6 +457,10 @@ class Connection:
             Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
         credentials_provider : Optional[str]
             The class-path of the IdP plugin used for authentication with Amazon Redshift.
+        provider_name : Optional[str]
+            The name of the Redshift Native Auth Provider.
+        web_identity_token: Optional[str]
+            A web identity token used for authentication via Redshift Native IDP Integration
         """
         self.merge_socket_read = True
 
@@ -483,11 +489,15 @@ class Connection:
         # for receiving some datatypes
         self._enable_protocol_based_conversion_funcs()
 
+        self.web_identity_token = web_identity_token
+
         if user is None:
             raise InterfaceError("The 'user' connection parameter cannot be None")
 
+        redshift_native_auth: bool = False
+
         init_params: typing.Dict[str, typing.Optional[typing.Union[str, bytes]]] = {
-            "user": user,
+            "user": "",
             "database": database,
             "application_name": application_name,
             "replication": replication,
@@ -498,6 +508,19 @@ class Connection:
 
         if credentials_provider:
             init_params["plugin_name"] = credentials_provider
+
+            if credentials_provider.split(".")[-1] in (
+                "BasicJwtCredentialsProvider",
+                "BrowserAzureOAuth2CredentialsProvider",
+            ):
+                redshift_native_auth = True
+                init_params["idp_type"] = "AzureAD"
+
+                if provider_name:
+                    init_params["provider_name"] = provider_name
+
+        if not redshift_native_auth or user:
+            init_params["user"] = user
 
         _logger.debug(make_divider_block())
         _logger.debug("Establishing a connection")
@@ -512,7 +535,10 @@ class Connection:
             elif not isinstance(v, (bytes, bytearray)):
                 raise InterfaceError("The parameter " + k + " can't be of type " + str(type(v)) + ".")
 
-        self.user: bytes = typing.cast(bytes, init_params["user"])
+        if "user" in init_params:
+            self.user: bytes = typing.cast(bytes, init_params["user"])
+        else:
+            self.user = b""
 
         if isinstance(password, str):
             self.password: bytes = password.encode("utf8")
@@ -1217,6 +1243,7 @@ class Connection:
                   7 = GSSAPI (not supported)
                   8 = GSSAPI data (not supported)
                   9 = SSPI (not supported)
+                  14 = Redshift Native IDP Integration
 
         Please note that some authentication messages have additional data following the authentication code.
         That data is documented in the appropriate conditional branch below.
@@ -1284,6 +1311,22 @@ class Connection:
         elif auth_code == 12:
             # AuthenticationSASLFinal
             self.auth.set_server_final(data[4:].decode("utf8"))
+        elif auth_code == 14:
+            # Redshift Native IDP Integration
+            aad_token: str = typing.cast(str, self.web_identity_token)
+            _logger.debug("<=BE Authentication request IDP")
+
+            if not aad_token:
+                raise ConnectionAbortedError(
+                    "The server requested AAD token-based authentication, but no token was provided."
+                )
+
+            _logger.debug("FE=> IDP(AAD Token)")
+
+            token: bytes = aad_token.encode(encoding="utf-8")
+            self._write(create_message(b"i", token))
+            # self._write(NULL_BYTE)
+            self._flush()
 
         elif auth_code in (2, 4, 6, 7, 8, 9):
             raise InterfaceError("Authentication method " + str(auth_code) + " not supported by redshift_connector.")

@@ -2,7 +2,7 @@ import logging
 import typing
 
 from redshift_connector import plugin
-from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
+from redshift_connector.config import DEFAULT_PROTOCOL_VERSION, ClientProtocolVersion
 from redshift_connector.core import BINARY, Connection, Cursor
 from redshift_connector.error import (
     ArrayContentNotHomogenousError,
@@ -177,6 +177,8 @@ def connect(
     iam_disable_cache: typing.Optional[bool] = None,
     auth_profile: typing.Optional[str] = None,
     endpoint_url: typing.Optional[str] = None,
+    provider_name: typing.Optional[str] = None,
+    scope: typing.Optional[str] = None,
 ) -> Connection:
     """
     Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
@@ -266,6 +268,10 @@ def connect(
         The name of an Amazon Redshift Authentication profile having connection properties as JSON. See :class:RedshiftProperty to learn how connection properties should be named.
     endpoint_url: Optional[str]
         The Amazon Redshift endpoint url. This option is only used by AWS internal teams.
+    provider_name: Optional[str]
+        The name of the Redshift Native Auth Provider.
+    scope: Optional[str]
+        Scope for BrowserAzureOauth2CredentialsProvider authentication.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -304,10 +310,12 @@ def connect(
     info.put("preferred_role", preferred_role)
     info.put("principal", principal_arn)
     info.put("profile", profile)
+    info.put("provider_name", provider_name)
     info.put("region", region)
     info.put("replication", replication)
     info.put("role_arn", role_arn)
     info.put("role_session_name", role_session_name)
+    info.put("scope", scope)
     info.put("secret_access_key", secret_access_key)
     info.put("session_token", session_token)
     info.put("source_address", source_address)
@@ -326,7 +334,27 @@ def connect(
     _logger.debug(mask_secure_info_in_props(info).__str__())
     _logger.debug(make_divider_block())
 
-    IamHelper.set_iam_properties(info)
+    if (info.ssl is False) and (info.iam is True):
+        raise InterfaceError("Invalid connection property setting. SSL must be enabled when using IAM")
+
+    if (info.iam is False) and (info.ssl_insecure is False):
+        raise InterfaceError("Invalid connection property setting. IAM must be enabled when using ssl_insecure")
+
+    if info.client_protocol_version not in ClientProtocolVersion.list():
+        raise InterfaceError(
+            "Invalid connection property setting. client_protocol_version must be in: {}".format(
+                ClientProtocolVersion.list()
+            )
+        )
+
+    redshift_native_auth: bool = False
+    if info.iam:
+        if info.credentials_provider == "BasicJwtCredentialsProvider":
+            redshift_native_auth = True
+            _logger.debug("redshift_native_auth enabled")
+
+    if not redshift_native_auth:
+        IamHelper.set_iam_properties(info)
 
     _logger.debug(make_divider_block())
     _logger.debug("Connection arguments following validation and IAM auth (if applicable)")
@@ -352,6 +380,8 @@ def connect(
         client_protocol_version=info.client_protocol_version,
         database_metadata_current_db_only=info.database_metadata_current_db_only,
         credentials_provider=info.credentials_provider,
+        provider_name=info.provider_name,
+        web_identity_token=info.web_identity_token,
     )
 
 
