@@ -96,6 +96,30 @@ def test_md5(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
+@pytest.mark.parametrize("algorithm", ("sha256",))
+def test_auth_req_digest(db_kwargs, algorithm):
+    test_user: str = "{}_dbuser".format(algorithm)
+    test_password: str = "My_{}_PaSsWoRdŽ".format(algorithm)
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("drop user if exists {}".format(test_user))
+            cursor.execute(
+                "create user {} with password '{}'".format(test_user, "{}|{}".format(algorithm, test_password))
+            )
+            conn.commit()
+    try:
+        with redshift_connector.connect(**{**db_kwargs, **{"user": test_user, "password": test_password}}) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("select 1")
+    except:
+        raise
+    finally:
+        with redshift_connector.connect(**db_kwargs) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("drop user if exists {}".format(test_user))
+                conn.commit()
+
+
 @pytest.mark.usefixtures("trust_all_certificates")
 def test_ssl(db_kwargs):
     db_kwargs["ssl"] = True
