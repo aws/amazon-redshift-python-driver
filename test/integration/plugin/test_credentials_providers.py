@@ -91,6 +91,7 @@ def test_preferred_role_invalid_should_fail(idp_arg):
         redshift_connector.connect(**idp_arg)
 
 
+@pytest.mark.skip(reason="flaky")
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_invalid_db_group(idp_arg):
     import botocore.exceptions
@@ -122,11 +123,14 @@ def testSslAndIam(idp_arg):
     ):
         redshift_connector.connect(**idp_arg)
 
+
+@pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
+def test_invalid_credentials_provider_should_raise(idp_arg):
     idp_arg["iam"] = False
     idp_arg["credentials_provider"] = "OktacredentialSProvider"
     with pytest.raises(
         redshift_connector.InterfaceError,
-        match="Invalid connection property setting",
+        match="Invalid credentials provider",
     ):
         redshift_connector.connect(**idp_arg)
 

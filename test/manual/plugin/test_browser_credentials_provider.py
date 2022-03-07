@@ -23,9 +23,10 @@ BROWSER_CREDENTIAL_PROVIDERS: typing.List[str] = [
     "jumpcloud_browser_idp",
     "okta_browser_idp",
     "azure_browser_idp",
-    "jwt_azure_v2_idp",
-    "jwt_google_idp",
+    # "jwt_azure_v2_idp",
+    # "jwt_google_idp",
     "ping_browser_idp",
+    "redshift_native_browser_azure_oauth2_idp",
 ]
 
 """
@@ -40,5 +41,6 @@ How to use:
 @pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("idp_arg", BROWSER_CREDENTIAL_PROVIDERS, indirect=True)
 def test_browser_credentials_provider_can_auth(idp_arg):
-    with redshift_connector.connect(**idp_arg):
-        pass
+    with redshift_connector.connect(**idp_arg) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select 1;")

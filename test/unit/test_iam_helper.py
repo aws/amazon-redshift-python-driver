@@ -13,6 +13,7 @@ from redshift_connector.auth import AWSCredentialsProvider
 from redshift_connector.config import ClientProtocolVersion
 from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.iam_helper import IamHelper
+from redshift_connector.idp_auth_helper import IdpAuthHelper
 from redshift_connector.plugin import (
     AdfsCredentialsProvider,
     AzureCredentialsProvider,
@@ -112,26 +113,9 @@ def test_set_iam_properties_enforce_client_protocol_version(_input):
 
 
 multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
-    ({"ssl": False, "iam": True}, "Invalid connection property setting. SSL must be enabled when using IAM"),
     (
-        {"iam": False, "credentials_provider": "anything"},
-        "Invalid connection property setting",
-    ),
-    (
-        {"iam": False, "profile": "default"},
-        "Invalid connection property setting",
-    ),
-    (
-        {"iam": False, "access_key_id": "my_key"},
-        "Invalid connection property setting",
-    ),
-    (
-        {"iam": False, "secret_access_key": "shh it's a secret"},
-        "Invalid connection property setting",
-    ),
-    (
-        {"iam": False, "session_token": "my_session"},
-        "Invalid connection property setting",
+        {"ssl": False, "iam": True},
+        "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled",
     ),
     (
         {"iam": True, "ssl": True},
@@ -224,14 +208,6 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
         "Invalid connection property setting",
     ),
     (
-        {"iam": False, "ssl_insecure": False},
-        "Invalid connection property setting",
-    ),
-    (
-        {"iam": False, "client_protocol_version": max(ClientProtocolVersion.list()) + 1},
-        "Invalid connection property setting. client_protocol_version must be in",
-    ),
-    (
         {
             "iam": True,
             "ssl": True,
@@ -309,7 +285,7 @@ valid_aws_credential_args: typing.List[typing.Dict[str, str]] = [
         "secret_access_key": "mySecret",
         "session_token": "mySession",
     },
-    {"user": "", "password": "", "credentials_provider": "myCredentialsProvider"},
+    {"user": "", "password": "", "credentials_provider": "BrowserSamlCredentialsProvider"},
 ]
 
 
@@ -649,7 +625,9 @@ def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(moc
 
     with pytest.raises(pkg_resources.VersionConflict) as excinfo:
         IamHelper.set_iam_properties(
-            make_basic_redshift_property(**{"iam": True, "ssl": True, "auth_profile": "SomeTestProfile"})
+            make_basic_redshift_property(
+                **{"iam": True, "ssl": True, "auth_profile": "SomeTestProfile", "cluster_identifier": "my_cluster"}
+            )
         )
     assert "boto3 >= 1.17.111 required for authentication via Amazon Redshift authentication profile." in str(
         excinfo.value
@@ -659,10 +637,11 @@ def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(moc
 def test_set_iam_properties_use_redshift_auth_profile_calls_read_auth_profile(mocker):
 
     mocker.patch(
-        "redshift_connector.iam_helper.IamHelper.read_auth_profile", return_value=RedshiftProperty(kwargs={"": ""})
+        "redshift_connector.idp_auth_helper.IdpAuthHelper.read_auth_profile",
+        return_value=RedshiftProperty(kwargs={"": ""}),
     )
     mocker.patch("redshift_connector.iam_helper.IamHelper.set_iam_credentials", return_value=None)
-    spy = mocker.spy(IamHelper, "read_auth_profile")
+    spy = mocker.spy(IdpAuthHelper, "read_auth_profile")
 
     # anticipate read_auth_profile being called with the following parameters
     exp_call_arg: typing.Dict[str, str] = {
@@ -700,10 +679,11 @@ def test_set_iam_properties_redshift_auth_profile_does_override(mocker):
         "password": "overridePassword",
     }
     mock_auth_profile_contents: RedshiftProperty = RedshiftProperty(**mock_contents)
-
-    mocker.patch("redshift_connector.iam_helper.IamHelper.read_auth_profile", return_value=mock_auth_profile_contents)
+    mocker.patch(
+        "redshift_connector.idp_auth_helper.IdpAuthHelper.read_auth_profile", return_value=mock_auth_profile_contents
+    )
     mocker.patch("redshift_connector.iam_helper.IamHelper.set_iam_credentials", return_value=None)
-    redshift_auth_profile_spy = mocker.spy(IamHelper, "read_auth_profile")
+    redshift_auth_profile_spy = mocker.spy(IdpAuthHelper, "read_auth_profile")
     set_iam_crednetials_spy = mocker.spy(IamHelper, "set_iam_credentials")
 
     exp_call_arg: typing.Dict[str, str] = {
@@ -808,3 +788,16 @@ def test_read_auth_profile_invalid_json_payload_raises_exception(mocker):
         ProgrammingError, match="Unable to decode the JSON content of the Redshift authentication profile"
     ):
         IamHelper.read_auth_profile(**req_params)
+
+
+def test_set_iam_properties_calls_set_auth_props(mocker):
+    mocker.patch("redshift_connector.iam_helper.IdpAuthHelper.set_auth_properties", return_value=None)
+    spy = mocker.spy(IdpAuthHelper, "set_auth_properties")
+    mock_rp: MagicMock = MagicMock()
+    mock_rp.credentials_provider = None
+    mock_rp.is_serverless_host = False
+    IamHelper.set_iam_properties(mock_rp)
+
+    assert spy.called is True
+    assert spy.call_count == 1
+    assert spy.call_args[0][0] == mock_rp

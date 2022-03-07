@@ -10,4 +10,5 @@ from test.conftest import (
     okta_browser_idp,
     okta_idp,
     ping_browser_idp,
+    redshift_native_browser_azure_oauth2_idp,
 )

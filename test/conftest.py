@@ -244,6 +244,25 @@ def jwt_azure_v2_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     return {**_get_default_iam_connection_args(), **db_connect}
 
 
+@pytest.fixture(scope="class")
+def redshift_native_browser_azure_oauth2_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
+    db_connect = {
+        "host": conf.get("redshift-native-browser-azure-oauth2", "host", fallback="mock_host"),
+        "port": conf.getint("default-test", "port", fallback="mock_port"),
+        "database": conf.get("ci-cluster", "database", fallback="mock_database"),
+        "credentials_provider": conf.get(
+            "redshift-native-browser-azure-oauth2", "credentials_provider", fallback="BasicJwtCredentialsProvider"
+        ),
+        "scope": conf.get("redshift-native-browser-azure-oauth2", "scope", fallback="mock_scope"),
+        "client_id": conf.get("redshift-native-browser-azure-oauth2", "client_id", fallback="mock_client_id"),
+        "idp_tenant": conf.get("redshift-native-browser-azure-oauth2", "idp_tenant", fallback="mock_idp_tenant"),
+        "cluster_identifier": conf.get("adfs-idp", "cluster_identifier", fallback="mock_adfs_cluster_identifier"),
+        "region": conf.get("adfs-idp", "region", fallback="mock-region"),
+        "iam": conf.getboolean("jwt-google-idp", "iam", fallback="mock_iam"),
+    }
+    return db_connect
+
+
 @pytest.fixture
 def con(request, db_kwargs) -> redshift_connector.Connection:
     conn: redshift_connector.Connection = redshift_connector.connect(**db_kwargs)
