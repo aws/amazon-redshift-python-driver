@@ -2,6 +2,27 @@ Changelog
 =========
 
 
+v2.0.906 (2022-04-15)
+---------------------
+- Feat(connection, application_name): set to calling module if
+  unspecified. [Brooke White]
+- Docs(Connection, numeric_to_float): add disclaimer for precision
+  tradeoffs. [Brooke White]
+- Feat(Connection, numeric_to_float): add connection option to convert
+  numeric datatype to Python float. [Brooke White]
+- Chore(deps): update pytz requirement (#94) [dependabot[bot]]
+
+  Updates the requirements on [pytz](https://github.com/stub42/pytz) to permit the latest version.
+  - [Release notes](https://github.com/stub42/pytz/releases)
+  - [Commits](https://github.com/stub42/pytz/compare/release_2020.1...release_2022.1)
+
+  ---
+  updated-dependencies:
+  - dependency-name: pytz
+    dependency-type: direct:production
+  ...
+
+
 v2.0.905 (2022-03-07)
 ---------------------
 - Fix(idp, BrowserAzureCredentialsProvider): remove client_secret
