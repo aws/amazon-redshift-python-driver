@@ -32,6 +32,8 @@ from .type_utils import (
     int_array_recv,
     numeric_in,
     numeric_in_binary,
+    numeric_to_float_binary,
+    numeric_to_float_in,
     pg_types,
     py_types,
     q_pack,

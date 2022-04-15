@@ -113,6 +113,7 @@ class RedshiftProperty:
             # The name of the Redshift Native Auth Provider
             self.provider_name: typing.Optional[str] = None
             self.scope: str = ""
+            self.numeric_to_float: bool = False
 
         else:
             for k, v in kwargs.items():

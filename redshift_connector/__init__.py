@@ -179,6 +179,7 @@ def connect(
     endpoint_url: typing.Optional[str] = None,
     provider_name: typing.Optional[str] = None,
     scope: typing.Optional[str] = None,
+    numeric_to_float: typing.Optional[bool] = False,
 ) -> Connection:
     """
     Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
@@ -272,6 +273,8 @@ def connect(
         The name of the Redshift Native Auth Provider.
     scope: Optional[str]
         Scope for BrowserAzureOauth2CredentialsProvider authentication.
+    numeric_to_float: Optional[str]
+        Specifies if NUMERIC datatype values will be converted from ``decimal.Decimal`` to ``float``. By default NUMERIC values are received as ``decimal.Decimal``.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -304,6 +307,7 @@ def connect(
     info.put("listen_port", listen_port)
     info.put("login_url", login_url)
     info.put("max_prepared_statements", max_prepared_statements)
+    info.put("numeric_to_float", numeric_to_float)
     info.put("partner_sp_id", partner_sp_id)
     info.put("password", password)
     info.put("port", port)
@@ -382,6 +386,7 @@ def connect(
         credentials_provider=info.credentials_provider,
         provider_name=info.provider_name,
         web_identity_token=info.web_identity_token,
+        numeric_to_float=info.numeric_to_float,
     )
 
 

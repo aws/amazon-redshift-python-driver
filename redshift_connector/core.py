@@ -75,6 +75,8 @@ from redshift_connector.utils import (
     make_divider_block,
     numeric_in,
     numeric_in_binary,
+    numeric_to_float_binary,
+    numeric_to_float_in,
 )
 from redshift_connector.utils import pg_types as PG_TYPES
 from redshift_connector.utils import py_types as PY_TYPES
@@ -419,6 +421,7 @@ class Connection:
         credentials_provider: typing.Optional[str] = None,
         provider_name: typing.Optional[str] = None,
         web_identity_token: typing.Optional[str] = None,
+        numeric_to_float: bool = False,
     ):
         """
         Creates a :class:`Connection` to an Amazon Redshift cluster. For more information on establishing a connection to an Amazon Redshift cluster using `federated API access <https://aws.amazon.com/blogs/big-data/federated-api-access-to-amazon-redshift-using-an-amazon-redshift-connector-for-python/>`_ see our examples page.
@@ -461,6 +464,8 @@ class Connection:
             The name of the Redshift Native Auth Provider.
         web_identity_token: Optional[str]
             A web identity token used for authentication via Redshift Native IDP Integration
+        numeric_to_float: bool
+            Specifies if NUMERIC datatype values will be converted from ``decimal.Decimal`` to ``float``. By default NUMERIC values are received as ``decimal.Decimal``.
         """
         self.merge_socket_read = True
 
@@ -484,6 +489,7 @@ class Connection:
         self.py_types = deepcopy(PY_TYPES)
         self.pg_types = deepcopy(PG_TYPES)
         self._database_metadata_current_db_only: bool = database_metadata_current_db_only
+        self.numeric_to_float: bool = numeric_to_float
 
         # based on _client_protocol_version value, we must use different conversion functions
         # for receiving some datatypes
@@ -725,6 +731,10 @@ class Connection:
             self.pg_types[1028] = (FC_BINARY, array_recv_binary)  # OID[]
             self.pg_types[1034] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
             self.pg_types[VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
+
+            if self.numeric_to_float:
+                self.pg_types[NUMERIC] = (FC_BINARY, numeric_to_float_binary)
+
         else:  # text protocol
             self.pg_types[NUMERIC] = (FC_TEXT, numeric_in)
             self.pg_types[TIME] = (FC_TEXT, time_in)
@@ -740,6 +750,9 @@ class Connection:
             self.pg_types[1028] = (FC_TEXT, int_array_recv)  # OID[]
             self.pg_types[1034] = (FC_TEXT, array_recv_text)  # ACLITEM[]
             self.pg_types[VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
+
+            if self.numeric_to_float:
+                self.pg_types[NUMERIC] = (FC_TEXT, numeric_to_float_in)
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
@@ -1918,7 +1931,7 @@ class Connection:
             data_idx += 4
             if vlen == -1:
                 row.append(None)
-            elif desc[0] == numeric_in_binary:
+            elif desc[0] in (numeric_in_binary, numeric_to_float_binary):
                 row.append(desc[0](data, data_idx, vlen, desc[1]))
                 data_idx += vlen
             else:

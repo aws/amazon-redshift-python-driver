@@ -312,8 +312,26 @@ def numeric_in_binary(data: bytes, offset: int, length: int, scale: int) -> Deci
     return Decimal(raw_value).scaleb(-1 * scale)
 
 
+def numeric_to_float_binary(data: bytes, offset: int, length: int, scale: int) -> float:
+    raw_value: int
+
+    if length == 8:
+        raw_value = q_unpack(data, offset)[0]
+    elif length == 16:
+        temp: typing.Tuple[int, int] = qq_unpack(data, offset)
+        raw_value = (temp[0] << 64) | temp[1]
+    else:
+        raise Exception("Malformed column value of type numeric received")
+
+    return raw_value * 10 ** (-1 * scale)
+
+
 def numeric_in(data: bytes, offset: int, length: int) -> Decimal:
     return Decimal(data[offset : offset + length].decode(_client_encoding))
+
+
+def numeric_to_float_in(data: bytes, offset: int, length: int) -> float:
+    return float(data[offset : offset + length].decode(_client_encoding))
 
 
 # def uuid_recv(data: bytes, offset: int, length: int) -> UUID:

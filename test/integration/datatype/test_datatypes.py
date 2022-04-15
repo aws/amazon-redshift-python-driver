@@ -181,3 +181,28 @@ def test_abstime(db_kwargs, _input, client_protocol):
             cursor.execute("select '{}'::abstime".format(insert_val))
             res = cursor.fetchone()
             assert res[0] == exp_val
+
+
+numeric_vals: typing.List[typing.Tuple[str, float]] = [
+    ("to_number('12,454.8-', 'S99G999D9')", -12454.8),
+    ("to_number('8.1-', '9D9S')", -8.1),
+    ("to_number('897.6', '999D9S')", 897.6),
+]
+
+
+@pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
+@pytest.mark.parametrize("_input", numeric_vals)
+def test_numeric_to_float(db_kwargs, _input, client_protocol):
+    insert_val, exp_val = _input
+    db_kwargs["numeric_to_float"] = True
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select {}".format(insert_val))
+            res = cursor.fetchone()
+            assert isinstance(res[0], float)
+            assert isclose(
+                typing.cast(float, res[0]),
+                typing.cast(float, exp_val),
+                rel_tol=1e-05,
+                abs_tol=1e-08,
+            )
