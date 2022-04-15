@@ -502,6 +502,30 @@ class Connection:
 
         redshift_native_auth: bool = False
 
+        if application_name is None or application_name == "":
+
+            def get_calling_module() -> str:
+                import inspect
+
+                module_name: str = ""
+                stack: typing.List[inspect.FrameInfo] = inspect.stack()
+                try:
+                    # get_calling_module  -> init -> connect -> init -> calling module
+                    start: int = min(4, len(stack) - 1)
+                    parent = stack[start][0]
+                    calling_module = inspect.getmodule(parent)
+
+                    if calling_module:
+                        module_name = calling_module.__name__
+                except:
+                    pass
+                finally:
+                    del parent
+                    del stack
+
+                return module_name
+
+            application_name = get_calling_module()
         init_params: typing.Dict[str, typing.Optional[typing.Union[str, bytes]]] = {
             "user": "",
             "database": database,
