@@ -246,8 +246,8 @@ def connect(
         The SSO url for the IdP.
     auto_create : Optional[bool]
         Indicates whether the user should be created if they do not exist. Default value is `False`.
-    db_groups : Optional[str]
-        A comma-separated list of existing database group names that the `db_user` joins for the current session.
+    db_groups : Optional[List[str]]
+        A list of existing database group names that the `db_user` joins for the current session.
     force_lowercase : Optional[bool]
     allow_db_user_override : Optional[bool]
         Specifies if the driver uses the `db_user` value from the SAML assertion. TDefault value is `False`.
