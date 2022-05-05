@@ -99,3 +99,13 @@ def test_open_browser_no_url_should_fail():
     with pytest.raises(InterfaceError) as ex:
         browser_saml_credentials.open_browser()
     assert "the login_url could not be empty" in str(ex.value)
+
+
+@pytest.mark.parametrize("url", ["test", "1234", "file.txt", "file:///"])
+def test_open_browser_invalid_url_should_fail(url):
+    browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
+    browser_saml_credentials.login_url = url
+
+    with pytest.raises(InterfaceError) as ex:
+        browser_saml_credentials.open_browser()
+    assert "is an invalid web address" in str(ex.value)
