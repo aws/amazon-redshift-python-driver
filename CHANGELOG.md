@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+v2.0.907 (2022-05-06)
+---------------------
+- Feat(idp, open_browser): Updated SAML Plugin browser launch process.
+  [Brooke White]
+- Docs: db_groups parameter takes a list, not str (#99) [H​eikki
+  H​okkanen]
+
+
 v2.0.906 (2022-04-15)
 ---------------------
 - Feat(connection, application_name): set to calling module if
