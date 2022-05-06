@@ -165,6 +165,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
 
         if url is None:
             raise InterfaceError("the login_url could not be empty")
+        self.validate_url(url)
         webbrowser.open(url)
 
     def get_listen_socket(self: "BrowserAzureOAuth2CredentialsProvider") -> socket.socket:

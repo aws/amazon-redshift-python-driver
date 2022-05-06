@@ -232,5 +232,5 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             "&redirect_uri={uri}"
             "&state={state}".format(tenant=self.idp_tenant, id=self.client_id, uri=self.redirectUri, state=state)
         )
-
+        self.validate_url(url)
         webbrowser.open(url)

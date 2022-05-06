@@ -1,6 +1,7 @@
 import typing
 from abc import ABC, abstractmethod
 
+from redshift_connector.error import InterfaceError
 from redshift_connector.redshift_property import RedshiftProperty
 
 if typing.TYPE_CHECKING:
@@ -39,3 +40,8 @@ class IdpCredentialsProvider(ABC):
         Defines instance attributes from the :class:RedshiftProperty object associated with the current authentication session.
         """
         pass  # pragma: no cover
+
+    @classmethod
+    def validate_url(cls, uri: str) -> None:
+        if not uri.startswith("https"):
+            raise InterfaceError("URI: {} is an invalid web address".format(uri))

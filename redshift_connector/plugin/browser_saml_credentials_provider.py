@@ -109,4 +109,5 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
 
         if url is None:
             raise InterfaceError("the login_url could not be empty")
+        self.validate_url(url)
         webbrowser.open(url)
