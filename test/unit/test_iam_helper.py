@@ -349,11 +349,24 @@ def test_set_iam_credentials_for_serverless_uses_redshift_serverless_client(mock
 
 
 @mock.patch("boto3.client")
-def test_set_iam_credentials_for_serverless_calls_get_credentials(mock_boto_client, mocker, serverless_iam_db_kwargs):
+@pytest.mark.parametrize(
+    "serverless_host",
+    (
+        "testwg1.012345678901.us-east-2.redshift-serverless.amazonaws.com",
+        "012345678901.us-east-2.redshift-serverless.amazonaws.com",
+    ),
+)
+def test_set_iam_credentials_for_serverless_calls_get_credentials(
+    mock_boto_client, serverless_host, mocker, serverless_iam_db_kwargs
+):
     rp: RedshiftProperty = RedshiftProperty()
 
     for k, v in serverless_iam_db_kwargs.items():
         rp.put(k, v)
+
+    rp.set_account_id_from_host()
+    rp.set_region_from_host()
+    rp.set_work_group_from_host()
 
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
@@ -365,7 +378,11 @@ def test_set_iam_credentials_for_serverless_calls_get_credentials(mock_boto_clie
     IamHelper.set_cluster_credentials(mock_cred_provider, rp)
 
     # ensure describe_configuration is called
-    mock_boto_client.assert_has_calls([call().get_credentials(dbName=rp.db_name)])
+    if rp.work_group:
+        mock_boto_client.assert_has_calls([call().get_credentials(dbName=rp.db_name, workgroupName=rp.work_group)])
+    else:
+        mock_boto_client.assert_has_calls([call().get_credentials(dbName=rp.db_name)])
+
     # ensure host, port values were set
     assert spy.called
 

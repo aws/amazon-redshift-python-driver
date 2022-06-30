@@ -45,6 +45,7 @@ class IamHelper(IdpAuthHelper):
         if info.is_serverless_host:
             info.set_account_id_from_host()
             info.set_region_from_host()
+            info.set_work_group_from_host()
 
         if info.iam is True:
             if info.cluster_identifier is None and not info.is_serverless_host:
@@ -154,6 +155,7 @@ class IamHelper(IdpAuthHelper):
                     info.db_name,
                     db_groups,
                     typing.cast(str, info.account_id if info.is_serverless_host else info.cluster_identifier),
+                    typing.cast(str, info.work_group if info.is_serverless_host and info.work_group else ""),
                     str(info.auto_create),
                     str(info.duration),
                     # v2 api parameters
@@ -235,11 +237,13 @@ class IamHelper(IdpAuthHelper):
                 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#legacy-retry-mode
                 _logger.debug("Credentials expired or not found...requesting from boto")
                 if info.is_serverless_host:
+                    get_cred_args: typing.Dict[str, str] = {"dbName": info.db_name}
+                    if info.work_group:
+                        get_cred_args["workgroupName"] = info.work_group
+
                     cred = typing.cast(
                         typing.Dict[str, typing.Union[str, datetime.datetime]],
-                        client.get_credentials(
-                            dbName=info.db_name,
-                        ),
+                        client.get_credentials(**get_cred_args),
                     )
                     # re-map expiration for compatibility with redshift credential response
                     cred["Expiration"] = cred["expiration"]

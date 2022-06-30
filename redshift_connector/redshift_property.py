@@ -4,6 +4,7 @@ from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
 from redshift_connector.error import ProgrammingError
 
 SERVERLESS_HOST_PATTERN: str = r"(.+)\.(.+).redshift-serverless(-dev)?\.amazonaws\.com(.)*"
+SERVERLESS_WITH_WORKGROUP_HOST_PATTERN: str = r"(.+)\.(.+)\.(.+).redshift-serverless(-dev)?\.amazonaws\.com(.)*"
 IAM_URL_PATTERN: str = r"^(https)://[-a-zA-Z0-9+&@#/%?=~_!:,.']*[-a-zA-Z0-9+&@#/%=~_']"
 
 
@@ -115,6 +116,8 @@ class RedshiftProperty:
             self.provider_name: typing.Optional[str] = None
             self.scope: str = ""
             self.numeric_to_float: bool = False
+            # The work group used for Amazon serverless
+            self.work_group: typing.Optional[str] = None
 
         else:
             for k, v in kwargs.items():
@@ -151,26 +154,43 @@ class RedshiftProperty:
 
         import re
 
-        return bool(re.fullmatch(pattern=SERVERLESS_HOST_PATTERN, string=str(self.host)))
+        return bool(re.fullmatch(pattern=SERVERLESS_HOST_PATTERN, string=str(self.host))) or bool(
+            re.fullmatch(pattern=SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, string=str(self.host))
+        )
 
     def set_account_id_from_host(self: "RedshiftProperty") -> None:
         """
-        Returns the AWS account id as parsed from the Redshift serverless endpoint.
+        Sets the AWS account id as parsed from the Redshift serverless endpoint.
         """
         import re
 
-        m2 = re.fullmatch(pattern=SERVERLESS_HOST_PATTERN, string=self.host)
+        for serverless_pattern in (SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, SERVERLESS_HOST_PATTERN):
+            m2 = re.fullmatch(pattern=serverless_pattern, string=self.host)
 
-        if m2:
-            self.put(key="account_id", value=m2.group(1))
+            if m2:
+                self.put(key="account_id", value=m2.group(typing.cast(int, m2.lastindex) - 1))
+                break
 
     def set_region_from_host(self: "RedshiftProperty") -> None:
         """
-        Returns the AWS region as parsed from the Redshift serverless endpoint.
+        Sets the AWS region as parsed from the Redshift serverless endpoint.
         """
         import re
 
-        m2 = re.fullmatch(pattern=SERVERLESS_HOST_PATTERN, string=self.host)
+        for serverless_pattern in (SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, SERVERLESS_HOST_PATTERN):
+            m2 = re.fullmatch(pattern=serverless_pattern, string=self.host)
+
+            if m2:
+                self.put(key="region", value=m2.group(typing.cast(int, m2.lastindex)))
+                break
+
+    def set_work_group_from_host(self: "RedshiftProperty") -> None:
+        """
+        Sets the work_group as parsed from the Redshift serverless endpoint.
+        """
+        import re
+
+        m2 = re.fullmatch(pattern=SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, string=self.host)
 
         if m2:
-            self.put(key="region", value=m2.group(2))
+            self.put(key="work_group", value=m2.group(1))

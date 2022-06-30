@@ -81,7 +81,7 @@ def serverless_native_db_kwargs() -> typing.Dict[str, str]:
     db_connect = {
         "database": conf.get("redshift-serverless", "database", fallback="mock_database"),
         "host": conf.get(
-            "redshift-serverless", "host", fallback="012345678901.us-east-2.redshift-serverless.amazonaws.com"
+            "redshift-serverless", "host", fallback="testwg1.012345678901.us-east-2.redshift-serverless.amazonaws.com"
         ),
         "user": conf.get("redshift-serverless", "user", fallback="mock_user"),
         "password": conf.get("redshift-serverless", "password", fallback="mock_password"),
@@ -100,7 +100,7 @@ def serverless_iam_db_kwargs() -> typing.Dict[str, typing.Union[str, bool]]:
         "session_token": conf.get("redshift-serverless", "session_token", fallback="mock_session_token"),
         "region": conf.get("redshift-serverless", "region", fallback="mock_region"),
         "host": conf.get(
-            "redshift-serverless", "host", fallback="012345678901.us-east-2.redshift-serverless.amazonaws.com"
+            "redshift-serverless", "host", fallback="testwg1.012345678901.us-east-2.redshift-serverless.amazonaws.com"
         ),
     }
 
