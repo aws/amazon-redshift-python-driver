@@ -1,9 +1,11 @@
+import typing
+
 import pytest
 
 from redshift_connector.utils.oids import RedshiftOID, get_datatype_name
 
-all_oids: list[int] = [d for d in RedshiftOID]
-all_datatypes: list[tuple[int, str]] = [(d, d.name) for d in RedshiftOID]
+all_oids: typing.List[int] = [d for d in RedshiftOID]
+all_datatypes: typing.List[typing.Tuple[int, str]] = [(d, d.name) for d in RedshiftOID]
 
 
 @pytest.mark.parametrize("oid", all_oids)
