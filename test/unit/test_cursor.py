@@ -11,14 +11,27 @@ from redshift_connector import Connection, Cursor, InterfaceError
 IS_SINGLE_DATABASE_METADATA_TOGGLE: typing.List[bool] = [True, False]
 
 
-test_warn_response_data: typing.List[typing.Tuple[typing.Optional[typing.List[bytes]], str]] = [
-    ([b"ab\xffcd"], "Unable to decode column names. Byte values will be used for pandas dataframe column labels."),
+description_warn_response_data: typing.List[typing.Tuple[bytes, str]] = [
+    (b"ab\xffcd", "failed to decode column name"),
+]
+
+
+@pytest.mark.parametrize("_input", description_warn_response_data)
+def test_get_description_warns_user(_input):
+    data, exp_warning_msg = _input
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mock_cursor.__setattr__("ps", {"row_desc": [{"type_oid": 1043, "label": data, "column_name": b"c1"}]})
+    with pytest.warns(UserWarning, match=exp_warning_msg):
+        mock_cursor.description
+
+
+fetch_df_warn_response_data: typing.List[typing.Tuple[typing.Optional[typing.List[bytes]], str]] = [
     (None, "No row description was found. pandas dataframe will be missing column labels."),
 ]
 
 
 @pandas_only
-@pytest.mark.parametrize("_input", test_warn_response_data)
+@pytest.mark.parametrize("_input", fetch_df_warn_response_data)
 def test_fetch_dataframe_warns_user(_input, mocker):
     data, exp_warning_msg = _input
     mock_cursor: Cursor = Cursor.__new__(Cursor)

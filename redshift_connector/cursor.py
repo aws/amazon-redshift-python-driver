@@ -8,7 +8,11 @@ from typing import TYPE_CHECKING
 from warnings import warn
 
 import redshift_connector
-from redshift_connector.config import ClientProtocolVersion, table_type_clauses
+from redshift_connector.config import (
+    ClientProtocolVersion,
+    _client_encoding,
+    table_type_clauses,
+)
 from redshift_connector.error import (
     MISSING_MODULE_ERROR_MSG,
     InterfaceError,
@@ -165,12 +169,17 @@ class Cursor:
     def _getDescription(self: "Cursor") -> typing.Optional[typing.List[typing.Optional[typing.Tuple]]]:
         if self.ps is None:
             return None
-        row_desc: typing.List[typing.Dict[str, typing.Union[bytes, int, typing.Callable]]] = self.ps["row_desc"]
+        row_desc: typing.List[typing.Dict[str, typing.Union[bytes, str, int, typing.Callable]]] = self.ps["row_desc"]
         if len(row_desc) == 0:
             return None
         columns: typing.List[typing.Optional[typing.Tuple]] = []
         for col in row_desc:
-            columns.append((col["label"], col["type_oid"], None, None, None, None, None))
+            try:
+                col_name: typing.Union[str, bytes] = typing.cast(bytes, col["label"]).decode(_client_encoding)
+            except UnicodeError:
+                warn("failed to decode column name: {}, reverting to bytes".format(col["label"]))  # type: ignore
+                col_name = typing.cast(bytes, col["label"])
+            columns.append((col_name, col["type_oid"], None, None, None, None, None))
         return columns
 
     ##
@@ -503,12 +512,6 @@ class Cursor:
 
         columns: typing.Optional[typing.List[typing.Union[str, bytes]]] = None
         try:
-            columns = [column[0].decode().lower() for column in self.description]
-        except UnicodeError as e:
-            warn(
-                "Unable to decode column names. Byte values will be used for pandas dataframe column labels.",
-                stacklevel=2,
-            )
             columns = [column[0].lower() for column in self.description]
         except:
             warn("No row description was found. pandas dataframe will be missing column labels.", stacklevel=2)

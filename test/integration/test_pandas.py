@@ -54,6 +54,7 @@ def test_fetch_dataframe(db_table):
         cursor.execute("select * from book; ")
         result = cursor.fetch_dataframe()
         assert result.columns[0] == "bookname"
+        assert result.columns[1] == "author\u200e"
 
 
 @pandas_only
