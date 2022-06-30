@@ -31,79 +31,7 @@ from redshift_connector.pg_types import (
     PGTsvector,
     PGVarchar,
 )
-
-ANY_ARRAY = 2277
-ABSTIME = 702
-BIGINT = 20
-BIGINT_ARRAY = 1016
-BOOLEAN = 16
-BOOLEAN_ARRAY = 1000
-BYTES = 17
-BYTES_ARRAY = 1001
-CHAR = 1042
-CHAR_ARRAY = 1014
-CIDR = 650
-CIDR_ARRAY = 651
-CSTRING = 2275
-CSTRING_ARRAY = 1263
-DATE = 1082
-DATE_ARRAY = 1182
-FLOAT = 701
-FLOAT_ARRAY = 1022
-GEOGRAPHY = 3001
-GEOMETRY = 3000
-GEOMETRYHEX = 3999
-INET = 869
-INET_ARRAY = 1041
-INT2VECTOR = 22
-INTEGER = 23
-INTEGER_ARRAY = 1007
-INTERVAL = 1186
-INTERVAL_ARRAY = 1187
-OID = 26
-JSON = 114
-JSON_ARRAY = 199
-JSONB = 3802
-JSONB_ARRAY = 3807
-MACADDR = 829
-MONEY = 790
-MONEY_ARRAY = 791
-NAME = 19
-NAME_ARRAY = 1003
-NUMERIC = 1700
-NUMERIC_ARRAY = 1231
-NULLTYPE = -1
-OID = 26
-POINT = 600
-REAL = 700
-REAL_ARRAY = 1021
-SMALLINT = 21
-SMALLINT_ARRAY = 1005
-SMALLINT_VECTOR = 22
-STRING = 1043
-SUPER = 4000
-TEXT = 25
-TEXT_ARRAY = 1009
-TIME = 1083
-TIME_ARRAY = 1183
-TIMESTAMP = 1114
-TIMESTAMP_ARRAY = 1115
-TIMESTAMPTZ = 1184
-TIMESTAMPTZ_ARRAY = 1185
-TIMETZ = 1266
-UNKNOWN = 705
-UUID_TYPE = 2950
-UUID_ARRAY = 2951
-VARCHAR = 1043
-VARBYTE = 6551
-VARCHAR_ARRAY = 1015
-XID = 28
-
-BIGINTEGER = BIGINT
-DATETIME = TIMESTAMP
-NUMBER = DECIMAL = NUMERIC
-DECIMAL_ARRAY = NUMERIC_ARRAY
-ROWID = OID
+from redshift_connector.utils.oids import RedshiftOID
 
 
 def pack_funcs(fmt: str) -> typing.Tuple[typing.Callable, typing.Callable]:
@@ -640,57 +568,58 @@ def varbytehex_recv(data: bytes, idx: int, length: int) -> str:
 pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultdict(
     lambda: (FC_TEXT, text_recv),
     {
-        ABSTIME: (FC_BINARY, abstime_recv),  # abstime
-        BOOLEAN: (FC_BINARY, bool_recv),  # boolean
+        RedshiftOID.ABSTIME: (FC_BINARY, abstime_recv),  # abstime
+        RedshiftOID.BOOLEAN: (FC_BINARY, bool_recv),  # boolean
         # 17: (FC_BINARY, bytea_recv),  # bytea
-        NAME: (FC_BINARY, text_recv),  # name type
-        BIGINT: (FC_BINARY, int8_recv),  # int8
-        SMALLINT: (FC_BINARY, int2_recv),  # int2
-        SMALLINT_VECTOR: (FC_TEXT, vector_in),  # int2vector
-        INTEGER: (FC_BINARY, int4_recv),  # int4
-        24: (FC_BINARY, oid_recv),  # regproc
-        TEXT: (FC_BINARY, text_recv),  # TEXT type
-        OID: (FC_BINARY, oid_recv),  # oid
-        XID: (FC_TEXT, int_in),  # xid
-        JSON: (FC_TEXT, json_in),  # json
-        REAL: (FC_BINARY, float4_recv),  # float4
-        FLOAT: (FC_BINARY, float8_recv),  # float8
-        UNKNOWN: (FC_BINARY, text_recv),  # unknown
+        RedshiftOID.NAME: (FC_BINARY, text_recv),  # name type
+        RedshiftOID.BIGINT: (FC_BINARY, int8_recv),  # int8
+        RedshiftOID.SMALLINT: (FC_BINARY, int2_recv),  # int2
+        RedshiftOID.SMALLINT_VECTOR: (FC_TEXT, vector_in),  # int2vector
+        RedshiftOID.INTEGER: (FC_BINARY, int4_recv),  # int4
+        RedshiftOID.REGPROC: (FC_BINARY, oid_recv),  # regproc
+        RedshiftOID.TEXT: (FC_BINARY, text_recv),  # TEXT type
+        RedshiftOID.OID: (FC_BINARY, oid_recv),  # oid
+        RedshiftOID.XID: (FC_TEXT, int_in),  # xid
+        RedshiftOID.JSON: (FC_TEXT, json_in),  # json
+        RedshiftOID.REAL: (FC_BINARY, float4_recv),  # float4
+        RedshiftOID.FLOAT: (FC_BINARY, float8_recv),  # float8
+        RedshiftOID.UNKNOWN: (FC_BINARY, text_recv),  # unknown
         # 829: (FC_TEXT, text_recv),  # MACADDR type
         # 869: (FC_TEXT, inet_in),  # inet
         # 1000: (FC_BINARY, array_recv),  # BOOL[]
         # 1003: (FC_BINARY, array_recv),  # NAME[]
-        SMALLINT_ARRAY: (FC_BINARY, array_recv_binary),  # INT2[]
-        INTEGER_ARRAY: (FC_BINARY, array_recv_binary),  # INT4[]
-        TEXT_ARRAY: (FC_BINARY, array_recv_binary),  # TEXT[]
-        1002: (FC_BINARY, array_recv_binary),  # CHAR[]
+        RedshiftOID.SMALLINT_ARRAY: (FC_BINARY, array_recv_binary),  # INT2[]
+        RedshiftOID.INTEGER_ARRAY: (FC_BINARY, array_recv_binary),  # INT4[]
+        RedshiftOID.TEXT_ARRAY: (FC_BINARY, array_recv_binary),  # TEXT[]
+        RedshiftOID.CHAR_ARRAY: (FC_BINARY, array_recv_binary),  # CHAR[]
         # 1014: (FC_BINARY, array_recv_text),  # BPCHAR[]
-        1028: (FC_BINARY, int_array_recv),  # OID[]
-        1033: (FC_BINARY, text_recv),  # ACLITEM
-        1034: (FC_BINARY, array_recv_binary),  # ACLITEM[]
-        VARCHAR_ARRAY: (FC_BINARY, array_recv_binary),  # VARCHAR[]
+        RedshiftOID.OID_ARRAY: (FC_BINARY, int_array_recv),  # OID[]
+        RedshiftOID.ACLITEM: (FC_BINARY, text_recv),  # ACLITEM
+        RedshiftOID.ACLITEM_ARRAY: (FC_BINARY, array_recv_binary),  # ACLITEM[]
+        RedshiftOID.VARCHAR_ARRAY: (FC_BINARY, array_recv_binary),  # VARCHAR[]
         # 1016: (FC_BINARY, array_recv),  # INT8[]
-        REAL_ARRAY: (FC_BINARY, array_recv_binary),  # FLOAT4[]
+        RedshiftOID.REAL_ARRAY: (FC_BINARY, array_recv_binary),  # FLOAT4[]
         # 1022: (FC_BINARY, array_recv),  # FLOAT8[]
-        CHAR: (FC_BINARY, text_recv),  # CHAR type
-        STRING: (FC_BINARY, text_recv),  # VARCHAR type
-        DATE: (FC_BINARY, date_recv_binary),  # date
-        TIME: (FC_BINARY, time_recv_binary),  # time
-        TIMESTAMP: (FC_BINARY, timestamp_recv_integer),  # timestamp
-        TIMESTAMPTZ: (FC_BINARY, timestamptz_recv_integer),  # timestamptz
-        TIMETZ: (FC_BINARY, timetz_recv_binary),  # timetz
-        INTERVAL: (FC_BINARY, interval_recv_integer),
+        RedshiftOID.CHAR: (FC_BINARY, text_recv),  # CHAR type
+        RedshiftOID.BPCHAR: (FC_BINARY, text_recv),  # BPCHAR type
+        RedshiftOID.STRING: (FC_BINARY, text_recv),  # VARCHAR type
+        RedshiftOID.DATE: (FC_BINARY, date_recv_binary),  # date
+        RedshiftOID.TIME: (FC_BINARY, time_recv_binary),  # time
+        RedshiftOID.TIMESTAMP: (FC_BINARY, timestamp_recv_integer),  # timestamp
+        RedshiftOID.TIMESTAMPTZ: (FC_BINARY, timestamptz_recv_integer),  # timestamptz
+        RedshiftOID.TIMETZ: (FC_BINARY, timetz_recv_binary),  # timetz
+        RedshiftOID.INTERVAL: (FC_BINARY, interval_recv_integer),
         # 1231: (FC_TEXT, array_in),  # NUMERIC[]
         # 1263: (FC_BINARY, array_recv),  # cstring[]
-        NUMERIC: (FC_BINARY, numeric_in_binary),  # NUMERIC
+        RedshiftOID.NUMERIC: (FC_BINARY, numeric_in_binary),  # NUMERIC
         # 2275: (FC_BINARY, text_recv),  # cstring
         # 2950: (FC_BINARY, uuid_recv),  # uuid
-        GEOGRAPHY: (FC_BINARY, geographyhex_recv),  # GEOGRAPHY
-        GEOMETRY: (FC_TEXT, text_recv),  # GEOMETRY
-        GEOMETRYHEX: (FC_TEXT, geometryhex_recv),  # GEOMETRYHEX
+        RedshiftOID.GEOGRAPHY: (FC_BINARY, geographyhex_recv),  # GEOGRAPHY
+        RedshiftOID.GEOMETRY: (FC_TEXT, text_recv),  # GEOMETRY
+        RedshiftOID.GEOMETRYHEX: (FC_TEXT, geometryhex_recv),  # GEOMETRYHEX
         # 3802: (FC_TEXT, json_in),  # jsonb
-        SUPER: (FC_TEXT, text_recv),  # SUPER
-        VARBYTE: (FC_TEXT, varbytehex_recv),  # VARBYTE
+        RedshiftOID.SUPER: (FC_TEXT, text_recv),  # SUPER
+        RedshiftOID.VARBYTE: (FC_TEXT, varbytehex_recv),  # VARBYTE
     },
 )
 
@@ -725,30 +654,30 @@ def numeric_out(d: Decimal) -> bytes:
 
 py_types: typing.Dict[typing.Union[type, int], typing.Tuple[int, int, typing.Callable]] = {
     type(None): (-1, FC_BINARY, null_send),  # null
-    bool: (16, FC_BINARY, bool_send),
+    bool: (RedshiftOID.BOOLEAN, FC_BINARY, bool_send),
     # bytearray: (17, FC_BINARY, bytea_send),  # bytea
-    BIGINT: (BIGINT, FC_BINARY, q_pack),  # int8
-    SMALLINT: (SMALLINT, FC_BINARY, h_pack),  # int2
-    INTEGER: (INTEGER, FC_BINARY, i_pack),  # int4
-    PGText: (TEXT, FC_TEXT, text_out),  # text
-    float: (FLOAT, FC_BINARY, d_pack),  # float8
-    PGEnum: (UNKNOWN, FC_TEXT, enum_out),
-    date: (DATE, FC_TEXT, date_out),  # date
-    time: (TIME, FC_TEXT, time_out),  # time
-    TIMESTAMP: (TIMESTAMP, FC_BINARY, timestamp_send_integer),  # timestamp
+    RedshiftOID.BIGINT: (RedshiftOID.BIGINT, FC_BINARY, q_pack),  # int8
+    RedshiftOID.SMALLINT: (RedshiftOID.SMALLINT, FC_BINARY, h_pack),  # int2
+    RedshiftOID.INTEGER: (RedshiftOID.INTEGER, FC_BINARY, i_pack),  # int4
+    PGText: (RedshiftOID.TEXT, FC_TEXT, text_out),  # text
+    float: (RedshiftOID.FLOAT, FC_BINARY, d_pack),  # float8
+    PGEnum: (RedshiftOID.UNKNOWN, FC_TEXT, enum_out),
+    date: (RedshiftOID.DATE, FC_TEXT, date_out),  # date
+    time: (RedshiftOID.TIME, FC_TEXT, time_out),  # time
+    RedshiftOID.TIMESTAMP: (RedshiftOID.TIMESTAMP, FC_BINARY, timestamp_send_integer),  # timestamp
     # timestamp w/ tz
-    PGVarchar: (STRING, FC_TEXT, text_out),  # varchar
-    TIMESTAMPTZ: (TIMESTAMPTZ, FC_BINARY, timestamptz_send_integer),
-    PGJson: (JSON, FC_TEXT, text_out),
+    PGVarchar: (RedshiftOID.STRING, FC_TEXT, text_out),  # varchar
+    RedshiftOID.TIMESTAMPTZ: (RedshiftOID.TIMESTAMPTZ, FC_BINARY, timestamptz_send_integer),
+    PGJson: (RedshiftOID.JSON, FC_TEXT, text_out),
     # PGJsonb: (3802, FC_TEXT, text_out),
-    Timedelta: (INTERVAL, FC_BINARY, interval_send_integer),  # interval
-    Interval: (1186, FC_BINARY, interval_send_integer),
-    Decimal: (NUMERIC, FC_TEXT, numeric_out),  # Decimal
+    Timedelta: (RedshiftOID.INTERVAL, FC_BINARY, interval_send_integer),  # interval
+    Interval: (RedshiftOID.INTERVAL, FC_BINARY, interval_send_integer),
+    Decimal: (RedshiftOID.NUMERIC, FC_TEXT, numeric_out),  # Decimal
     PGTsvector: (3614, FC_TEXT, text_out),
     # UUID: (2950, FC_BINARY, uuid_send),  # uuid
-    bytes: (UNKNOWN, FC_TEXT, varbyte_send),  # varbyte
-    str: (UNKNOWN, FC_TEXT, text_out),  # unknown
-    enum.Enum: (UNKNOWN, FC_TEXT, enum_out),
+    bytes: (RedshiftOID.UNKNOWN, FC_TEXT, varbyte_send),  # varbyte
+    str: (RedshiftOID.UNKNOWN, FC_TEXT, text_out),  # unknown
+    enum.Enum: (RedshiftOID.UNKNOWN, FC_TEXT, enum_out),
     # IPv4Address: (869, FC_TEXT, inet_out),  # inet
     # IPv6Address: (869, FC_TEXT, inet_out),  # inet
     # IPv4Network: (869, FC_TEXT, inet_out),  # inet

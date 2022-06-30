@@ -90,24 +90,7 @@ from redshift_connector.utils import (
     varbytehex_recv,
     walk_array,
 )
-from redshift_connector.utils.type_utils import (
-    BIGINT,
-    DATE,
-    GEOGRAPHY,
-    INTEGER,
-    INTEGER_ARRAY,
-    NUMERIC,
-    REAL_ARRAY,
-    SMALLINT,
-    SMALLINT_ARRAY,
-    TEXT_ARRAY,
-    TIME,
-    TIMESTAMP,
-    TIMESTAMPTZ,
-    TIMETZ,
-    VARBYTE,
-    VARCHAR_ARRAY,
-)
+from redshift_connector.utils.oids import RedshiftOID
 
 if TYPE_CHECKING:
     from ssl import SSLSocket
@@ -741,42 +724,42 @@ class Connection:
 
     def _enable_protocol_based_conversion_funcs(self: "Connection"):
         if self._client_protocol_version >= ClientProtocolVersion.BINARY.value:
-            self.pg_types[NUMERIC] = (FC_BINARY, numeric_in_binary)
-            self.pg_types[DATE] = (FC_BINARY, date_recv_binary)
-            self.pg_types[GEOGRAPHY] = (FC_BINARY, geographyhex_recv)  # GEOGRAPHY
-            self.pg_types[TIME] = (FC_BINARY, time_recv_binary)
-            self.pg_types[TIMETZ] = (FC_BINARY, timetz_recv_binary)
-            self.pg_types[1002] = (FC_BINARY, array_recv_binary)  # CHAR[]
-            self.pg_types[SMALLINT_ARRAY] = (FC_BINARY, array_recv_binary)  # INT2[]
-            self.pg_types[INTEGER_ARRAY] = (FC_BINARY, array_recv_binary)  # INT4[]
-            self.pg_types[TEXT_ARRAY] = (FC_BINARY, array_recv_binary)  # TEXT[]
-            self.pg_types[VARCHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
-            self.pg_types[REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
-            self.pg_types[1028] = (FC_BINARY, array_recv_binary)  # OID[]
-            self.pg_types[1034] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
-            self.pg_types[VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
+            self.pg_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_in_binary)
+            self.pg_types[RedshiftOID.DATE] = (FC_BINARY, date_recv_binary)
+            self.pg_types[RedshiftOID.GEOGRAPHY] = (FC_BINARY, geographyhex_recv)  # GEOGRAPHY
+            self.pg_types[RedshiftOID.TIME] = (FC_BINARY, time_recv_binary)
+            self.pg_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
+            self.pg_types[RedshiftOID.CHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # CHAR[]
+            self.pg_types[RedshiftOID.SMALLINT_ARRAY] = (FC_BINARY, array_recv_binary)  # INT2[]
+            self.pg_types[RedshiftOID.INTEGER_ARRAY] = (FC_BINARY, array_recv_binary)  # INT4[]
+            self.pg_types[RedshiftOID.TEXT_ARRAY] = (FC_BINARY, array_recv_binary)  # TEXT[]
+            self.pg_types[RedshiftOID.VARCHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
+            self.pg_types[RedshiftOID.REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
+            self.pg_types[RedshiftOID.OID_ARRAY] = (FC_BINARY, array_recv_binary)  # OID[]
+            self.pg_types[RedshiftOID.ACLITEM_ARRAY] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
+            self.pg_types[RedshiftOID.VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
 
             if self.numeric_to_float:
-                self.pg_types[NUMERIC] = (FC_BINARY, numeric_to_float_binary)
+                self.pg_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_to_float_binary)
 
         else:  # text protocol
-            self.pg_types[NUMERIC] = (FC_TEXT, numeric_in)
-            self.pg_types[TIME] = (FC_TEXT, time_in)
-            self.pg_types[DATE] = (FC_TEXT, date_in)
-            self.pg_types[GEOGRAPHY] = (FC_TEXT, text_recv)  # GEOGRAPHY
-            self.pg_types[TIMETZ] = (FC_BINARY, timetz_recv_binary)
-            self.pg_types[1002] = (FC_TEXT, array_recv_text)  # CHAR[]
-            self.pg_types[SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]
-            self.pg_types[INTEGER_ARRAY] = (FC_TEXT, int_array_recv)  # INT4[]
-            self.pg_types[TEXT_ARRAY] = (FC_TEXT, array_recv_text)  # TEXT[]
-            self.pg_types[VARCHAR_ARRAY] = (FC_TEXT, array_recv_text)  # VARCHAR[]
-            self.pg_types[REAL_ARRAY] = (FC_TEXT, float_array_recv)  # FLOAT4[]
-            self.pg_types[1028] = (FC_TEXT, int_array_recv)  # OID[]
-            self.pg_types[1034] = (FC_TEXT, array_recv_text)  # ACLITEM[]
-            self.pg_types[VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
+            self.pg_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_in)
+            self.pg_types[RedshiftOID.TIME] = (FC_TEXT, time_in)
+            self.pg_types[RedshiftOID.DATE] = (FC_TEXT, date_in)
+            self.pg_types[RedshiftOID.GEOGRAPHY] = (FC_TEXT, text_recv)  # GEOGRAPHY
+            self.pg_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
+            self.pg_types[RedshiftOID.CHAR_ARRAY] = (FC_TEXT, array_recv_text)  # CHAR[]
+            self.pg_types[RedshiftOID.SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]
+            self.pg_types[RedshiftOID.INTEGER_ARRAY] = (FC_TEXT, int_array_recv)  # INT4[]
+            self.pg_types[RedshiftOID.TEXT_ARRAY] = (FC_TEXT, array_recv_text)  # TEXT[]
+            self.pg_types[RedshiftOID.VARCHAR_ARRAY] = (FC_TEXT, array_recv_text)  # VARCHAR[]
+            self.pg_types[RedshiftOID.REAL_ARRAY] = (FC_TEXT, float_array_recv)  # FLOAT4[]
+            self.pg_types[RedshiftOID.OID_ARRAY] = (FC_TEXT, int_array_recv)  # OID[]
+            self.pg_types[RedshiftOID.ACLITEM_ARRAY] = (FC_TEXT, array_recv_text)  # ACLITEM[]
+            self.pg_types[RedshiftOID.VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
 
             if self.numeric_to_float:
-                self.pg_types[NUMERIC] = (FC_TEXT, numeric_to_float_in)
+                self.pg_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_to_float_in)
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
@@ -1458,17 +1441,17 @@ class Connection:
 
     def inspect_datetime(self: "Connection", value: Datetime):
         if value.tzinfo is None:
-            return self.py_types[TIMESTAMP]  # timestamp
+            return self.py_types[RedshiftOID.TIMESTAMP]  # timestamp
         else:
-            return self.py_types[TIMESTAMPTZ]  # send as timestamptz
+            return self.py_types[RedshiftOID.TIMESTAMPTZ]  # send as timestamptz
 
     def inspect_int(self: "Connection", value: int):
         if min_int2 < value < max_int2:
-            return self.py_types[SMALLINT]
+            return self.py_types[RedshiftOID.SMALLINT]
         if min_int4 < value < max_int4:
-            return self.py_types[INTEGER]
+            return self.py_types[RedshiftOID.INTEGER]
         if min_int8 < value < max_int8:
-            return self.py_types[BIGINT]
+            return self.py_types[RedshiftOID.BIGINT]
         return self.py_types[Decimal]
 
     def make_params(self: "Connection", values):
