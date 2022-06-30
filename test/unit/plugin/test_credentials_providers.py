@@ -52,7 +52,7 @@ def test_ssl_and_iam_invalid_should_fail(idp_arg):
     ):
         redshift_connector.connect(**idp_arg)
 
-    idp_arg["iam"] = False
+    idp_arg["ssl"] = True
     idp_arg["credentials_provider"] = "OktacredentialSProvider"
     with pytest.raises(
         redshift_connector.InterfaceError,

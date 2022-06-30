@@ -28,7 +28,12 @@ class BasePytestCommand(TestCommand):
         src_dir = os.getenv("SRC_DIR", "")
         if src_dir:
             src_dir += "/"
-        args = [self.test_dir, "--cov=redshift_connector", "--cov-report=xml", "--cov-report=html"]
+        args = [
+            self.test_dir,
+            "--cov=redshift_connector",
+            "--cov-report=xml",
+            "--cov-report=html",
+        ]
 
         errno = pytest.main(args)
         sys.exit(errno)
