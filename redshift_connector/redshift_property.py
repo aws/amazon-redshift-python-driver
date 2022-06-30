@@ -110,14 +110,13 @@ class RedshiftProperty:
             # The user name.
             self.user_name: str = ""
             self.web_identity_token: typing.Optional[str] = None
-            # The AWS Account Id
-            self.account_id: typing.Optional[str] = None
             # The name of the Redshift Native Auth Provider
             self.provider_name: typing.Optional[str] = None
             self.scope: str = ""
             self.numeric_to_float: bool = False
-            # The work group used for Amazon serverless
-            self.work_group: typing.Optional[str] = None
+            self.is_serverless: bool = False
+            self.serverless_acct_id: typing.Optional[str] = None
+            self.serverless_work_group: typing.Optional[str] = None
 
         else:
             for k, v in kwargs.items():
@@ -126,6 +125,7 @@ class RedshiftProperty:
     def __str__(self: "RedshiftProperty") -> str:
         rp = self.__dict__
         rp["is_serverless_host"] = self.is_serverless_host
+        rp["_is_serverless"] = self._is_serverless
         return str(rp)
 
     def put_all(self, other):
@@ -158,7 +158,14 @@ class RedshiftProperty:
             re.fullmatch(pattern=SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, string=str(self.host))
         )
 
-    def set_account_id_from_host(self: "RedshiftProperty") -> None:
+    @property
+    def _is_serverless(self):
+        """
+        Returns True if host patches serverless pattern or if is_serverless flag set by user
+        """
+        return self.is_serverless_host or self.is_serverless
+
+    def set_serverless_acct_id(self: "RedshiftProperty") -> None:
         """
         Sets the AWS account id as parsed from the Redshift serverless endpoint.
         """
@@ -168,7 +175,7 @@ class RedshiftProperty:
             m2 = re.fullmatch(pattern=serverless_pattern, string=self.host)
 
             if m2:
-                self.put(key="account_id", value=m2.group(typing.cast(int, m2.lastindex) - 1))
+                self.put(key="serverless_acct_id", value=m2.group(typing.cast(int, m2.lastindex) - 1))
                 break
 
     def set_region_from_host(self: "RedshiftProperty") -> None:
@@ -184,7 +191,7 @@ class RedshiftProperty:
                 self.put(key="region", value=m2.group(typing.cast(int, m2.lastindex)))
                 break
 
-    def set_work_group_from_host(self: "RedshiftProperty") -> None:
+    def set_serverless_work_group_from_host(self: "RedshiftProperty") -> None:
         """
         Sets the work_group as parsed from the Redshift serverless endpoint.
         """
@@ -193,4 +200,4 @@ class RedshiftProperty:
         m2 = re.fullmatch(pattern=SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, string=self.host)
 
         if m2:
-            self.put(key="work_group", value=m2.group(1))
+            self.put(key="serverless_work_group", value=m2.group(1))

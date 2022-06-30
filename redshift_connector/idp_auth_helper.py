@@ -68,7 +68,7 @@ class IdpAuthHelper:
             _logger.debug("boto3 version: {}".format(Version(pkg_resources.get_distribution("boto3").version)))
             _logger.debug("botocore version: {}".format(Version(pkg_resources.get_distribution("botocore").version)))
 
-            if info.cluster_identifier is None and not info.is_serverless_host:
+            if info.cluster_identifier is None and not info._is_serverless:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
                 )

@@ -25,11 +25,11 @@ def test_is_serverless_host(host, exp_is_serverless):
         ("012345678901.ap-northeast-3.redshift-serverless.amazonaws.com", "012345678901"),
     ],
 )
-def test_set_account_id_from_host(host, exp_account_id):
+def test_set_serverless_acct_id_from_host(host, exp_account_id):
     info: RedshiftProperty = RedshiftProperty()
     info.host = host
-    info.set_account_id_from_host()
-    assert info.account_id == exp_account_id
+    info.set_serverless_acct_id()
+    assert info.serverless_acct_id == exp_account_id
 
 
 @pytest.mark.parametrize(
@@ -55,8 +55,8 @@ def test_set_region_from_host(host, exp_region):
         ("testwg2.012345678901.ap-northeast-3.redshift-serverless.amazonaws.com", "testwg2"),
     ],
 )
-def test_set_work_group_from_host(host, exp_work_group):
+def test_set_serverless_work_group_from_host(host, exp_work_group):
     info: RedshiftProperty = RedshiftProperty()
     info.host = host
-    info.set_work_group_from_host()
-    assert info.work_group == exp_work_group
+    info.set_serverless_work_group_from_host()
+    assert info.serverless_work_group == exp_work_group

@@ -2,7 +2,9 @@ import datetime
 import logging
 import typing
 
+import pkg_resources
 from dateutil.tz import tzutc
+from packaging.version import Version
 
 from redshift_connector.auth.aws_credentials_provider import AWSCredentialsProvider
 from redshift_connector.credentials_holder import (
@@ -35,21 +37,24 @@ class IamHelper(IdpAuthHelper):
         # set properties present for both IAM, Native authentication
         IamHelper.set_auth_properties(info)
 
-        if info.is_serverless_host and info.iam:
-            raise ProgrammingError("This feature is not yet available")
-            # if Version(pkg_resources.get_distribution("boto3").version) <= Version("1.20.22"):
-            #     raise pkg_resources.VersionConflict(
-            #         "boto3 >= XXX required for authentication with Amazon Redshift serverless. "
-            #         "Please upgrade the installed version of boto3 to use this functionality."
-            #     )
+        if info._is_serverless and info.iam:
+            if Version(pkg_resources.get_distribution("boto3").version) < Version("1.24.5"):
+                raise pkg_resources.VersionConflict(
+                    "boto3 >= 1.24.5 required for authentication with Amazon Redshift serverless. "
+                    "Please upgrade the installed version of boto3 to use this functionality."
+                )
 
         if info.is_serverless_host:
-            info.set_account_id_from_host()
-            info.set_region_from_host()
-            info.set_work_group_from_host()
+            # consider overridden connection parameters
+            if not info.region:
+                info.set_region_from_host()
+            if not info.serverless_acct_id:
+                info.set_serverless_acct_id()
+            if not info.serverless_work_group:
+                info.set_serverless_work_group_from_host()
 
         if info.iam is True:
-            if info.cluster_identifier is None and not info.is_serverless_host:
+            if info.cluster_identifier is None and not info._is_serverless:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
                 )
@@ -136,8 +141,10 @@ class IamHelper(IdpAuthHelper):
                     typing.cast(str, info.db_user if info.db_user else info.user_name),
                     info.db_name,
                     db_groups,
-                    typing.cast(str, info.account_id if info.is_serverless_host else info.cluster_identifier),
-                    typing.cast(str, info.work_group if info.is_serverless_host and info.work_group else ""),
+                    typing.cast(str, info.serverless_acct_id if info._is_serverless else info.cluster_identifier),
+                    typing.cast(
+                        str, info.serverless_work_group if info._is_serverless and info.serverless_work_group else ""
+                    ),
                     str(info.auto_create),
                     str(info.duration),
                     # v2 api parameters
@@ -171,7 +178,7 @@ class IamHelper(IdpAuthHelper):
             ] = cred_provider.get_credentials()  # type: ignore
             session_credentials: typing.Dict[str, str] = credentials_holder.get_session_credentials()
 
-            redshift_client: str = "redshift-serverless" if info.is_serverless_host else "redshift"
+            redshift_client: str = "redshift-serverless" if info._is_serverless else "redshift"
             _logger.debug("boto3.client(service_name={}) being used for IAM auth".format(redshift_client))
 
             for opt_key, opt_val in (("region_name", info.region), ("endpoint_url", info.endpoint_url)):
@@ -190,7 +197,7 @@ class IamHelper(IdpAuthHelper):
             if info.host is None or info.host == "" or info.port is None or info.port == "":
                 response: dict
 
-                if info.is_serverless_host:
+                if info._is_serverless:
                     response = client.describe_configuration()
                     info.put("host", response["endpoint"]["address"])
                     info.put("port", response["endpoint"]["port"])
@@ -218,10 +225,10 @@ class IamHelper(IdpAuthHelper):
                 # retries will occur by default ref:
                 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#legacy-retry-mode
                 _logger.debug("Credentials expired or not found...requesting from boto")
-                if info.is_serverless_host:
+                if info._is_serverless:
                     get_cred_args: typing.Dict[str, str] = {"dbName": info.db_name}
-                    if info.work_group:
-                        get_cred_args["workgroupName"] = info.work_group
+                    if info.serverless_work_group:
+                        get_cred_args["workgroupName"] = info.serverless_work_group
 
                     cred = typing.cast(
                         typing.Dict[str, typing.Union[str, datetime.datetime]],
@@ -247,7 +254,7 @@ class IamHelper(IdpAuthHelper):
                         typing.Dict[str, typing.Union[str, datetime.datetime]], cred
                     )
             # redshift-serverless api json response payload slightly differs
-            if info.is_serverless_host:
+            if info._is_serverless:
                 info.put("user_name", typing.cast(str, cred["dbUser"]))
                 info.put("password", typing.cast(str, cred["dbPassword"]))
             else:

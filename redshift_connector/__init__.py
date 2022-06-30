@@ -180,6 +180,9 @@ def connect(
     provider_name: typing.Optional[str] = None,
     scope: typing.Optional[str] = None,
     numeric_to_float: typing.Optional[bool] = False,
+    is_serverless: typing.Optional[bool] = False,
+    serverless_acct_id: typing.Optional[str] = None,
+    serverless_work_group: typing.Optional[str] = None,
 ) -> Connection:
     """
     Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
@@ -275,6 +278,12 @@ def connect(
         Scope for BrowserAzureOauth2CredentialsProvider authentication.
     numeric_to_float: Optional[str]
         Specifies if NUMERIC datatype values will be converted from ``decimal.Decimal`` to ``float``. By default NUMERIC values are received as ``decimal.Decimal``.
+    is_serverless: Optional[bool]
+        Redshift end-point is serverless or provisional. Default value false.
+    serverless_acct_id: Optional[str]
+        The account ID of the serverless. Default value None
+    serverless_work_group: Optional[str]
+        The name of work group for serverless end point. Default value None.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -304,6 +313,7 @@ def connect(
     info.put("idp_host", idp_host)
     info.put("idp_response_timeout", idp_response_timeout)
     info.put("idp_tenant", idp_tenant)
+    info.put("is_serverless", is_serverless)
     info.put("listen_port", listen_port)
     info.put("login_url", login_url)
     info.put("max_prepared_statements", max_prepared_statements)
@@ -321,6 +331,8 @@ def connect(
     info.put("role_session_name", role_session_name)
     info.put("scope", scope)
     info.put("secret_access_key", secret_access_key)
+    info.put("serverless_acct_id", serverless_acct_id)
+    info.put("serverless_work_group", serverless_work_group)
     info.put("session_token", session_token)
     info.put("source_address", source_address)
     info.put("ssl", ssl)

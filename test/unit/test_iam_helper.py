@@ -364,9 +364,9 @@ def test_set_iam_credentials_for_serverless_calls_get_credentials(
     for k, v in serverless_iam_db_kwargs.items():
         rp.put(k, v)
 
-    rp.set_account_id_from_host()
+    rp.set_serverless_acct_id()
     rp.set_region_from_host()
-    rp.set_work_group_from_host()
+    rp.set_serverless_work_group_from_host()
 
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
@@ -378,8 +378,10 @@ def test_set_iam_credentials_for_serverless_calls_get_credentials(
     IamHelper.set_cluster_credentials(mock_cred_provider, rp)
 
     # ensure describe_configuration is called
-    if rp.work_group:
-        mock_boto_client.assert_has_calls([call().get_credentials(dbName=rp.db_name, workgroupName=rp.work_group)])
+    if rp.serverless_work_group:
+        mock_boto_client.assert_has_calls(
+            [call().get_credentials(dbName=rp.db_name, workgroupName=rp.serverless_work_group)]
+        )
     else:
         mock_boto_client.assert_has_calls([call().get_credentials(dbName=rp.db_name)])
 
@@ -389,6 +391,48 @@ def test_set_iam_credentials_for_serverless_calls_get_credentials(
     # ensure RedshiftProperty.put method was called
     assert "user_name" in [c[0][0] for c in spy.call_args_list]
     assert "password" in [c[0][0] for c in spy.call_args_list]
+
+
+def test_serverless_properties_used_when_is_serverless_true(mocker):
+    rp: RedshiftProperty = RedshiftProperty()
+    rp.host = "test-endpoint-xxxx.123456789123.us-east-2.redshift-serverless.amazonaws.com"
+    rp.is_serverless = True
+    rp.serverless_work_group = "something"
+    rp.serverless_acct_id = "111111111111"
+
+    mocker.patch(
+        "redshift_connector.native_plugin_helper.NativeAuthPluginHelper.get_native_auth_plugin_credentials",
+        return_value=None,
+    )
+
+    result = IamHelper.set_iam_properties(rp)
+
+    assert result.is_serverless == True
+    assert result.serverless_work_group == rp.serverless_work_group
+    assert result.serverless_acct_id == rp.serverless_acct_id
+
+
+def test_internal_is_serverless_prop_true_for_nlb_host():
+    rp: RedshiftProperty = RedshiftProperty()
+    rp.is_serverless = True
+
+    assert rp._is_serverless is True
+
+
+@pytest.mark.parametrize(
+    "serverless_host",
+    (
+        "testwg1.012345678901.us-east-2.redshift-serverless.amazonaws.com",
+        "012345678901.us-east-2.redshift-serverless.amazonaws.com",
+    ),
+)
+def test_internal_is_serverless_prop_true_for_serverless_host(serverless_host):
+    rp: RedshiftProperty = RedshiftProperty()
+    rp.host = serverless_host
+    rp.serverless_work_group = "something"
+    rp.serverless_acct_id = "111111111111"
+
+    assert rp._is_serverless is True
 
 
 def test_dynamically_loading_credential_holder(mocker):
@@ -812,7 +856,7 @@ def test_set_iam_properties_calls_set_auth_props(mocker):
     spy = mocker.spy(IdpAuthHelper, "set_auth_properties")
     mock_rp: MagicMock = MagicMock()
     mock_rp.credentials_provider = None
-    mock_rp.is_serverless_host = False
+    mock_rp._is_serverless = False
     IamHelper.set_iam_properties(mock_rp)
 
     assert spy.called is True
