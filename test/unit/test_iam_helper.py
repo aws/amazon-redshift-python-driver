@@ -670,33 +670,107 @@ def test_set_cluster_credentials_refreshes_stale_credentials(
     )
 
 
+def test_get_authentication_type_for_iam_with_profile():
+    provider = AWSCredentialsProvider()
+    provider.profile = "test"
+    assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.PROFILE
+
+
+def test_get_authentication_type_for_iam_with_key_session():
+    provider = AWSCredentialsProvider()
+    provider.access_key_id = "test_key"
+    provider.session_token = "test_token"
+    provider.secret_access_key = "test_secret_key"
+    assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION
+
+
+def test_get_authentication_type_for_iam_with_key():
+    provider = AWSCredentialsProvider()
+    provider.access_key_id = "test_key"
+    provider.secret_access_key = "test_secret_key"
+    assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.IAM_KEYS
+
+
+def test_get_authentication_type_for_iam_with_plugin():
+    provider = BrowserSamlCredentialsProvider()
+    assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.PLUGIN
+
+
 @pytest.mark.parametrize(
-    "conn_params, exp_result",
+    "conn_params, provider, exp_result",
     (
-        ({"credentials_provider": "BrowserSamlCredentialsProvider"}, IamHelper.GetClusterCredentialsAPIType.IAM_V1),
-        ({"group_federation": True}, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
-        ({"is_serverless": True}, IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1),
-        ({"is_serverless": True, "group_federation": True}, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
+        (
+            {"credentials_provider": "BrowserSamlCredentialsProvider"},
+            IamHelper.IAMAuthenticationType.PLUGIN,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V1,
+        ),
+        (
+            {"group_federation": True},
+            IamHelper.IAMAuthenticationType.PROFILE,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
+        ),
+        (
+            {"is_serverless": True},
+            IamHelper.IAMAuthenticationType.PROFILE,
+            IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1,
+        ),
+        (
+            {"is_serverless": True, "group_federation": True},
+            IamHelper.IAMAuthenticationType.IAM_KEYS,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
+        ),
+        (
+            {"group_federation": True},
+            IamHelper.IAMAuthenticationType.IAM_KEYS,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
+        ),
+        (
+            {"is_serverless": True},
+            IamHelper.IAMAuthenticationType.IAM_KEYS,
+            IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1,
+        ),
+        (
+            {"is_serverless": True, "group_federation": True},
+            IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
+        ),
+        (
+            {"group_federation": True},
+            IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
+        ),
+        (
+            {"is_serverless": True},
+            IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION,
+            IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1,
+        ),
+        (
+            {"is_serverless": True, "group_federation": True},
+            IamHelper.IAMAuthenticationType.PROFILE,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
+        ),
         (
             {"group_federation": True, "credentials_provider": "BrowserSamlCredentialsProvider"},
+            IamHelper.IAMAuthenticationType.PLUGIN,
             "Authentication with plugin is not supported for group federation",
         ),
         (
             {"is_serverless": True, "group_federation": True, "credentials_provider": "BrowserSamlCredentialsProvider"},
+            IamHelper.IAMAuthenticationType.PLUGIN,
             "Authentication with plugin is not supported for group federation",
         ),
     ),
 )
-def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, exp_result):
+def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, provider, exp_result):
     info = RedshiftProperty()
     for param in conn_params.items():
         info.put(param[0], param[1])
 
     if isinstance(exp_result, IamHelper.GetClusterCredentialsAPIType):
-        assert IamHelper.get_cluster_credentials_api_type(info) == exp_result
+        assert IamHelper.get_cluster_credentials_api_type(info, provider) == exp_result
     else:
         with pytest.raises(InterfaceError, match=exp_result):
-            IamHelper.get_cluster_credentials_api_type(info)
+            IamHelper.get_cluster_credentials_api_type(info, provider)
 
 
 @pytest.mark.parametrize(

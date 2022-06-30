@@ -26,29 +26,59 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class IamHelper(IdpAuthHelper):
+    class IAMAuthenticationType(enum.Enum):
+        """
+        Defines authentication types supported by redshift-connector
+        """
+
+        NONE = enum.auto()
+        PROFILE = enum.auto()
+        IAM_KEYS_WITH_SESSION = enum.auto()
+        IAM_KEYS = enum.auto()
+        PLUGIN = enum.auto()
+
     class GetClusterCredentialsAPIType(enum.Enum):
+        """
+        Defines supported Python SDK methods used for Redshift credential retrieval
+        """
+
         SERVERLESS_V1 = "get_credentials()"
         IAM_V1 = "get_cluster_credentials()"
         IAM_V2 = "get_cluster_credentials_with_iam()"
 
         @staticmethod
-        def can_support_v2(info: RedshiftProperty):
-            return Version(pkg_resources.get_distribution("boto3").version) >= Version("1.24.5")
+        def can_support_v2(provider_type: "IamHelper.IAMAuthenticationType") -> bool:
+            """
+            Determines if user provided connection options and boto3 version support group federation.
+            """
+            return (
+                provider_type
+                in (
+                    IamHelper.IAMAuthenticationType.PROFILE,
+                    IamHelper.IAMAuthenticationType.IAM_KEYS,
+                    IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION,
+                )
+            ) and Version(pkg_resources.get_distribution("boto3").version) >= Version("1.24.5")
 
     credentials_cache: typing.Dict[str, dict] = {}
 
     @staticmethod
-    def get_cluster_credentials_api_type(info: RedshiftProperty):
+    def get_cluster_credentials_api_type(
+        info: RedshiftProperty, provider_type: "IamHelper.IAMAuthenticationType"
+    ) -> GetClusterCredentialsAPIType:
+        """
+        Returns an enum representing the Python SDK method to use for getting temporary IAM credentials.
+        """
         if not info._is_serverless:
             if not info.group_federation:
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V1
-            elif (not info.credentials_provider) and IamHelper.GetClusterCredentialsAPIType.can_support_v2(info):
+            elif IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type):
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V2
             else:
                 raise InterfaceError("Authentication with plugin is not supported for group federation")
         elif not info.group_federation:
             return IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1
-        elif (not info.credentials_provider) and IamHelper.GetClusterCredentialsAPIType.can_support_v2(info):
+        elif IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type):
             return IamHelper.GetClusterCredentialsAPIType.IAM_V2
         else:
             raise InterfaceError("Authentication with plugin is not supported for group federation")
@@ -59,6 +89,7 @@ class IamHelper(IdpAuthHelper):
         Helper function to handle connection properties and ensure required parameters are specified.
         Parameters
         """
+        provider_type: IamHelper.IAMAuthenticationType = IamHelper.IAMAuthenticationType.NONE
         # set properties present for both IAM, Native authentication
         IamHelper.set_auth_properties(info)
 
@@ -187,6 +218,26 @@ class IamHelper(IdpAuthHelper):
         )
 
     @staticmethod
+    def get_authentication_type(
+        provider: typing.Union[IPlugin, AWSCredentialsProvider]
+    ) -> "IamHelper.IAMAuthenticationType":
+        """
+        Returns an enum representing the type of authentication the user is requesting based on connection parameters.
+        """
+        provider_type: IamHelper.IAMAuthenticationType = IamHelper.IAMAuthenticationType.NONE
+        if isinstance(provider, IPlugin):
+            provider_type = IamHelper.IAMAuthenticationType.PLUGIN
+        elif isinstance(provider, AWSCredentialsProvider):
+            if provider.profile is not None:
+                provider_type = IamHelper.IAMAuthenticationType.PROFILE
+            elif provider.session_token is not None:
+                provider_type = IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION
+            else:
+                provider_type = IamHelper.IAMAuthenticationType.IAM_KEYS
+
+        return provider_type
+
+    @staticmethod
     def set_cluster_credentials(
         cred_provider: typing.Union[IPlugin, AWSCredentialsProvider], info: RedshiftProperty
     ) -> None:
@@ -250,8 +301,9 @@ class IamHelper(IdpAuthHelper):
                 # retries will occur by default ref:
                 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#legacy-retry-mode
                 _logger.debug("Credentials expired or not found...requesting from boto")
+                provider_type: IamHelper.IAMAuthenticationType = IamHelper.get_authentication_type(cred_provider)
                 get_creds_api_version: IamHelper.GetClusterCredentialsAPIType = (
-                    IamHelper.get_cluster_credentials_api_type(info)
+                    IamHelper.get_cluster_credentials_api_type(info, provider_type)
                 )
                 _logger.debug("boto3 get_credentials api version: {} will be used".format(get_creds_api_version.value))
 
