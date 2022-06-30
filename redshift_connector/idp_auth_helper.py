@@ -68,6 +68,32 @@ class IdpAuthHelper:
             _logger.debug("boto3 version: {}".format(Version(pkg_resources.get_distribution("boto3").version)))
             _logger.debug("botocore version: {}".format(Version(pkg_resources.get_distribution("botocore").version)))
 
+            # Check for IAM keys and AuthProfile first
+            if info.auth_profile is not None:
+                if Version(pkg_resources.get_distribution("boto3").version) < Version("1.17.111"):
+                    raise pkg_resources.VersionConflict(
+                        "boto3 >= 1.17.111 required for authentication via Amazon Redshift authentication profile. "
+                        "Please upgrade the installed version of boto3 to use this functionality."
+                    )
+
+                if not all((info.access_key_id, info.secret_access_key, info.region)):
+                    raise InterfaceError(
+                        "Invalid connection property setting. access_key_id, secret_access_key, and region are required "
+                        "for authentication via Redshift auth_profile"
+                    )
+                else:
+                    # info.put("region", info.region)
+                    # info.put("endpoint_url", info.endpoint_url)
+
+                    resp = IdpAuthHelper.read_auth_profile(
+                        auth_profile=typing.cast(str, info.auth_profile),
+                        iam_access_key_id=typing.cast(str, info.access_key_id),
+                        iam_secret_key=typing.cast(str, info.secret_access_key),
+                        iam_session_token=info.session_token,
+                        info=info,
+                    )
+                    info.put_all(resp)
+
             if info.cluster_identifier is None and not info._is_serverless:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
@@ -124,32 +150,6 @@ class IdpAuthHelper:
         if info.db_groups and info.force_lowercase:
             info.put("db_groups", [group.lower() for group in info.db_groups])
 
-        # Check for IAM keys and AuthProfile first
-        if info.auth_profile is not None:
-            if Version(pkg_resources.get_distribution("boto3").version) < Version("1.17.111"):
-                raise pkg_resources.VersionConflict(
-                    "boto3 >= 1.17.111 required for authentication via Amazon Redshift authentication profile. "
-                    "Please upgrade the installed version of boto3 to use this functionality."
-                )
-
-            if not all((info.access_key_id, info.secret_access_key, info.region)):
-                raise InterfaceError(
-                    "Invalid connection property setting. access_key_id, secret_access_key, and region are required "
-                    "for authentication via Redshift auth_profile"
-                )
-            else:
-                # info.put("region", info.region)
-                # info.put("endpoint_url", info.endpoint_url)
-
-                resp = IdpAuthHelper.read_auth_profile(
-                    auth_profile=typing.cast(str, info.auth_profile),
-                    iam_access_key_id=typing.cast(str, info.access_key_id),
-                    iam_secret_key=typing.cast(str, info.secret_access_key),
-                    iam_session_token=info.session_token,
-                    info=info,
-                )
-                info.put_all(resp)
-
     @staticmethod
     def read_auth_profile(
         auth_profile: str,
@@ -185,8 +185,8 @@ class IdpAuthHelper:
             # 2nd phase - request Amazon Redshift authentication profiles and record contents for retrieving
             # temporary credentials for the Amazon Redshift cluster specified by end user
             response = client.describe_authentication_profiles(AuthenticationProfileName=auth_profile)
-        except ClientError:
-            raise InterfaceError("Unable to retrieve contents of Redshift authentication profile from server")
+        except ClientError as e:
+            raise InterfaceError(e)
 
         _logger.debug("Received {} authentication profiles".format(len(response["AuthenticationProfiles"])))
         # the first matching authentication profile will be used

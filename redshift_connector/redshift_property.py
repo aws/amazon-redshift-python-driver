@@ -136,6 +136,8 @@ class RedshiftProperty:
         from copy import deepcopy
 
         for k, v in other.__dict__.items():
+            if k in ("is_serverless_host", "_is_serverless"):
+                continue
             setattr(self, k, deepcopy(v))
 
     def put(self: "RedshiftProperty", key: str, value: typing.Any):

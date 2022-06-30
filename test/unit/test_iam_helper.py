@@ -897,9 +897,7 @@ def test_read_auth_profile_raises_exception_if_profile_dne(mocker):
     )
     mocker.patch("boto3.client", return_value=mock_redshift_client)
 
-    with pytest.raises(
-        InterfaceError, match="Unable to retrieve contents of Redshift authentication profile from server"
-    ):
+    with pytest.raises(InterfaceError):
         IamHelper.read_auth_profile(**req_params)
 
 
