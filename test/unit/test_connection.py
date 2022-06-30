@@ -22,8 +22,8 @@ from redshift_connector.config import (
     min_int4,
     min_int8,
 )
-from redshift_connector.utils.type_utils import pg_types as PG_TYPES
 from redshift_connector.utils.type_utils import py_types as PY_TYPES
+from redshift_connector.utils.type_utils import redshift_types as REDSHIFT_TYPES
 
 test_error_responses_data: typing.List[typing.Tuple[bytes, typing.Dict, typing.Type[Error]]] = [
     (
@@ -194,7 +194,7 @@ test_row_description_extended_metadata = [
                 "autoincrement": 0,
                 "read_only": 0,
                 "searchable": 1,
-                "pg8000_fc": 1,
+                "redshift_connector_fc": 1,
             }
         ],
     ),
@@ -207,7 +207,7 @@ def test_handle_row_description_extended_metadata(_input, protocol):
     data, exp_result = _input
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = protocol
-    mock_connection.pg_types = dict(PG_TYPES)
+    mock_connection.redshift_types = dict(REDSHIFT_TYPES)
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 
@@ -231,7 +231,7 @@ test_row_description_base: typing.List[typing.Tuple[bytes, typing.List[typing.Di
                 "type_modifier": -1,
                 "format": 0,
                 "label": b"proname",
-                "pg8000_fc": 1,
+                "redshift_connector_fc": 1,
             }
         ],
     )
@@ -243,7 +243,7 @@ def test_handle_row_description_base(_input):
     data, exp_result = _input
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = ClientProtocolVersion.BASE_SERVER.value
-    mock_connection.pg_types = dict(PG_TYPES)
+    mock_connection.redshift_types = dict(REDSHIFT_TYPES)
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 

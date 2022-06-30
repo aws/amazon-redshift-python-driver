@@ -445,7 +445,7 @@ def array_recv_binary(data: bytes, idx: int, length: int) -> typing.List:
     idx += 12
 
     # get type conversion method for typeoid
-    conversion: typing.Callable = pg_types[typeoid][1]
+    conversion: typing.Callable = redshift_types[typeoid][1]
 
     # Read dimension info
     dim_lengths: typing.List = []
@@ -565,7 +565,7 @@ def varbytehex_recv(data: bytes, idx: int, length: int) -> str:
 #         return typing.cast(typing.Union[IPv4Address, IPv6Address], ip_address(inet_str))
 
 
-pg_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultdict(
+redshift_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = defaultdict(
     lambda: (FC_TEXT, text_recv),
     {
         RedshiftOID.ABSTIME: (FC_BINARY, abstime_recv),  # abstime

@@ -78,10 +78,10 @@ from redshift_connector.utils import (
     numeric_to_float_binary,
     numeric_to_float_in,
 )
-from redshift_connector.utils import pg_types as PG_TYPES
 from redshift_connector.utils import py_types as PY_TYPES
+from redshift_connector.utils import q_pack
+from redshift_connector.utils import redshift_types as REDSHIFT_TYPES
 from redshift_connector.utils import (
-    q_pack,
     text_recv,
     time_in,
     time_recv_binary,
@@ -470,7 +470,7 @@ class Connection:
         self._client_protocol_version: int = client_protocol_version
         self._database = database
         self.py_types = deepcopy(PY_TYPES)
-        self.pg_types = deepcopy(PG_TYPES)
+        self.redshift_types = deepcopy(REDSHIFT_TYPES)
         self._database_metadata_current_db_only: bool = database_metadata_current_db_only
         self.numeric_to_float: bool = numeric_to_float
 
@@ -724,42 +724,42 @@ class Connection:
 
     def _enable_protocol_based_conversion_funcs(self: "Connection"):
         if self._client_protocol_version >= ClientProtocolVersion.BINARY.value:
-            self.pg_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_in_binary)
-            self.pg_types[RedshiftOID.DATE] = (FC_BINARY, date_recv_binary)
-            self.pg_types[RedshiftOID.GEOGRAPHY] = (FC_BINARY, geographyhex_recv)  # GEOGRAPHY
-            self.pg_types[RedshiftOID.TIME] = (FC_BINARY, time_recv_binary)
-            self.pg_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
-            self.pg_types[RedshiftOID.CHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # CHAR[]
-            self.pg_types[RedshiftOID.SMALLINT_ARRAY] = (FC_BINARY, array_recv_binary)  # INT2[]
-            self.pg_types[RedshiftOID.INTEGER_ARRAY] = (FC_BINARY, array_recv_binary)  # INT4[]
-            self.pg_types[RedshiftOID.TEXT_ARRAY] = (FC_BINARY, array_recv_binary)  # TEXT[]
-            self.pg_types[RedshiftOID.VARCHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
-            self.pg_types[RedshiftOID.REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
-            self.pg_types[RedshiftOID.OID_ARRAY] = (FC_BINARY, array_recv_binary)  # OID[]
-            self.pg_types[RedshiftOID.ACLITEM_ARRAY] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
-            self.pg_types[RedshiftOID.VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
+            self.redshift_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_in_binary)
+            self.redshift_types[RedshiftOID.DATE] = (FC_BINARY, date_recv_binary)
+            self.redshift_types[RedshiftOID.GEOGRAPHY] = (FC_BINARY, geographyhex_recv)  # GEOGRAPHY
+            self.redshift_types[RedshiftOID.TIME] = (FC_BINARY, time_recv_binary)
+            self.redshift_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
+            self.redshift_types[RedshiftOID.CHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # CHAR[]
+            self.redshift_types[RedshiftOID.SMALLINT_ARRAY] = (FC_BINARY, array_recv_binary)  # INT2[]
+            self.redshift_types[RedshiftOID.INTEGER_ARRAY] = (FC_BINARY, array_recv_binary)  # INT4[]
+            self.redshift_types[RedshiftOID.TEXT_ARRAY] = (FC_BINARY, array_recv_binary)  # TEXT[]
+            self.redshift_types[RedshiftOID.VARCHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
+            self.redshift_types[RedshiftOID.REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
+            self.redshift_types[RedshiftOID.OID_ARRAY] = (FC_BINARY, array_recv_binary)  # OID[]
+            self.redshift_types[RedshiftOID.ACLITEM_ARRAY] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
+            self.redshift_types[RedshiftOID.VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
 
             if self.numeric_to_float:
-                self.pg_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_to_float_binary)
+                self.redshift_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_to_float_binary)
 
         else:  # text protocol
-            self.pg_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_in)
-            self.pg_types[RedshiftOID.TIME] = (FC_TEXT, time_in)
-            self.pg_types[RedshiftOID.DATE] = (FC_TEXT, date_in)
-            self.pg_types[RedshiftOID.GEOGRAPHY] = (FC_TEXT, text_recv)  # GEOGRAPHY
-            self.pg_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
-            self.pg_types[RedshiftOID.CHAR_ARRAY] = (FC_TEXT, array_recv_text)  # CHAR[]
-            self.pg_types[RedshiftOID.SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]
-            self.pg_types[RedshiftOID.INTEGER_ARRAY] = (FC_TEXT, int_array_recv)  # INT4[]
-            self.pg_types[RedshiftOID.TEXT_ARRAY] = (FC_TEXT, array_recv_text)  # TEXT[]
-            self.pg_types[RedshiftOID.VARCHAR_ARRAY] = (FC_TEXT, array_recv_text)  # VARCHAR[]
-            self.pg_types[RedshiftOID.REAL_ARRAY] = (FC_TEXT, float_array_recv)  # FLOAT4[]
-            self.pg_types[RedshiftOID.OID_ARRAY] = (FC_TEXT, int_array_recv)  # OID[]
-            self.pg_types[RedshiftOID.ACLITEM_ARRAY] = (FC_TEXT, array_recv_text)  # ACLITEM[]
-            self.pg_types[RedshiftOID.VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
+            self.redshift_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_in)
+            self.redshift_types[RedshiftOID.TIME] = (FC_TEXT, time_in)
+            self.redshift_types[RedshiftOID.DATE] = (FC_TEXT, date_in)
+            self.redshift_types[RedshiftOID.GEOGRAPHY] = (FC_TEXT, text_recv)  # GEOGRAPHY
+            self.redshift_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
+            self.redshift_types[RedshiftOID.CHAR_ARRAY] = (FC_TEXT, array_recv_text)  # CHAR[]
+            self.redshift_types[RedshiftOID.SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]
+            self.redshift_types[RedshiftOID.INTEGER_ARRAY] = (FC_TEXT, int_array_recv)  # INT4[]
+            self.redshift_types[RedshiftOID.TEXT_ARRAY] = (FC_TEXT, array_recv_text)  # TEXT[]
+            self.redshift_types[RedshiftOID.VARCHAR_ARRAY] = (FC_TEXT, array_recv_text)  # VARCHAR[]
+            self.redshift_types[RedshiftOID.REAL_ARRAY] = (FC_TEXT, float_array_recv)  # FLOAT4[]
+            self.redshift_types[RedshiftOID.OID_ARRAY] = (FC_TEXT, int_array_recv)  # OID[]
+            self.redshift_types[RedshiftOID.ACLITEM_ARRAY] = (FC_TEXT, array_recv_text)  # ACLITEM[]
+            self.redshift_types[RedshiftOID.VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
 
             if self.numeric_to_float:
-                self.pg_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_to_float_in)
+                self.redshift_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_to_float_in)
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
@@ -1575,7 +1575,7 @@ class Connection:
                 idx += 2
 
             cursor.ps["row_desc"].append(field)
-            field["pg8000_fc"], field["func"] = self.pg_types[field["type_oid"]]
+            field["redshift_connector_fc"], field["func"] = self.redshift_types[field["type_oid"]]
 
         _logger.debug(cursor.ps["row_desc"])
 
@@ -1702,7 +1702,7 @@ class Connection:
 
             # We've got row_desc that allows us to identify what we're
             # going to get back from this statement.
-            output_fc = tuple(self.pg_types[f["type_oid"]][0] for f in ps["row_desc"])
+            output_fc = tuple(self.redshift_types[f["type_oid"]][0] for f in ps["row_desc"])
 
             ps["input_funcs"] = tuple(f["func"] for f in ps["row_desc"])
             # Byte1('B') - Identifies the Bind command.
