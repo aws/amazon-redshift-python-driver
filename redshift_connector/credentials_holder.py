@@ -60,6 +60,10 @@ class ABCAWSCredentialsHolder(ABC):
         """
         return self.boto_session
 
+    @abstractmethod
+    def get_session_credentials(self: "ABCAWSCredentialsHolder") -> typing.Dict[str, str]:
+        pass
+
 
 class AWSDirectCredentialsHolder(ABCAWSCredentialsHolder):
     """

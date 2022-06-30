@@ -1,8 +1,8 @@
 import logging
 import typing
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
-from redshift_connector.error import InterfaceError, ProgrammingError
+from redshift_connector.error import InterfaceError
 from redshift_connector.iam_helper import IamHelper
 from redshift_connector.plugin.i_native_plugin import INativePlugin
 from redshift_connector.plugin.idp_credentials_provider import IdpCredentialsProvider
@@ -12,7 +12,7 @@ from redshift_connector.redshift_property import RedshiftProperty
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-class JwtCredentialsProvider(INativePlugin, IdpCredentialsProvider, ABC):
+class JwtCredentialsProvider(INativePlugin, IdpCredentialsProvider):
     """
     Abstract base class for authentication plugins using JWT for Redshift native authentication.
     """
@@ -44,10 +44,6 @@ class JwtCredentialsProvider(INativePlugin, IdpCredentialsProvider, ABC):
 
         if info.role_session_name is not None:
             self.role_session_name = info.role_session_name
-
-    @abstractmethod
-    def get_cache_key(self: "JwtCredentialsProvider") -> str:
-        pass  # pragma: no cover
 
     def get_credentials(self: "JwtCredentialsProvider") -> NativeTokenHolder:
         credentials: typing.Optional[NativeTokenHolder] = None

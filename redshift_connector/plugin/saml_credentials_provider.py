@@ -3,10 +3,11 @@ import logging
 import random
 import re
 import typing
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from redshift_connector.credentials_holder import CredentialsHolder
 from redshift_connector.error import InterfaceError
+from redshift_connector.idp_auth_helper import IdpAuthHelper
 from redshift_connector.plugin.credential_provider_constants import SAML_RESP_NAMESPACES
 from redshift_connector.plugin.idp_credentials_provider import IdpCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
@@ -14,7 +15,7 @@ from redshift_connector.redshift_property import RedshiftProperty
 _logger: logging.Logger = logging.getLogger(__name__)
 
 
-class SamlCredentialsProvider(IdpCredentialsProvider, ABC):
+class SamlCredentialsProvider(IdpCredentialsProvider):
     """
     Generic Identity Provider Plugin providing single sign-on access to an Amazon Redshift cluster using an identity provider of your choice.
     """
@@ -51,6 +52,9 @@ class SamlCredentialsProvider(IdpCredentialsProvider, ABC):
         self.auto_create = info.auto_create
         self.region = info.region
         self.principal = info.principal
+
+    def get_sub_type(self) -> int:
+        return IdpAuthHelper.SAML_PLUGIN
 
     def do_verify_ssl_cert(self: "SamlCredentialsProvider") -> bool:
         return not self.ssl_insecure

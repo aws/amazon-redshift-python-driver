@@ -1,7 +1,8 @@
 import typing
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 
 from redshift_connector.error import InterfaceError
+from redshift_connector.plugin.i_plugin import IPlugin
 from redshift_connector.redshift_property import IAM_URL_PATTERN, RedshiftProperty
 
 if typing.TYPE_CHECKING:
@@ -9,7 +10,7 @@ if typing.TYPE_CHECKING:
     from redshift_connector.plugin.native_token_holder import NativeTokenHolder
 
 
-class IdpCredentialsProvider(ABC):
+class IdpCredentialsProvider(IPlugin):
     """
     Abstract base class for authentication plugins.
     """
@@ -31,13 +32,6 @@ class IdpCredentialsProvider(ABC):
     def check_required_parameters(self: "IdpCredentialsProvider") -> None:
         """
         Performs validation on client provided parameters used by the IdP.
-        """
-        pass  # pragma: no cover
-
-    @abstractmethod
-    def add_parameter(self: "IdpCredentialsProvider", info: RedshiftProperty) -> None:
-        """
-        Defines instance attributes from the :class:RedshiftProperty object associated with the current authentication session.
         """
         pass  # pragma: no cover
 

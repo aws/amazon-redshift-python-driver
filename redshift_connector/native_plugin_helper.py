@@ -2,6 +2,7 @@ import logging
 import typing
 
 from redshift_connector.error import InterfaceError
+from redshift_connector.idp_auth_helper import IdpAuthHelper
 from redshift_connector.plugin.i_native_plugin import INativePlugin
 
 if typing.TYPE_CHECKING:
@@ -52,26 +53,7 @@ class NativeAuthPluginHelper:
         provider = None
 
         if info.credentials_provider:
-            from redshift_connector.idp_auth_helper import dynamic_plugin_import
-
-            try:
-                klass = dynamic_plugin_import(info.credentials_provider)
-                provider = klass()  # type: ignore
-                provider.add_parameter(info)
-            except (AttributeError, ModuleNotFoundError):
-                _logger.debug("Failed to load user defined plugin: {}".format(info.credentials_provider))
-                try:
-                    predefined_idp: str = "redshift_connector.plugin.{}".format(info.credentials_provider)
-                    klass = dynamic_plugin_import(predefined_idp)
-                    provider = klass()  # type: ignore
-                    provider.add_parameter(info)
-                except (AttributeError, ModuleNotFoundError):
-                    _logger.debug(
-                        "Failed to load pre-defined IdP plugin from redshift_connector.plugin: {}".format(
-                            info.credentials_provider
-                        )
-                    )
-                    raise InterfaceError("Invalid credentials provider " + info.credentials_provider)
+            provider = IdpAuthHelper.load_credentials_provider(info)
 
             if not isinstance(provider, INativePlugin):
                 _logger.debug("Native auth will not be used, no credentials provider specified")
@@ -85,7 +67,7 @@ class NativeAuthPluginHelper:
         _logger.debug("Calling provider.getCredentials()")
 
         # Provider will cache the credentials, it's OK to call get_credentials() here
-        credentials: "NativeTokenHolder" = provider.get_credentials()
+        credentials: "NativeTokenHolder" = typing.cast("NativeTokenHolder", provider.get_credentials())
 
         _logger.debug("credentials is None = {}".format(str(credentials is None)))
         _logger.debug("credentials.is_expired() = {}".format(credentials.is_expired()))

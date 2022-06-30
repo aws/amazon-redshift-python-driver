@@ -6,10 +6,20 @@ import pytest  # type: ignore
 
 from redshift_connector.credentials_holder import (
     ABCAWSCredentialsHolder,
+    ABCCredentialsHolder,
     AWSDirectCredentialsHolder,
     AWSProfileCredentialsHolder,
     CredentialsHolder,
 )
+
+
+@pytest.mark.parametrize("cred_holder", (AWSDirectCredentialsHolder, AWSProfileCredentialsHolder))
+def test_aws_credentials_holder_inherit_from_abc(cred_holder):
+    assert issubclass(cred_holder, ABCAWSCredentialsHolder)
+
+
+def test_credentials_holder_inherits_from_abc():
+    assert issubclass(CredentialsHolder, ABCCredentialsHolder)
 
 
 def test_aws_direct_credentials_holder_should_have_session():

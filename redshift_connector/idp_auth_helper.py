@@ -3,6 +3,7 @@ import typing
 from enum import Enum
 
 from redshift_connector.error import InterfaceError, ProgrammingError
+from redshift_connector.plugin.i_plugin import IPlugin
 from redshift_connector.redshift_property import RedshiftProperty
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -198,6 +199,33 @@ class IdpAuthHelper:
             raise ProgrammingError(
                 "Unable to decode the JSON content of the Redshift authentication profile: {}".format(auth_profile)
             )
+
+    @staticmethod
+    def load_credentials_provider(info: RedshiftProperty) -> IPlugin:
+        if not info.credentials_provider:
+            raise InterfaceError("No value for credentials_provider was given")
+        try:
+            klass = dynamic_plugin_import(info.credentials_provider)
+        except (AttributeError, ModuleNotFoundError):
+            _logger.debug("Failed to load user defined plugin: {}".format(info.credentials_provider))
+            try:
+                predefined_idp: str = "redshift_connector.plugin.{}".format(info.credentials_provider)
+                klass = dynamic_plugin_import(predefined_idp)
+                info.put("credentials_provider", predefined_idp)
+            except (AttributeError, ModuleNotFoundError):
+                _logger.debug(
+                    "Failed to load pre-defined IdP plugin from redshift_connector.plugin: {}".format(
+                        info.credentials_provider
+                    )
+                )
+                raise InterfaceError("Invalid credentials provider " + info.credentials_provider)
+
+        if not issubclass(klass, IPlugin):
+            raise InterfaceError("Invalid value passed to credentials_provider: {}".format(info.credentials_provider))
+        else:
+            provider = klass()  # type: ignore
+            provider.add_parameter(info)  # type: ignore
+        return provider
 
 
 def dynamic_plugin_import(name: str):

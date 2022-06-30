@@ -12,9 +12,10 @@ from redshift_connector.credentials_holder import (
     CredentialsHolder,
 )
 from redshift_connector.error import InterfaceError, ProgrammingError
-from redshift_connector.idp_auth_helper import IdpAuthHelper, dynamic_plugin_import
+from redshift_connector.idp_auth_helper import IdpAuthHelper
 from redshift_connector.native_plugin_helper import NativeAuthPluginHelper
 from redshift_connector.plugin.i_native_plugin import INativePlugin
+from redshift_connector.plugin.i_plugin import IPlugin
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
@@ -62,29 +63,12 @@ class IamHelper(IdpAuthHelper):
         """
         Helper function to create the appropriate credential providers.
         """
-        klass: typing.Optional[SamlCredentialsProvider] = None
-        provider: typing.Union[SamlCredentialsProvider, AWSCredentialsProvider]
+        klass: typing.Optional[IPlugin] = None
+        provider: typing.Union[IPlugin, AWSCredentialsProvider]
 
         if info.credentials_provider is not None:
-            try:
-                klass = dynamic_plugin_import(info.credentials_provider)
-                provider = klass()  # type: ignore
-                provider.add_parameter(info)  # type: ignore
-            except (AttributeError, ModuleNotFoundError):
-                _logger.debug("Failed to load user defined plugin: {}".format(info.credentials_provider))
-                try:
-                    predefined_idp: str = "redshift_connector.plugin.{}".format(info.credentials_provider)
-                    klass = dynamic_plugin_import(predefined_idp)
-                    provider = klass()  # type: ignore
-                    provider.add_parameter(info)  # type: ignore
-                    info.put("credentials_provider", predefined_idp)
-                except (AttributeError, ModuleNotFoundError):
-                    _logger.debug(
-                        "Failed to load pre-defined IdP plugin from redshift_connector.plugin: {}".format(
-                            info.credentials_provider
-                        )
-                    )
-                    raise InterfaceError("Invalid credentials provider " + info.credentials_provider)
+            provider = IdpAuthHelper.load_credentials_provider(info)
+
         else:  # indicates AWS Credentials will be used
             _logger.debug("AWS Credentials provider will be used for authentication")
             provider = AWSCredentialsProvider()
@@ -132,9 +116,7 @@ class IamHelper(IdpAuthHelper):
             IamHelper.set_cluster_credentials(provider, info)
 
     @staticmethod
-    def get_credentials_cache_key(
-        info: RedshiftProperty, cred_provider: typing.Union[SamlCredentialsProvider, AWSCredentialsProvider]
-    ):
+    def get_credentials_cache_key(info: RedshiftProperty, cred_provider: typing.Union[IPlugin, AWSCredentialsProvider]):
         db_groups: str = ""
 
         if len(info.db_groups) > 0:
@@ -174,7 +156,7 @@ class IamHelper(IdpAuthHelper):
 
     @staticmethod
     def set_cluster_credentials(
-        cred_provider: typing.Union[SamlCredentialsProvider, AWSCredentialsProvider], info: RedshiftProperty
+        cred_provider: typing.Union[IPlugin, AWSCredentialsProvider], info: RedshiftProperty
     ) -> None:
         """
         Calls the AWS SDK methods to return temporary credentials.
@@ -185,8 +167,8 @@ class IamHelper(IdpAuthHelper):
 
         try:
             credentials_holder: typing.Union[
-                CredentialsHolder, AWSDirectCredentialsHolder, AWSProfileCredentialsHolder
-            ] = cred_provider.get_credentials()
+                CredentialsHolder, ABCAWSCredentialsHolder
+            ] = cred_provider.get_credentials()  # type: ignore
             session_credentials: typing.Dict[str, str] = credentials_holder.get_session_credentials()
 
             redshift_client: str = "redshift-serverless" if info.is_serverless_host else "redshift"
