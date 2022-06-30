@@ -671,6 +671,35 @@ def test_set_cluster_credentials_refreshes_stale_credentials(
 
 
 @pytest.mark.parametrize(
+    "conn_params, exp_result",
+    (
+        ({"credentials_provider": "BrowserSamlCredentialsProvider"}, IamHelper.GetClusterCredentialsAPIType.IAM_V1),
+        ({"group_federation": True}, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
+        ({"is_serverless": True}, IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1),
+        ({"is_serverless": True, "group_federation": True}, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
+        (
+            {"group_federation": True, "credentials_provider": "BrowserSamlCredentialsProvider"},
+            "Authentication with plugin is not supported for group federation",
+        ),
+        (
+            {"is_serverless": True, "group_federation": True, "credentials_provider": "BrowserSamlCredentialsProvider"},
+            "Authentication with plugin is not supported for group federation",
+        ),
+    ),
+)
+def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, exp_result):
+    info = RedshiftProperty()
+    for param in conn_params.items():
+        info.put(param[0], param[1])
+
+    if isinstance(exp_result, IamHelper.GetClusterCredentialsAPIType):
+        assert IamHelper.get_cluster_credentials_api_type(info) == exp_result
+    else:
+        with pytest.raises(InterfaceError, match=exp_result):
+            IamHelper.get_cluster_credentials_api_type(info)
+
+
+@pytest.mark.parametrize(
     "boto3_version",
     (
         "1.17.110",

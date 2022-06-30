@@ -183,6 +183,7 @@ def connect(
     is_serverless: typing.Optional[bool] = False,
     serverless_acct_id: typing.Optional[str] = None,
     serverless_work_group: typing.Optional[str] = None,
+    group_federation: typing.Optional[bool] = None,
 ) -> Connection:
     """
     Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
@@ -284,6 +285,8 @@ def connect(
         The account ID of the serverless. Default value None
     serverless_work_group: Optional[str]
         The name of work group for serverless end point. Default value None.
+    group_federation: Optional[bool]
+        Use the IDP Groups in the Redshift. Default value False.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -307,6 +310,7 @@ def connect(
     info.put("db_user", db_user)
     info.put("endpoint_url", endpoint_url)
     info.put("force_lowercase", force_lowercase)
+    info.put("group_federation", group_federation)
     info.put("host", host)
     info.put("iam", iam)
     info.put("iam_disable_cache", iam_disable_cache)

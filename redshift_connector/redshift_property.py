@@ -117,6 +117,7 @@ class RedshiftProperty:
             self.is_serverless: bool = False
             self.serverless_acct_id: typing.Optional[str] = None
             self.serverless_work_group: typing.Optional[str] = None
+            self.group_federation: bool = False
 
         else:
             for k, v in kwargs.items():

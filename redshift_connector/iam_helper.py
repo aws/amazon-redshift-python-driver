@@ -1,4 +1,5 @@
 import datetime
+import enum
 import logging
 import typing
 
@@ -25,8 +26,32 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class IamHelper(IdpAuthHelper):
+    class GetClusterCredentialsAPIType(enum.Enum):
+        SERVERLESS_V1 = "get_credentials()"
+        IAM_V1 = "get_cluster_credentials()"
+        IAM_V2 = "get_cluster_credentials_with_iam()"
+
+        @staticmethod
+        def can_support_v2(info: RedshiftProperty):
+            return Version(pkg_resources.get_distribution("boto3").version) >= Version("1.24.5")
 
     credentials_cache: typing.Dict[str, dict] = {}
+
+    @staticmethod
+    def get_cluster_credentials_api_type(info: RedshiftProperty):
+        if not info._is_serverless:
+            if not info.group_federation:
+                return IamHelper.GetClusterCredentialsAPIType.IAM_V1
+            elif (not info.credentials_provider) and IamHelper.GetClusterCredentialsAPIType.can_support_v2(info):
+                return IamHelper.GetClusterCredentialsAPIType.IAM_V2
+            else:
+                raise InterfaceError("Authentication with plugin is not supported for group federation")
+        elif not info.group_federation:
+            return IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1
+        elif (not info.credentials_provider) and IamHelper.GetClusterCredentialsAPIType.can_support_v2(info):
+            return IamHelper.GetClusterCredentialsAPIType.IAM_V2
+        else:
+            raise InterfaceError("Authentication with plugin is not supported for group federation")
 
     @staticmethod
     def set_iam_properties(info: RedshiftProperty) -> RedshiftProperty:
@@ -225,7 +250,12 @@ class IamHelper(IdpAuthHelper):
                 # retries will occur by default ref:
                 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#legacy-retry-mode
                 _logger.debug("Credentials expired or not found...requesting from boto")
-                if info._is_serverless:
+                get_creds_api_version: IamHelper.GetClusterCredentialsAPIType = (
+                    IamHelper.get_cluster_credentials_api_type(info)
+                )
+                _logger.debug("boto3 get_credentials api version: {} will be used".format(get_creds_api_version.value))
+
+                if get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1:
                     get_cred_args: typing.Dict[str, str] = {"dbName": info.db_name}
                     if info.serverless_work_group:
                         get_cred_args["workgroupName"] = info.serverless_work_group
@@ -237,6 +267,15 @@ class IamHelper(IdpAuthHelper):
                     # re-map expiration for compatibility with redshift credential response
                     cred["Expiration"] = cred["expiration"]
                     del cred["expiration"]
+                elif get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.IAM_V2:
+                    cred = typing.cast(
+                        typing.Dict[str, typing.Union[str, datetime.datetime]],
+                        client.get_cluster_credentials_with_iam(
+                            DbName=info.db_name,
+                            ClusterIdentifier=info.cluster_identifier,
+                            DurationSeconds=info.duration,
+                        ),
+                    )
                 else:
                     cred = typing.cast(
                         typing.Dict[str, typing.Union[str, datetime.datetime]],

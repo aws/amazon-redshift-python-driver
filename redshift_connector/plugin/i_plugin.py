@@ -42,3 +42,7 @@ class IPlugin(ABC):
         Refreshes the credentials, stored in :class:NativeTokenHolder, for the current plugin.
         """
         pass  # pragma: no cover
+
+    @abstractmethod
+    def set_group_federation(self: "IPlugin", group_federation: bool):
+        pass

@@ -35,6 +35,7 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
         self.auto_create: typing.Optional[bool] = None
         self.region: typing.Optional[str] = None
         self.principal: typing.Optional[str] = None
+        self.group_federation: bool = False
 
         self.cache: dict = {}
 
@@ -52,6 +53,9 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
         self.auto_create = info.auto_create
         self.region = info.region
         self.principal = info.principal
+
+    def set_group_federation(self: "SamlCredentialsProvider", group_federation: bool):
+        self.group_federation = group_federation
 
     def get_sub_type(self) -> int:
         return IdpAuthHelper.SAML_PLUGIN

@@ -41,9 +41,13 @@ class JwtCredentialsProvider(INativePlugin, IdpCredentialsProvider):
         self.provider_name = info.provider_name
         self.ssl_insecure = info.ssl_insecure
         self.disable_cache = info.iam_disable_cache
+        self.group_federation = False
 
         if info.role_session_name is not None:
             self.role_session_name = info.role_session_name
+
+    def set_group_federation(self: "JwtCredentialsProvider", group_federation: bool):
+        self.group_federation = group_federation
 
     def get_credentials(self: "JwtCredentialsProvider") -> NativeTokenHolder:
         credentials: typing.Optional[NativeTokenHolder] = None
