@@ -111,6 +111,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
         # headers to pass with POST request
         headers: typing.Dict[str, str] = azure_headers
+        self.validate_url(url)
 
         # required parameters to pass in POST body
         payload: typing.Dict[str, typing.Optional[str]] = {

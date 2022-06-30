@@ -36,6 +36,7 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             host=self.idp_host, port=str(self.idpPort)
         )
         _logger.debug("Uri: {}".format(url))
+        self.validate_url(url)
 
         try:
             response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())
@@ -90,6 +91,7 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             url = "https://{host}:{port}{action}".format(host=self.idp_host, port=str(self.idpPort), action=action)
 
         _logger.debug("Action uri: {}".format(url))
+        self.validate_url(url)
 
         try:
             response = requests.post(url, data=payload, verify=self.do_verify_ssl_cert())

@@ -4,6 +4,7 @@ from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
 from redshift_connector.error import ProgrammingError
 
 SERVERLESS_HOST_PATTERN: str = r"(.+)\.(.+).redshift-serverless(-dev)?\.amazonaws\.com(.)*"
+IAM_URL_PATTERN: str = r"^(https)://[-a-zA-Z0-9+&@#/%?=~_!:,.']*[-a-zA-Z0-9+&@#/%=~_']"
 
 
 class RedshiftProperty:

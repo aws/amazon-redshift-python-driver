@@ -62,6 +62,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         # endpoint to connect with Microsoft Azure to get SAML Assertion token
         url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
         _logger.debug("Uri: {}".format(url))
+        self.validate_url(url)
 
         # headers to pass with POST request
         headers: typing.Dict[str, str] = azure_headers

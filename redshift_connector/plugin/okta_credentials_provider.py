@@ -43,6 +43,7 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
         # HTTP Post request to Okta API for session token
         url: str = "https://{host}/api/v1/authn".format(host=self.idp_host)
         _logger.debug("Okta authentication request uri: {}".format(url))
+        self.validate_url(url)
         headers: typing.Dict[str, str] = okta_headers
         payload: typing.Dict[str, typing.Optional[str]] = {"username": self.user_name, "password": self.password}
         _logger.debug("Okta authentication payload contains username={}".format(self.user_name))
@@ -95,6 +96,7 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
             host=self.idp_host, app_name=self.app_name, app_id=self.app_id, session_token=okta_session_token
         )
         _logger.debug("OktaAWSAppUrl: {}".format(url))
+        self.validate_url(url)
 
         try:
             response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())

@@ -251,6 +251,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         import requests
 
         url: str = self.get_jwt_post_request_url()
+        self.validate_url(url)
 
         params: typing.Dict[str, str] = {
             BrowserAzureOAuth2CredentialsProvider.OAuthParamNames.IDP_CODE.value: token,

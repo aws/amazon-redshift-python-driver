@@ -2,7 +2,7 @@ import typing
 from abc import ABC, abstractmethod
 
 from redshift_connector.error import InterfaceError
-from redshift_connector.redshift_property import RedshiftProperty
+from redshift_connector.redshift_property import IAM_URL_PATTERN, RedshiftProperty
 
 if typing.TYPE_CHECKING:
     from redshift_connector.credentials_holder import ABCCredentialsHolder
@@ -43,5 +43,7 @@ class IdpCredentialsProvider(ABC):
 
     @classmethod
     def validate_url(cls, uri: str) -> None:
-        if not uri.startswith("https"):
+        import re
+
+        if not re.fullmatch(pattern=IAM_URL_PATTERN, string=str(uri)):
             raise InterfaceError("URI: {} is an invalid web address".format(uri))
