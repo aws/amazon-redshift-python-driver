@@ -40,3 +40,33 @@ def test_idp_auth(okta_idp):
 
     with redshift_connector.connect(**okta_idp):
         pass
+
+
+@pytest.mark.skip()
+def test_connection_without_host(serverless_iam_db_kwargs):
+    serverless_iam_db_kwargs["is_serverless"] = True
+    serverless_iam_db_kwargs["host"] = None
+    serverless_iam_db_kwargs["serverless_work_group"] = "default"
+    with redshift_connector.connect(**serverless_iam_db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select 1")
+
+
+@pytest.mark.skip()
+def test_nlb_connection(serverless_iam_db_kwargs):
+    serverless_iam_db_kwargs["is_serverless"] = True
+    serverless_iam_db_kwargs["host"] = "my_nlb_endpoint"
+    serverless_iam_db_kwargs["serverless_work_group"] = "default"
+    with redshift_connector.connect(**serverless_iam_db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select 1")
+
+
+@pytest.mark.skip()
+def test_vpc_endpoint_connection(serverless_iam_db_kwargs):
+    serverless_iam_db_kwargs["is_serverless"] = True
+    serverless_iam_db_kwargs["host"] = "my_vpc_endpoint"
+    serverless_iam_db_kwargs["serverless_work_group"] = "default"
+    with redshift_connector.connect(**serverless_iam_db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select 1")

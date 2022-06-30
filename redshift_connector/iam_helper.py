@@ -94,9 +94,9 @@ class IamHelper(IdpAuthHelper):
         IamHelper.set_auth_properties(info)
 
         if info._is_serverless and info.iam:
-            if Version(pkg_resources.get_distribution("boto3").version) < Version("1.24.5"):
+            if Version(pkg_resources.get_distribution("boto3").version) < Version("1.24.11"):
                 raise pkg_resources.VersionConflict(
-                    "boto3 >= 1.24.5 required for authentication with Amazon Redshift serverless. "
+                    "boto3 >= 1.24.11 required for authentication with Amazon Redshift serverless. "
                     "Please upgrade the installed version of boto3 to use this functionality."
                 )
 
@@ -274,9 +274,11 @@ class IamHelper(IdpAuthHelper):
                 response: dict
 
                 if info._is_serverless:
-                    response = client.describe_configuration()
-                    info.put("host", response["endpoint"]["address"])
-                    info.put("port", response["endpoint"]["port"])
+                    if not info.serverless_work_group:
+                        raise InterfaceError("Serverless workgroup is not set.")
+                    response = client.get_workgroup(workgroupName=info.serverless_work_group)
+                    info.put("host", response["workgroup"]["endpoint"]["address"])
+                    info.put("port", response["workgroup"]["endpoint"]["port"])
                 else:
                     response = client.describe_clusters(ClusterIdentifier=info.cluster_identifier)
                     info.put("host", response["Clusters"][0]["Endpoint"]["Address"])
