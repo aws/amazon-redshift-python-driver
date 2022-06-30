@@ -2,6 +2,35 @@ Changelog
 =========
 
 
+v2.0.908 (2022-06-30)
+---------------------
+- Docs(connection, serverless): add new connection params. [Brooke
+  White]
+- Fix(auth, redshift_auth_profile): read auth profile before validating
+  conn params. [Brooke White]
+- Refactor(type_utils): pg_types -> redshift_types. [Brooke White]
+- Refactor(test, test_oids): type checking for py36. [Brooke White]
+- Feat(get_datatype_name): support getting datatype name from oid.
+  [Brooke White]
+- Refactor(auth, iam): support serverless get_workgroup. [Brooke White]
+- Refactor(auth, iam): support group federation. [Brooke White]
+- Feat(auth, iam): support group federation. [Brooke White]
+- Refactor(cursor, description): return column label as str. [Brooke
+  White]
+- Feat(serverless): support nlb connection. [Brooke White]
+- Fix(cursor, __build_local_schema_columns_query): fix numeric scale
+  issue with Numeric data type of an external table. [Brooke White]
+- Chore: rework tests. [Brooke White]
+- Refactor(idp): define IPlugin ABC, remove duplicated code. [Brooke
+  White]
+- Feat(iam, serverless): support workgroup. [Brooke White]
+- Refactor: update plugin process. [Brooke White]
+- Chore(deps): update requests requirement (#108) [dependabot[bot]]
+- Docs(readme): remove json from data type table (#102) [Noah Holm]
+- Docs(readme): document connect timeout parameter (#101) [H​eikki
+  H​okkanen]
+
+
 v2.0.907 (2022-05-06)
 ---------------------
 - Feat(idp, open_browser): Updated SAML Plugin browser launch process.
