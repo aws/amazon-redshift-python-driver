@@ -4,6 +4,25 @@ version = "2.0.908"
 description = "Redshift interface library"
 authors = ["Amazon Web Services <redshift-drivers@amazon.com>"]
 license = "Apache License 2.0"
+keywords = ["redshift", "dbapi"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: Implementation",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: Jython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Operating System :: OS Independent",
+    "Topic :: Database :: Front-Ends",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 
 [tool.poetry.dependencies]
 python = ">=3.6.1"
@@ -118,7 +137,6 @@ build-backend = "poetry.core.masonry.api"
 # this_directory = os.path.abspath(os.path.dirname(__file__))
 # with open(os.path.join(this_directory, "README.rst"), encoding="utf-8") as f:
 #     long_description = f.read()
-# exec(open("redshift_connector/version.py").read())
 
 # optional_deps = {
 #     "full": ["numpy", "pandas"],
@@ -133,29 +151,8 @@ build-backend = "poetry.core.masonry.api"
 #     author="Amazon Web Services",
 #     author_email="redshift-drivers@amazon.com",
 #     url="https://github.com/aws/amazon-redshift-python-driver",
-#     license="Apache License 2.0",
-#     python_requires=">=3.6",
-#     install_requires=open("requirements.txt").read().strip().split("\n"),
 #     extras_require=optional_deps,
-#     classifiers=[
-#         "Development Status :: 5 - Production/Stable",
-#         "Intended Audience :: Developers",
-#         "License :: OSI Approved :: BSD License",
-#         "Programming Language :: Python",
-#         "Programming Language :: Python :: 3",
-#         "Programming Language :: Python :: 3.6",
-#         "Programming Language :: Python :: 3.7",
-#         "Programming Language :: Python :: 3.8",
-#         "Programming Language :: Python :: 3.9",
-#         "Programming Language :: Python :: Implementation",
-#         "Programming Language :: Python :: Implementation :: CPython",
-#         "Programming Language :: Python :: Implementation :: Jython",
-#         "Programming Language :: Python :: Implementation :: PyPy",
-#         "Operating System :: OS Independent",
-#         "Topic :: Database :: Front-Ends",
-#         "Topic :: Software Development :: Libraries :: Python Modules",
-#     ],
-#     keywords="redshift dbapi",
+#     
 #     include_package_data=True,
 #     package_data={"redshift-connector": ["*.py", "*.crt", "LICENSE", "NOTICE"]},
 #     packages=find_packages(exclude=["test*"]),
