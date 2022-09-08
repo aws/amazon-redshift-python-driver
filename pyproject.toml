@@ -5,6 +5,8 @@ description = "Redshift interface library"
 authors = ["Amazon Web Services <redshift-drivers@amazon.com>"]
 license = "Apache License 2.0"
 keywords = ["redshift", "dbapi"]
+homepage = "https://github.com/aws/amazon-redshift-python-driver"
+readme = "README.rst"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
@@ -23,6 +25,7 @@ classifiers = [
     "Topic :: Database :: Front-Ends",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+include = ["*.py", "*.crt", "LICENSE", "NOTICE"]
 
 [tool.poetry.dependencies]
 python = ">=3.6.1"
@@ -48,6 +51,8 @@ docutils = ">=0.14"
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.poetry.extras]
+full = ["numpy", "pandas"]
 
 # #!/usr/bin/env python
 # import os
@@ -134,28 +139,8 @@ build-backend = "poetry.core.masonry.api"
 # elif "install" in custom_cmds:
 #     del custom_cmds["install"]
 
-# # read the contents of your README file
-# this_directory = os.path.abspath(os.path.dirname(__file__))
-# with open(os.path.join(this_directory, "README.rst"), encoding="utf-8") as f:
-#     long_description = f.read()
-
-# optional_deps = {
-#     "full": ["numpy", "pandas"],
-# }
 
 # setup(
-#     name="redshift_connector",
-#     version=__version__,  # type: ignore
-#     description="Redshift interface library",
-#     long_description=long_description,
-#     long_description_content_type="text/x-rst",
-#     author="Amazon Web Services",
-#     author_email="redshift-drivers@amazon.com",
-#     url="https://github.com/aws/amazon-redshift-python-driver",
-#     extras_require=optional_deps,
-#     
 #     include_package_data=True,
-#     package_data={"redshift-connector": ["*.py", "*.crt", "LICENSE", "NOTICE"]},
-#     packages=find_packages(exclude=["test*"]),
 #     cmdclass=custom_cmds,
 # )
