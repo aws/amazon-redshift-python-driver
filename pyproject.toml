@@ -34,6 +34,7 @@ requests = ">=2.23.0,<3.0.0"
 lxml = ">=4.6.5"
 botocore = ">=1.12.201,<2.0.0"
 packaging = "*"
+importlib-metadata = ">=0.22"
 
 [tool.poetry.dev-dependencies]
 pytest = ">=5.4.0,<5.5.0"

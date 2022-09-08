@@ -169,7 +169,7 @@ python-versions = ">=3.5"
 name = "importlib-metadata"
 version = "4.8.3"
 description = "Read metadata from Python packages"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -499,7 +499,7 @@ python-versions = ">=3.6"
 name = "typing-extensions"
 version = "4.1.1"
 description = "Backported and Experimental Type Hints for Python 3.6+"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -546,7 +546,7 @@ python-versions = "*"
 name = "zipp"
 version = "3.6.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
-category = "dev"
+category = "main"
 optional = false
 python-versions = ">=3.6"
 
@@ -557,7 +557,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.6.1"
-content-hash = "34043c36699a2bbfb79ce34e23e1a0405b8317b3769cbbf9438901ddc37ab906"
+content-hash = "924d8c4cab62edc66f3804718c9bedd6f848164b0b0cdf911600ec81d64cfaa9"
 
 [metadata.files]
 asn1crypto = [

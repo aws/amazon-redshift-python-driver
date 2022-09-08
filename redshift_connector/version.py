@@ -1,5 +1,5 @@
-# Store the version here so:
-# 1) we don't load dependencies by storing it in __init__.py
-# 2) we can import it in setup.py for the same reason
-# 3) we can import it into your module module
-__version__ = "2.0.908"
+# We use the pyproject.toml to store the version
+# and read it at runtime using importlib_metadata for python < 3.7
+from importlib_metadata import version
+
+__version__ = version(__name__)
