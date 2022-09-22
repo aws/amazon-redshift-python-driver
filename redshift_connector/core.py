@@ -7,7 +7,6 @@ from copy import deepcopy
 from datetime import datetime as Datetime
 from datetime import timedelta as Timedelta
 from decimal import Decimal
-from distutils.version import LooseVersion
 from hashlib import md5
 from itertools import count
 from os import getpid
@@ -15,6 +14,7 @@ from struct import pack
 from typing import TYPE_CHECKING
 from warnings import warn
 
+from packaging import version
 from scramp import ScramClient  # type: ignore
 
 from redshift_connector.config import (
@@ -2111,10 +2111,12 @@ class Connection:
                 self._client_protocol_version = int(value)
                 self._enable_protocol_based_conversion_funcs()
         elif key == b"server_version":
-            self._server_version: LooseVersion = LooseVersion(value.decode("ascii"))
-            if self._server_version < LooseVersion("8.2.0"):
+            self._server_version: typing.Union[version.LegacyVersion, version.Version] = version.parse(
+                (value.decode("ascii"))
+            )
+            if self._server_version < version.parse("8.2.0"):
                 self._commands_with_count = (b"INSERT", b"DELETE", b"UPDATE", b"MOVE")
-            elif self._server_version < LooseVersion("9.0.0"):
+            elif self._server_version < version.parse("9.0.0"):
                 self._commands_with_count = (b"INSERT", b"DELETE", b"UPDATE", b"MOVE", b"FETCH", b"COPY")
 
     def array_inspect(self: "Connection", value):
