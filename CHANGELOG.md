@@ -2,6 +2,20 @@ Changelog
 =========
 
 
+v2.0.909 (2022-09-22)
+---------------------
+- Bump version to 2.0.909. [Brooke White]
+- Refactor: use importlib instead of pkg_resources. [Brooke White]
+- Refactor(Connection, handle_PARAMETER_STATUS): comply with PEP 632.
+  [Brooke White]
+- Chore: add dependency on setuptools. [Brooke White]
+- Chore: release constraints on max version for pytz and requests (#119)
+  [Pierre Souchay, Pierre Souchay]
+
+  Fix https://github.com/aws/amazon-redshift-python-driver/issues/118
+- Docs(tutorials): fix serverless iam example. [Brooke White]
+
+
 v2.0.908 (2022-06-30)
 ---------------------
 - Docs(connection, serverless): add new connection params. [Brooke
