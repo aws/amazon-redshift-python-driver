@@ -2,6 +2,8 @@ import logging
 import typing
 from enum import Enum
 
+from packaging.version import Version
+
 from redshift_connector.error import InterfaceError, ProgrammingError
 from redshift_connector.plugin.i_plugin import IPlugin
 from redshift_connector.redshift_property import RedshiftProperty
@@ -33,13 +35,25 @@ class IdpAuthHelper:
     JWT_PLUGIN: int = 2
 
     @staticmethod
+    def get_pkg_version(module_name: str) -> Version:
+        """
+        Returns a Version object pertaining to the module name provided.
+        """
+        try:
+            from importlib.metadata import version as version
+        except ModuleNotFoundError:  # if importlib is not present, fallback to pkg_resources
+            import pkg_resources
+
+            return Version(pkg_resources.get_distribution(module_name).version)
+
+        return Version(version(module_name))
+
+    @staticmethod
     def set_auth_properties(info: RedshiftProperty):
         """
         Helper function to handle IAM and Native Auth connection properties and ensure required parameters are specified.
         Parameters
         """
-        import pkg_resources
-        from packaging.version import Version
 
         if info is None:
             raise InterfaceError("Invalid connection property setting. info must be specified")
@@ -65,13 +79,13 @@ class IdpAuthHelper:
         #         "AWS credentials, Amazon Redshift authentication profile, or AWS profile"
         #     )
         if info.iam is True:
-            _logger.debug("boto3 version: {}".format(Version(pkg_resources.get_distribution("boto3").version)))
-            _logger.debug("botocore version: {}".format(Version(pkg_resources.get_distribution("botocore").version)))
+            _logger.debug("boto3 version: {}".format(IdpAuthHelper.get_pkg_version("boto3")))
+            _logger.debug("botocore version: {}".format(IdpAuthHelper.get_pkg_version("botocore")))
 
             # Check for IAM keys and AuthProfile first
             if info.auth_profile is not None:
-                if Version(pkg_resources.get_distribution("boto3").version) < Version("1.17.111"):
-                    raise pkg_resources.VersionConflict(
+                if IdpAuthHelper.get_pkg_version("boto3") < Version("1.17.111"):
+                    raise ModuleNotFoundError(
                         "boto3 >= 1.17.111 required for authentication via Amazon Redshift authentication profile. "
                         "Please upgrade the installed version of boto3 to use this functionality."
                     )

@@ -781,13 +781,13 @@ def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, prov
     ),
 )
 def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(mocker, boto3_version):
-    mock_boto3_dist_obj = MagicMock()
-    mock_boto3_dist_obj.version = boto3_version
+    from packaging.version import Version
 
-    mocker.patch("pkg_resources.get_distribution", return_value=mock_boto3_dist_obj)
-    import pkg_resources
+    mock_boto3_dist_obj = Version(boto3_version)
 
-    with pytest.raises(pkg_resources.VersionConflict) as excinfo:
+    mocker.patch("redshift_connector.idp_auth_helper.IdpAuthHelper.get_pkg_version", return_value=mock_boto3_dist_obj)
+
+    with pytest.raises(ModuleNotFoundError) as excinfo:
         IamHelper.set_iam_properties(
             make_basic_redshift_property(
                 **{"iam": True, "ssl": True, "auth_profile": "SomeTestProfile", "cluster_identifier": "my_cluster"}

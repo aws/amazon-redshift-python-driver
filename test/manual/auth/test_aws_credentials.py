@@ -38,7 +38,7 @@ How to use:
 0) Generate credentials using instructions:  https://docs.aws.amazon.com/sdk-for-javascript/v2/developer-guide/getting-your-credentials.html
 1) In the connect method below,  specify the connection parameters
 3) Specify the AWS IAM credentials in the variables above
-4) Update iam_helper.py to include correct min version. line `Version(pkg_resources.get_distribution("boto3").version) > Version("9.99.9999"):`
+4) Update iam_helper.py to include correct min version.
 5) Manually execute this test
 """
 

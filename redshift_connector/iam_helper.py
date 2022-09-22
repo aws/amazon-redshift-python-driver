@@ -3,7 +3,6 @@ import enum
 import logging
 import typing
 
-import pkg_resources
 from dateutil.tz import tzutc
 from packaging.version import Version
 
@@ -58,7 +57,7 @@ class IamHelper(IdpAuthHelper):
                     IamHelper.IAMAuthenticationType.IAM_KEYS,
                     IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION,
                 )
-            ) and Version(pkg_resources.get_distribution("boto3").version) >= Version("1.24.5")
+            ) and IdpAuthHelper.get_pkg_version("boto3") >= Version("1.24.5")
 
     credentials_cache: typing.Dict[str, dict] = {}
 
@@ -94,8 +93,8 @@ class IamHelper(IdpAuthHelper):
         IamHelper.set_auth_properties(info)
 
         if info._is_serverless and info.iam:
-            if Version(pkg_resources.get_distribution("boto3").version) < Version("1.24.11"):
-                raise pkg_resources.VersionConflict(
+            if IdpAuthHelper.get_pkg_version("boto3") < Version("1.24.11"):
+                raise ModuleNotFoundError(
                     "boto3 >= 1.24.11 required for authentication with Amazon Redshift serverless. "
                     "Please upgrade the installed version of boto3 to use this functionality."
                 )
