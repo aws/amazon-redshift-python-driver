@@ -6,3 +6,4 @@ requests>=2.23.0,<3.0.0
 lxml>=4.6.5
 botocore>=1.12.201,<2.0.0
 packaging
+setuptools
