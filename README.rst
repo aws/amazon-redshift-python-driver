@@ -103,10 +103,10 @@ Enabling autocommit
 .. code-block:: py3
 
     # Make sure we're not in a transaction
-    con.rollback()
-    con.autocommit = True
-    con.run("VACUUM")
-    con.autocommit = False
+    conn.rollback()
+    conn.autocommit = True
+    conn.run("VACUUM")
+    conn.autocommit = False
 
 
 Configuring cursor paramstyle
@@ -237,7 +237,7 @@ Insert data stored in a ``pandas.DataFrame`` into an Amazon Redshift table
         ),
         columns=["bookname", "author‎"],
     )
-    with con.cursor() as cursor:
+    with conn.cursor() as cursor:
         cursor.write_dataframe(df, "book")
         cursor.execute("select * from book; ")
         result = cursor.fetchall()
