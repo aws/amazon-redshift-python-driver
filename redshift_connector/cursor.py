@@ -493,7 +493,7 @@ class Cursor:
             else:
                 raise StopIteration()
 
-    def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> typing.Optional["pandas.DataFrame"]:
+    def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> "pandas.DataFrame":
         """
         Fetches a user defined number of rows of a query result as a :class:`pandas.DataFrame`.
 
@@ -503,7 +503,7 @@ class Cursor:
 
         Returns
         -------
-        A `pandas.DataFrame` containing field values making up a row. A column label, derived from the row description of the table, is provided.:typing.Optional["pandas.Dataframe"]
+        A `pandas.DataFrame` containing field values making up a row. A column label, derived from the row description of the table, is provided. : "pandas.Dataframe"
         """
         try:
             import pandas
@@ -522,8 +522,7 @@ class Cursor:
             fetcheddata = self.fetchall()
 
         result: typing.List = [tuple(column for column in rows) for rows in fetcheddata]
-        if len(result) == 0:
-            return None
+
         return pandas.DataFrame(result, columns=columns)
 
     def __is_valid_table(self: "Cursor", table: str) -> bool:
