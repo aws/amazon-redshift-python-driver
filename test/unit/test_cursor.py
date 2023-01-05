@@ -47,7 +47,7 @@ def test_fetch_dataframe_no_results(mocker):
     mocker.patch("redshift_connector.Cursor._getDescription", return_value=["test"])
     mocker.patch("redshift_connector.Cursor.__next__", side_effect=StopIteration("mocked end"))
 
-    assert mock_cursor.fetch_dataframe(1) is None
+    assert mock_cursor.fetch_dataframe(1).size == 0
 
 
 def test_raw_connection_property_warns():
