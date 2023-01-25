@@ -2,6 +2,19 @@ Changelog
 =========
 
 
+v2.0.910 (2023-01-25)
+---------------------
+- Fix(metadata): views when cast null. [Brooke White]
+- Fix(cursor): Always return `pandas.DataFrame` (#141) [Brooke White,
+  Fred]
+
+  * Always return `pandas.DataFrame`
+
+  * test(cursor, test_fetch_dataframe_no_results): always return df
+- Fix(docs): change variable names from con to conn (#139) [Daiki
+  Katsuragawa]
+
+
 v2.0.909 (2022-09-22)
 ---------------------
 - Bump version to 2.0.909. [Brooke White]
