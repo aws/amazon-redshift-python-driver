@@ -4,6 +4,7 @@ from warnings import filterwarnings
 import pytest  # type: ignore
 
 import redshift_connector
+from redshift_connector.config import DbApiParamstyle
 
 # Tests relating to the pandas and numpy operation of the database driver
 # redshift_connector custom interface.
@@ -58,7 +59,8 @@ def test_fetch_dataframe(db_table):
 
 
 @pandas_only
-def test_write_dataframe(db_table):
+@pytest.mark.parametrize("paramstyle", DbApiParamstyle.list())
+def test_write_dataframe(db_table, paramstyle):
     import numpy as np
     import pandas as pd
 
@@ -71,11 +73,15 @@ def test_write_dataframe(db_table):
         ),
         columns=["bookname", "author‎"],
     )
+    db_table.paramstyle = paramstyle
+
     with db_table.cursor() as cursor:
         cursor.write_dataframe(df, "book")
         cursor.execute("select * from book; ")
         result = cursor.fetchall()
         assert len(np.array(result)) == 2
+
+    assert db_table.paramstyle == paramstyle
 
 
 @numpy_only

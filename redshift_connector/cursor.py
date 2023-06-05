@@ -555,7 +555,7 @@ class Cursor:
 
     def write_dataframe(self: "Cursor", df: "pandas.DataFrame", table: str) -> None:
         """
-        Inserts a :class:`pandas.DataFrame` into an table within the current database.
+        Inserts a :class:`pandas.DataFrame` into a table within the current database.
 
         Parameters
         ----------
@@ -579,10 +579,21 @@ class Cursor:
         sql: str = "insert into {table} values ({placeholder})".format(
             table=sanitized_table_name, placeholder=placeholder
         )
-        if len(arrays) == 1:
-            self.execute(sql, arrays[0])
-        elif len(arrays) > 1:
-            self.executemany(sql, arrays)
+        cursor_paramstyle: str = self.paramstyle
+        try:
+            # force using FORMAT i.e. %s paramstyle for the current statement, then revert the
+            # cursor to use the cursor's original paramstyle
+            self.paramstyle = DbApiParamstyle.FORMAT.value
+            if len(arrays) == 1:
+                self.execute(sql, arrays[0])
+            elif len(arrays) > 1:
+                self.executemany(sql, arrays)
+        except:
+            raise InterfaceError(
+                "An error occurred when attempting to insert the pandas.DataFrame into ${}".format(table)
+            )
+        finally:
+            self.paramstyle = cursor_paramstyle
 
     def fetch_numpy_array(self: "Cursor", num: typing.Optional[int] = None) -> "numpy.ndarray":
         """
