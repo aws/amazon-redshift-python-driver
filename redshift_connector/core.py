@@ -1454,17 +1454,17 @@ class Connection:
             return self.py_types[RedshiftOID.BIGINT]
         return self.py_types[Decimal]
 
-    def make_params(self: "Connection", values):
-        params = []
+    def make_params(self: "Connection", values) -> typing.Tuple[typing.Tuple[int, int, typing.Callable], ...]:
+        params: typing.List[typing.Tuple[int, int, typing.Callable]] = []
         for value in values:
-            typ = type(value)
+            typ: typing.Type = type(value)
             try:
                 params.append(self.py_types[typ])
             except KeyError:
                 try:
                     params.append(self.inspect_funcs[typ](value))
                 except KeyError as e:
-                    param = None
+                    param: typing.Optional[typing.Tuple[int, int, typing.Callable]] = None
                     for k, v in self.py_types.items():
                         try:
                             if isinstance(value, typing.cast(type, k)):
@@ -1593,16 +1593,19 @@ class Connection:
         -------
         None:None
         """
-        if vals is None:
-            vals = ()
 
         # get the process ID of the calling process.
         pid: int = getpid()
+
+        args: typing.Tuple[typing.Optional[typing.Tuple[str, typing.Any]], ...] = ()
+        # transforms user provided bind parameters to server friendly bind parameters
+        params: typing.Tuple[typing.Optional[typing.Tuple[int, int, typing.Callable]], ...] = ()
+
         # multi dimensional dictionary to store the data
         # cache = self._caches[cursor.paramstyle][pid]
         # cache = {'statement': {}, 'ps': {}}
-        # statement store the data of statement, ps store the data of prepared statement
-        # statement = {operation(query): tuple from 'conver_paramstyle'(statement, make_args)}
+        # statement stores the data of the statement, ps store the data of the prepared statement
+        # statement = {operation(query): tuple from 'convert_paramstyle'(statement, make_args)}
         try:
             cache = self._caches[cursor.paramstyle][pid]
         except KeyError:
@@ -1619,12 +1622,16 @@ class Connection:
         try:
             statement, make_args = cache["statement"][operation]
         except KeyError:
-            statement, make_args = cache["statement"][operation] = convert_paramstyle(cursor.paramstyle, operation)
-
-        args = make_args(vals)
-        # change the args to the format that the DB will identify
-        # take reference from self.py_types
-        params = self.make_params(args)
+            if vals:
+                statement, make_args = cache["statement"][operation] = convert_paramstyle(cursor.paramstyle, operation)
+            else:
+                # use a no-op make_args in lieu of parsing the sql statement
+                statement, make_args = cache["statement"][operation] = operation, lambda p: ()
+        if vals:
+            args = make_args(vals)
+            # change the args to the format that the DB will identify
+            # take reference from self.py_types
+            params = self.make_params(args)
         key = operation, params
 
         try:
@@ -1653,11 +1660,11 @@ class Connection:
                 "pid": pid,
                 "statement_num": statement_num,
                 "row_desc": [],
-                "param_funcs": tuple(x[2] for x in params),
+                "param_funcs": tuple(x[2] for x in params),  # type: ignore
             }
             cursor.ps = ps
 
-            param_fcs = tuple(x[1] for x in params)
+            param_fcs: typing.Tuple[typing.Optional[int], ...] = tuple(x[1] for x in params)  # type: ignore
 
             # Byte1('P') - Identifies the message as a Parse command.
             # Int32 -   Message length, including self.
@@ -1670,7 +1677,7 @@ class Connection:
             val: typing.Union[bytes, bytearray] = bytearray(statement_name_bin)
             typing.cast(bytearray, val).extend(statement.encode(_client_encoding) + NULL_BYTE)
             typing.cast(bytearray, val).extend(h_pack(len(params)))
-            for oid, fc, send_func in params:
+            for oid, fc, send_func in params:  # type: ignore
                 # Parse message doesn't seem to handle the -1 type_oid for NULL
                 # values that other messages handle.  So we'll provide type_oid
                 # 705, the PG "unknown" type.

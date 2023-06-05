@@ -291,3 +291,24 @@ def test_stl_connection_log_contains_application_name(db_kwargs):
             res = cursor.fetchone()
             assert res is not None
             assert res[0] == 1
+
+
+@pytest.mark.parametrize("sql", ["select 1", "grant role sys:monitor to awsuser"])
+def test_execute_skip_parse_bind_params_when_dne(mocker, db_kwargs, sql):
+    convert_paramstyle_spy = mocker.spy(redshift_connector.core, "convert_paramstyle")
+
+    with redshift_connector.connect(**db_kwargs) as conn:
+        conn.cursor().execute(sql)
+    assert not convert_paramstyle_spy.called
+
+
+@pytest.mark.parametrize(
+    "sql, args",
+    [("select %s", "hello world"), ("select %s, %s", ("hello", "world")), ("select %s, %s", [1, "hello world"])],
+)
+def test_execute_do_parsing_bind_params_when_exist(mocker, db_kwargs, sql, args):
+    convert_paramstyle_spy = mocker.spy(redshift_connector.core, "convert_paramstyle")
+
+    with redshift_connector.connect(**db_kwargs) as conn:
+        conn.cursor().execute(sql, args)
+    assert convert_paramstyle_spy.called
