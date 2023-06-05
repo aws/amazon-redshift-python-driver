@@ -24,11 +24,13 @@ def test_threadsafety():
 
 
 def test_paramstyle():
+    from redshift_connector.config import DbApiParamstyle
+
     try:
         # Must exist
         paramstyle: str = driver.paramstyle
         # Must be a valid value
-        assert paramstyle in ("qmark", "numeric", "named", "format", "pyformat")
+        assert paramstyle in DbApiParamstyle.list()
     except AttributeError:
         assert False, "Driver doesn't define paramstyle"
 

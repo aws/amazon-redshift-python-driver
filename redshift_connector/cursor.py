@@ -10,6 +10,7 @@ from warnings import warn
 import redshift_connector
 from redshift_connector.config import (
     ClientProtocolVersion,
+    DbApiParamstyle,
     _client_encoding,
     table_type_clauses,
 )
@@ -355,7 +356,7 @@ class Cursor:
         else:
             param_list = [[split_table_name[0], c] for c in columns]
         temp = self.paramstyle
-        self.paramstyle = "qmark"
+        self.paramstyle = DbApiParamstyle.QMARK.value
         try:
             for params in param_list:
                 self.execute(q, params)
@@ -376,7 +377,7 @@ class Cursor:
         from redshift_connector.core import convert_paramstyle
 
         try:
-            statement, make_args = convert_paramstyle("format", operation)
+            statement, make_args = convert_paramstyle(DbApiParamstyle.FORMAT.value, operation)
             vals = make_args(args)
             self.execute(statement, vals)
 
@@ -534,7 +535,7 @@ class Cursor:
         q: str = "select 1 from information_schema.tables where table_name = ?"
 
         temp = self.paramstyle
-        self.paramstyle = "qmark"
+        self.paramstyle = DbApiParamstyle.QMARK.value
 
         try:
             if len(split_table_name) == 2:
@@ -643,7 +644,7 @@ class Cursor:
         if len(query_args) > 0:
             # temporarily use qmark paramstyle
             temp = self.paramstyle
-            self.paramstyle = "qmark"
+            self.paramstyle = DbApiParamstyle.QMARK.value
 
             try:
                 self.execute(sql, tuple(query_args))
@@ -721,7 +722,7 @@ class Cursor:
         if len(query_args) == 1:
             # temporarily use qmark paramstyle
             temp = self.paramstyle
-            self.paramstyle = "qmark"
+            self.paramstyle = DbApiParamstyle.QMARK.value
             try:
                 self.execute(sql, tuple(query_args))
             except:
@@ -774,7 +775,7 @@ class Cursor:
         if len(query_args) > 0:
             # temporarily use qmark paramstyle
             temp = self.paramstyle
-            self.paramstyle = "qmark"
+            self.paramstyle = DbApiParamstyle.QMARK.value
             try:
                 self.execute(sql, tuple(query_args))
             except:
@@ -855,7 +856,7 @@ class Cursor:
 
         if len(sql_args) > 0:
             temp = self.paramstyle
-            self.paramstyle = "qmark"
+            self.paramstyle = DbApiParamstyle.QMARK.value
             try:
                 self.execute(sql, sql_args)
             except:

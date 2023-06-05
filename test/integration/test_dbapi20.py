@@ -184,15 +184,15 @@ def _paraminsert(cur):
     cur.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
     assert cur.rowcount in (-1, 1)
 
-    if driver.paramstyle == "qmark":
+    if driver.paramstyle == redshift_connector.config.DbApiParamstyle.QMARK.value:
         cur.execute("insert into %sbooze values (?)" % table_prefix, ("Cooper's",))
-    elif driver.paramstyle == "numeric":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.NUMERIC.value:
         cur.execute("insert into %sbooze values (:1)" % table_prefix, ("Cooper's",))
-    elif driver.paramstyle == "named":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.NAMED.value:
         cur.execute("insert into %sbooze values (:beer)" % table_prefix, {"beer": "Cooper's"})
-    elif driver.paramstyle == "format":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.FORMAT.value:
         cur.execute("insert into %sbooze values (%%s)" % table_prefix, ("Cooper's",))
-    elif driver.paramstyle == "pyformat":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.PYFORMAT.value:
         cur.execute("insert into %sbooze values (%%(beer)s)" % table_prefix, {"beer": "Cooper's"})
     else:
         assert False, "Invalid paramstyle"
@@ -212,15 +212,15 @@ def test_executemany(cursor):
     execute_ddl_1(cursor)
     largs: typing.List[typing.Tuple[str]] = [("Cooper's",), ("Boag's",)]
     margs: typing.List[typing.Dict[str, str]] = [{"beer": "Cooper's"}, {"beer": "Boag's"}]
-    if driver.paramstyle == "qmark":
+    if driver.paramstyle == redshift_connector.config.DbApiParamstyle.QMARK.value:
         cursor.executemany("insert into %sbooze values (?)" % table_prefix, largs)
-    elif driver.paramstyle == "numeric":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.NUMERIC.value:
         cursor.executemany("insert into %sbooze values (:1)" % table_prefix, largs)
-    elif driver.paramstyle == "named":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.NAMED.value:
         cursor.executemany("insert into %sbooze values (:beer)" % table_prefix, margs)
-    elif driver.paramstyle == "format":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.FORMAT.value:
         cursor.executemany("insert into %sbooze values (%%s)" % table_prefix, largs)
-    elif driver.paramstyle == "pyformat":
+    elif driver.paramstyle == redshift_connector.config.DbApiParamstyle.PYFORMAT.value:
         cursor.executemany("insert into %sbooze values (%%(beer)s)" % (table_prefix), margs)
     else:
         assert False, "Unknown paramstyle"

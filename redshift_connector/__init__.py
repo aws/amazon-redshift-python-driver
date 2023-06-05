@@ -2,7 +2,11 @@ import logging
 import typing
 
 from redshift_connector import plugin
-from redshift_connector.config import DEFAULT_PROTOCOL_VERSION, ClientProtocolVersion
+from redshift_connector.config import (
+    DEFAULT_PROTOCOL_VERSION,
+    ClientProtocolVersion,
+    DbApiParamstyle,
+)
 from redshift_connector.core import BINARY, Connection, Cursor
 from redshift_connector.error import (
     ArrayContentNotHomogenousError,

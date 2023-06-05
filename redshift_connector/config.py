@@ -3,7 +3,7 @@ import typing
 from calendar import timegm
 from datetime import datetime as Datetime
 from datetime import timezone as Timezone
-from enum import IntEnum
+from enum import Enum, IntEnum
 
 FC_TEXT: int = 0
 FC_BINARY: int = 1
@@ -28,6 +28,19 @@ class ClientProtocolVersion(IntEnum):
 
 
 DEFAULT_PROTOCOL_VERSION: int = ClientProtocolVersion.BINARY.value
+
+
+class DbApiParamstyle(Enum):
+    QMARK = "qmark"
+    NUMERIC = "numeric"
+    NAMED = "named"
+    FORMAT = "format"
+    PYFORMAT = "pyformat"
+
+    @classmethod
+    def list(cls) -> typing.List[int]:
+        return list(map(lambda p: p.value, cls))  # type: ignore
+
 
 min_int2: int = -(2 ** 15)
 max_int2: int = 2 ** 15

@@ -20,6 +20,7 @@ from scramp import ScramClient  # type: ignore
 from redshift_connector.config import (
     DEFAULT_PROTOCOL_VERSION,
     ClientProtocolVersion,
+    DbApiParamstyle,
     _client_encoding,
     max_int2,
     max_int4,
@@ -145,6 +146,7 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
     INSIDE_ES: int = 3  # inside escaped single-quote string, E'...'
     INSIDE_PN: int = 4  # inside parameter name eg. :name
     INSIDE_CO: int = 5  # inside inline comment eg. --
+    INSIDE_MC: int = 6  # inside multiline comment eg. /*
 
     in_quote_escape: bool = False
     in_param_escape: bool = False
@@ -173,23 +175,27 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
                 output_query.append(c)
                 if prev_c == "-":
                     state = INSIDE_CO
-            elif style == "qmark" and c == "?":
+            elif c == "*":
+                output_query.append(c)
+                if prev_c == "/":
+                    state = INSIDE_MC
+            elif style == DbApiParamstyle.QMARK.value and c == "?":
                 output_query.append(next(param_idx))
-            elif style == "numeric" and c == ":" and next_c not in ":=" and prev_c != ":":
+            elif style == DbApiParamstyle.NUMERIC.value and c == ":" and next_c not in ":=" and prev_c != ":":
                 # Treat : as beginning of parameter name if and only
                 # if it's the only : around
                 # Needed to properly process type conversions
                 # i.e. sum(x)::float
                 output_query.append("$")
-            elif style == "named" and c == ":" and next_c not in ":=" and prev_c != ":":
+            elif style == DbApiParamstyle.NAMED.value and c == ":" and next_c not in ":=" and prev_c != ":":
                 # Same logic for : as in numeric parameters
                 state = INSIDE_PN
                 placeholders.append("")
-            elif style == "pyformat" and c == "%" and next_c == "(":
+            elif style == DbApiParamstyle.PYFORMAT.value and c == "%" and next_c == "(":
                 state = INSIDE_PN
                 placeholders.append("")
-            elif style in ("format", "pyformat") and c == "%":
-                style = "format"
+            elif style in (DbApiParamstyle.FORMAT.value, DbApiParamstyle.PYFORMAT.value) and c == "%":
+                style = DbApiParamstyle.FORMAT.value
                 if in_param_escape:
                     in_param_escape = False
                     output_query.append(c)
@@ -227,7 +233,7 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
             output_query.append(c)
 
         elif state == INSIDE_PN:
-            if style == "named":
+            if style == DbApiParamstyle.NAMED.value:
                 placeholders[-1] += c
                 if next_c is None or (not next_c.isalnum() and next_c != "_"):
                     state = OUTSIDE
@@ -237,7 +243,7 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
                         del placeholders[-1]
                     except ValueError:
                         output_query.append("$" + str(len(placeholders)))
-            elif style == "pyformat":
+            elif style == DbApiParamstyle.PYFORMAT.value:
                 if prev_c == ")" and c == "s":
                     state = OUTSIDE
                     try:
@@ -250,7 +256,7 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
                     pass
                 else:
                     placeholders[-1] += c
-            elif style == "format":
+            elif style == DbApiParamstyle.FORMAT.value:
                 state = OUTSIDE
 
         elif state == INSIDE_CO:
@@ -258,9 +264,14 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
             if c == "\n":
                 state = OUTSIDE
 
+        elif state == INSIDE_MC:
+            output_query.append(c)
+            if c == "/" and prev_c == "*":
+                state = OUTSIDE
+
         prev_c = c
 
-    if style in ("numeric", "qmark", "format"):
+    if style in (DbApiParamstyle.NUMERIC.value, DbApiParamstyle.QMARK.value, DbApiParamstyle.FORMAT.value):
 
         def make_args(vals):
             return vals
@@ -466,7 +477,7 @@ class Connection:
         self.notices: deque = deque(maxlen=100)
         self.parameter_statuses: deque = deque(maxlen=100)
         self.max_prepared_statements: int = int(max_prepared_statements)
-        self._run_cursor: Cursor = Cursor(self, paramstyle="named")
+        self._run_cursor: Cursor = Cursor(self, paramstyle=DbApiParamstyle.NAMED.value)
         self._client_protocol_version: int = client_protocol_version
         self._database = database
         self.py_types = deepcopy(PY_TYPES)
@@ -1600,7 +1611,7 @@ class Connection:
         args: typing.Tuple[typing.Optional[typing.Tuple[str, typing.Any]], ...] = ()
         # transforms user provided bind parameters to server friendly bind parameters
         params: typing.Tuple[typing.Optional[typing.Tuple[int, int, typing.Callable]], ...] = ()
-
+        has_bind_parameters: bool = False if vals is None else True
         # multi dimensional dictionary to store the data
         # cache = self._caches[cursor.paramstyle][pid]
         # cache = {'statement': {}, 'ps': {}}
@@ -1622,12 +1633,12 @@ class Connection:
         try:
             statement, make_args = cache["statement"][operation]
         except KeyError:
-            if vals:
+            if has_bind_parameters:
                 statement, make_args = cache["statement"][operation] = convert_paramstyle(cursor.paramstyle, operation)
             else:
                 # use a no-op make_args in lieu of parsing the sql statement
                 statement, make_args = cache["statement"][operation] = operation, lambda p: ()
-        if vals:
+        if has_bind_parameters:
             args = make_args(vals)
             # change the args to the format that the DB will identify
             # take reference from self.py_types
