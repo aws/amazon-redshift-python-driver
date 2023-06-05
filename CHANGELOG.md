@@ -2,6 +2,23 @@ Changelog
 =========
 
 
+v2.0.911 (2023-06-05)
+---------------------
+- Docs(tutorials, 001): Add example for Azure Native IDP AD. [Brooke
+  White]
+- Fix(cursor, write_dataframe): respect paramstyle. [Brooke White]
+- Fix(cursor, execute): bind param parsing for multiline comments, colon
+  character issue. [Brooke White]
+- Fix(cursor, execute): remove unnecessary bind param parsing. [Brooke
+  White]
+- Docs(tutorial): clarify connection methods for IdP and Auth_profile
+  (#144) [jiezhen-chen]
+
+  * clarify connection methods for IdP and Auth_profile
+
+  * improve tutorial
+
+
 v2.0.910 (2023-01-25)
 ---------------------
 - Fix(metadata): views when cast null. [Brooke White]
