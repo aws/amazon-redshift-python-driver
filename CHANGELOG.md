@@ -2,6 +2,17 @@ Changelog
 =========
 
 
+v2.0.912 (2023-07-05)
+---------------------
+- Test(cursor): correct test_insert_data_invalid_column_raises. [Brooke
+  White]
+- Feat(auth): Support Redshift custom domain name. [Brooke White]
+- Fix(cursor, __has_valid_columns): raise exception if column validity
+  check returns nothing. [Brooke White]
+- Doc: python 3.11 support. [Brooke White]
+- Refactor: logging improvements. [Brooke White]
+
+
 v2.0.911 (2023-06-05)
 ---------------------
 - Docs(tutorials, 001): Add example for Azure Native IDP AD. [Brooke
