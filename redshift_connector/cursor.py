@@ -361,6 +361,12 @@ class Cursor:
             for params in param_list:
                 self.execute(q, params)
                 res = self.fetchone()
+                if res is None:
+                    raise InterfaceError(
+                        "Invalid column name. No results were returned when performing column name validity check. Query: {} Parameters: {}".format(
+                            q, params
+                        )
+                    )
                 if typing.cast(typing.List[int], res)[0] != 1:
                     raise InterfaceError("Invalid column name: {} specified for table: {}".format(params[1], table))
         except:
