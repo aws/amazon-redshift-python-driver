@@ -60,7 +60,7 @@ def test_insert_data_invalid_column_raises(mocked_csv, db_kwargs):
             ):
                 cursor.insert_data_bulk(
                     filename="mocked_csv",
-                    table_name="test_table",
+                    table_name="githubissue161",
                     parameter_indices=indexes,
                     column_names=["IncorrectColumnName"],
                     delimiter=",",
