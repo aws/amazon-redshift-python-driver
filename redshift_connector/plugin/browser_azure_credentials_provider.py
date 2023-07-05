@@ -148,7 +148,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             _logger.error("A unknown error occurred when requesting authentication from Azure")
             raise InterfaceError(e)
 
-        _logger.debug(response.text)
+        _logger.debug("Azure authentication response length: {}".format(len(response.text)))
 
         try:
             saml_assertion: str = response.json()["access_token"]

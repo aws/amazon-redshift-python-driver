@@ -103,7 +103,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
             _logger.error("A unknown error occurred when requesting authentication from Azure.")
             raise InterfaceError(e)
 
-        _logger.debug(response.text)
+        _logger.debug("Azure Oauth authentication response length: {}".format(len(response.text)))
 
         # parse the JSON response to grab access_token field which contains Base64 encoded SAML
         # Assertion and decode it

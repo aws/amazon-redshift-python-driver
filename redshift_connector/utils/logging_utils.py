@@ -12,27 +12,78 @@ def make_divider_block() -> str:
 def mask_secure_info_in_props(info: "RedshiftProperty") -> "RedshiftProperty":
     from redshift_connector import RedshiftProperty
 
+    logging_allow_list: typing.Tuple[str, ...] = (
+        # "access_key_id",
+        "allow_db_user_override",
+        "app_id",
+        "app_name",
+        "application_name",
+        "auth_profile",
+        "auto_create",
+        # "client_id",
+        "client_protocol_version",
+        # "client_secret",
+        "cluster_identifier",
+        "credentials_provider",
+        "database_metadata_current_db_only",
+        "db_groups",
+        "db_name",
+        "db_user",
+        "duration",
+        "endpoint_url",
+        "force_lowercase",
+        "group_federation",
+        "host",
+        "iam",
+        "iam_disable_cache",
+        "idp_host",
+        "idpPort",
+        "idp_response_timeout",
+        "idp_tenant",
+        "is_serverless",
+        "listen_port",
+        "login_url",
+        "max_prepared_statements",
+        "numeric_to_float",
+        "partner_sp_id",
+        # "password",
+        "port",
+        "preferred_role",
+        "principal",
+        "profile",
+        "provider_name",
+        "region",
+        "replication",
+        "role_arn",
+        "role_session_name",
+        "scope",
+        # "secret_access_key",
+        "serverless_acct_id",
+        "serverless_work_group",
+        # "session_token",
+        "source_address",
+        "ssl",
+        "ssl_insecure",
+        "sslmode",
+        "tcp_keepalive",
+        "timeout",
+        "unix_sock",
+        "user_name",
+        # "web_identity_token",
+    )
+
     if info is None:
         return info
-    secure_info_found: bool = False
-    placeholder_value: str = "***"
 
-    temp: RedshiftProperty = copy.deepcopy(info)
+    temp: RedshiftProperty = RedshiftProperty()
 
     def is_populated(field: typing.Optional[str]):
         return field is not None and field != ""
 
-    if is_populated(temp.password):
-        secure_info_found = True
-        temp.password = placeholder_value
-    if is_populated(temp.access_key_id):
-        secure_info_found = True
-        temp.access_key_id = placeholder_value
-    if is_populated(temp.secret_access_key):
-        secure_info_found = True
-        temp.secret_access_key = placeholder_value
-    if is_populated(temp.session_token):
-        secure_info_found = True
-        temp.session_token = placeholder_value
+    for parameter, value in info.__dict__.items():
+        if parameter in logging_allow_list:
+            temp.put(parameter, value)
+        elif is_populated(value):
+            temp.put(parameter, "***")
 
-    return temp if secure_info_found else info
+    return temp

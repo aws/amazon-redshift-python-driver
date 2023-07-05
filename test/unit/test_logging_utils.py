@@ -3,7 +3,15 @@ import pytest  # type: ignore
 from redshift_connector import RedshiftProperty
 from redshift_connector.utils.logging_utils import mask_secure_info_in_props
 
-secret_rp_values = ("password", "access_key_id", "session_token", "secret_access_key")
+secret_rp_values = (
+    "password",
+    "access_key_id",
+    "session_token",
+    "secret_access_key",
+    "client_id",
+    "client_secret",
+    "web_identity_token",
+)
 
 
 @pytest.mark.parametrize("rp_arg", secret_rp_values)

@@ -65,7 +65,7 @@ class PingCredentialsProvider(SamlCredentialsProvider):
                 _logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
                 raise InterfaceError(e)
 
-            _logger.debug(response.content)
+            _logger.debug("response length: {}".format(len(response.content)))
 
             try:
                 soup = bs4.BeautifulSoup(response.text)

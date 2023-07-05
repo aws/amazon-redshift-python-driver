@@ -61,7 +61,7 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
             _logger.error("A unknown error occurred when requesting SAML assertion to refresh credentials")
             raise InterfaceError(e)
 
-        _logger.debug(response.text)
+        _logger.debug("ADFS form based authentication response length: {}".format(len(response.text)))
 
         try:
             soup = bs4.BeautifulSoup(response.text, features="lxml")
