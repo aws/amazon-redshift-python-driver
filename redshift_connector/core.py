@@ -394,6 +394,20 @@ class Connection:
             os_version = "unknown"
         return os_version
 
+    @staticmethod
+    def __get_host_address_info(host: str, port: int):
+        """
+        Returns IPv4 address and port given a host name and port
+        """
+        # https://docs.python.org/3/library/socket.html#socket.getaddrinfo
+        response = socket.getaddrinfo(host=host, port=port, family=socket.AF_INET)
+        _logger.debug("getaddrinfo response {}".format(response))
+
+        if not response:
+            raise InterfaceError("Unable to determine ip for host {} port {}".format(host, port))
+
+        return response[0][4]
+
     def __init__(
         self: "Connection",
         user: str,
@@ -593,7 +607,11 @@ class Connection:
                 self._usock.settimeout(timeout)
 
             if unix_sock is None and host is not None:
-                self._usock.connect((host, port))
+                hostport: typing.Tuple[str, int] = Connection.__get_host_address_info(host, port)
+                _logger.debug(
+                    "Attempting to create connection socket with address {} {}".format(hostport[0], str(hostport[1]))
+                )
+                self._usock.connect(hostport)
             elif unix_sock is not None:
                 self._usock.connect(unix_sock)
 

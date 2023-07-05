@@ -66,16 +66,11 @@ def trust_all_certificates(request):
     request.addfinalizer(fin)
 
 
-def test_socket_missing():
-    conn_params = {
-        "unix_sock": "/file-does-not-exist",
-        "user": "doesn't-matter",
-        "password": "hunter2",
-        "database": "myDb",
-    }
+def test_socket_missing(db_kwargs):
+    db_kwargs["unix_sock"] = "/file-does-not-exist"
 
     with pytest.raises(redshift_connector.InterfaceError):
-        redshift_connector.connect(**conn_params)
+        redshift_connector.connect(**db_kwargs)
 
 
 def test_database_missing(db_kwargs):
@@ -150,7 +145,7 @@ def test_unicode_database_name(db_kwargs):
 
 
 def test_bytes_database_name(db_kwargs):
-    """ Should only raise an exception saying db doesn't exist """
+    """Should only raise an exception saying db doesn't exist"""
 
     db_kwargs["database"] = bytes("redshift_connector_sn\uFF6Fw", "utf8")
     with pytest.raises(redshift_connector.ProgrammingError, match="3D000"):

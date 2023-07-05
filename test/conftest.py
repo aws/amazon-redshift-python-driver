@@ -108,6 +108,18 @@ def serverless_iam_db_kwargs() -> typing.Dict[str, typing.Union[str, bool]]:
 
 
 @pytest.fixture(scope="class")
+def provisioned_cname_db_kwargs() -> typing.Dict[str, str]:
+    db_connect = {
+        "database": conf.get("redshift-provisioned-cname", "database", fallback="mock_database"),
+        "host": conf.get("redshift-provisioned-cname", "host", fallback="cname.mytest.com"),
+        "db_user": conf.get("redshift-provisioned-cname", "db_user", fallback="mock_user"),
+        "password": conf.get("redshift-provisioned-cname", "password", fallback="mock_password"),
+    }
+
+    return db_connect
+
+
+@pytest.fixture(scope="class")
 def okta_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:
     db_connect = {
         "db_user": conf.get("ci-cluster", "test_user", fallback="mock_test_user"),

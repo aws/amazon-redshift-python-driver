@@ -41,8 +41,11 @@ class IamHelper(IdpAuthHelper):
         Defines supported Python SDK methods used for Redshift credential retrieval
         """
 
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-serverless/client/get_credentials.html#
         SERVERLESS_V1 = "get_credentials()"
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html
         IAM_V1 = "get_cluster_credentials()"
+        # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials_with_iam.html#
         IAM_V2 = "get_cluster_credentials_with_iam()"
 
         @staticmethod
@@ -68,17 +71,26 @@ class IamHelper(IdpAuthHelper):
         """
         Returns an enum representing the Python SDK method to use for getting temporary IAM credentials.
         """
+        _logger.debug("Determining which API to use for retrieving Redshift instance credentials")
+
         if not info._is_serverless:
+            _logger.debug("Redshift provisioned")
             if not info.group_federation:
+                _logger.debug("group_federation disabled")
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V1
             elif IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type):
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V2
             else:
                 raise InterfaceError("Authentication with plugin is not supported for group federation")
         elif not info.group_federation:
+            _logger.debug("Redshift serverless")
+            _logger.debug("group_federation disabled")
             return IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1
         elif IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type):
-            return IamHelper.GetClusterCredentialsAPIType.IAM_V2
+            if info.is_cname:
+                raise InterfaceError("Custom cluster names are not supported for Redshift Serverless")
+            else:
+                return IamHelper.GetClusterCredentialsAPIType.IAM_V2
         else:
             raise InterfaceError("Authentication with plugin is not supported for group federation")
 
@@ -89,6 +101,7 @@ class IamHelper(IdpAuthHelper):
         Parameters
         """
         provider_type: IamHelper.IAMAuthenticationType = IamHelper.IAMAuthenticationType.NONE
+        info.set_is_cname()
         # set properties present for both IAM, Native authentication
         IamHelper.set_auth_properties(info)
 
@@ -96,6 +109,13 @@ class IamHelper(IdpAuthHelper):
             if IdpAuthHelper.get_pkg_version("boto3") < Version("1.24.11"):
                 raise ModuleNotFoundError(
                     "boto3 >= 1.24.11 required for authentication with Amazon Redshift serverless. "
+                    "Please upgrade the installed version of boto3 to use this functionality."
+                )
+
+        if info.iam and info.is_cname:
+            if IdpAuthHelper.get_pkg_version("boto3") < Version("1.26.157"):
+                raise ModuleNotFoundError(
+                    "boto3 >= 1.26.157 required for authentication with Amazon Redshift using custom domain name. "
                     "Please upgrade the installed version of boto3 to use this functionality."
                 )
 
@@ -109,7 +129,7 @@ class IamHelper(IdpAuthHelper):
                 info.set_serverless_work_group_from_host()
 
         if info.iam is True:
-            if info.cluster_identifier is None and not info._is_serverless:
+            if info.cluster_identifier is None and not info._is_serverless and not info.is_cname:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
                 )
@@ -173,7 +193,16 @@ class IamHelper(IdpAuthHelper):
                         info.db_groups = db_groups
 
         if not isinstance(provider, INativePlugin):
+            # If the Redshift instance has been identified as using a custom domain name, the hostname must
+            # be determined using the redshift client from boto3 API
+            if info.is_cname is True:
+                IamHelper.set_cluster_identifier(provider, info)
+
+            # Redshift database credentials  will be determined using the redshift client from boto3 API
             IamHelper.set_cluster_credentials(provider, info)
+
+            # Redshift instance host and port must be retrieved
+            IamHelper.set_cluster_host_and_port(provider, info)
 
     @staticmethod
     def get_credentials_cache_key(info: RedshiftProperty, cred_provider: typing.Union[IPlugin, AWSCredentialsProvider]):
@@ -237,15 +266,19 @@ class IamHelper(IdpAuthHelper):
         return provider_type
 
     @staticmethod
-    def set_cluster_credentials(
-        cred_provider: typing.Union[IPlugin, AWSCredentialsProvider], info: RedshiftProperty
-    ) -> None:
+    def get_boto3_redshift_client(cred_provider: typing.Union[IPlugin, AWSCredentialsProvider], info: RedshiftProperty):
         """
-        Calls the AWS SDK methods to return temporary credentials.
-        The expiration date is returned as the local time set by the client machines OS.
+        Returns a boto3 client configured for Amazon Redshift using AWS credentials provided by user, system, or IdP.
         """
         import boto3  # type: ignore
         import botocore  # type: ignore
+
+        session_args: typing.Dict[str, str] = {
+            "service_name": "redshift-serverless" if info._is_serverless else "redshift"
+        }
+        for opt_key, opt_val in (("region_name", info.region), ("endpoint_url", info.endpoint_url)):
+            if opt_val is not None:
+                session_args[opt_key] = opt_val
 
         try:
             credentials_holder: typing.Union[
@@ -253,24 +286,71 @@ class IamHelper(IdpAuthHelper):
             ] = cred_provider.get_credentials()  # type: ignore
             session_credentials: typing.Dict[str, str] = credentials_holder.get_session_credentials()
 
-            redshift_client: str = "redshift-serverless" if info._is_serverless else "redshift"
-            _logger.debug("boto3.client(service_name={}) being used for IAM auth".format(redshift_client))
-
-            for opt_key, opt_val in (("region_name", info.region), ("endpoint_url", info.endpoint_url)):
-                if opt_val is not None:
-                    session_credentials[opt_key] = opt_val
+            _logger.debug("boto3.client(service_name={}) being used for IAM auth".format(session_args["service_name"]))
 
             # if AWS credentials were used to create a boto3.Session object, use it
             if credentials_holder.has_associated_session:
                 cached_session: boto3.Session = typing.cast(
                     ABCAWSCredentialsHolder, credentials_holder
                 ).get_boto_session()
-                client = cached_session.client(service_name=redshift_client, region_name=info.region)
-            else:
-                client = boto3.client(service_name=redshift_client, **session_credentials)
 
+                client = cached_session.client(**session_args)
+
+            else:
+                client = boto3.client(**{**session_credentials, **session_args})
+            return client
+        except botocore.exceptions.ClientError as e:
+            _logger.error("ClientError when establishing boto3 client: %s", e)
+            raise e
+        except Exception as e:
+            _logger.error("Other Exception when establishing boto3 client: %s", e)
+            raise e
+
+    @staticmethod
+    def set_cluster_identifier(
+        cred_provider: typing.Union[IPlugin, AWSCredentialsProvider], info: RedshiftProperty
+    ) -> None:
+        """
+        Retrieves the hostname of a Redshift instance using custom domain name using boto3 API
+        """
+        import boto3  # type: ignore
+        import botocore  # type: ignore
+
+        client = IamHelper.get_boto3_redshift_client(cred_provider, info)
+
+        try:
+            _logger.debug("Redshift custom domain name in use. Determining cluster identifier.")
+            response = client.describe_custom_domain_associations(CustomDomainName=info.host)
+            cluster_identifier: str = response["Associations"][0]["CertificateAssociations"][0]["ClusterIdentifier"]
+            _logger.debug("Retrieved cluster_identifier={}".format(cluster_identifier))
+            info.put(key="cluster_identifier", value=cluster_identifier)
+        except Exception as e:
+            if info.cluster_identifier is None or info.cluster_identifier == "":
+                _logger.error(
+                    "Other Exception when requesting cluster identifier for Redshift with custom domain: %s", e
+                )
+                raise e
+            else:
+                _logger.error(
+                    "User provided cluster_identifier. Assuming cluster is using NLB/custom domain name. Using cluster_identifier"
+                )
+
+    @staticmethod
+    def set_cluster_host_and_port(
+        cred_provider: typing.Union[IPlugin, AWSCredentialsProvider], info: RedshiftProperty
+    ) -> None:
+        """
+        Sets RedshiftProperty attributes for host and port using user configured connection properties and AWS SDK API calls.
+        """
+        import boto3  # type: ignore
+        import botocore  # type: ignore
+
+        try:
+            # we must fetch the Redshift instance host and port name if either are unspecified by the user
             if info.host is None or info.host == "" or info.port is None or info.port == "":
+                _logger.debug("retrieving Redshift instance host and port from boto3 redshift client")
                 response: dict
+                client = IamHelper.get_boto3_redshift_client(cred_provider, info)
 
                 if info._is_serverless:
                     if not info.serverless_work_group:
@@ -282,82 +362,158 @@ class IamHelper(IdpAuthHelper):
                     response = client.describe_clusters(ClusterIdentifier=info.cluster_identifier)
                     info.put("host", response["Clusters"][0]["Endpoint"]["Address"])
                     info.put("port", response["Clusters"][0]["Endpoint"]["Port"])
-
-            cred: typing.Optional[typing.Dict[str, typing.Union[str, datetime.datetime]]] = None
-
-            if info.iam_disable_cache is False:
-                _logger.debug("iam_disable_cache=False")
-                # temporary credentials are cached by redshift_connector and will be used if they have not expired
-                cache_key: str = IamHelper.get_credentials_cache_key(info, cred_provider)
-                cred = IamHelper.credentials_cache.get(cache_key, None)
-
-                _logger.debug(
-                    "Searching credential cache for temporary AWS credentials. Found: {} Expiration: {}".format(
-                        bool(cache_key in IamHelper.credentials_cache),
-                        cred["Expiration"] if cred is not None else "N/A",
-                    )
-                )
-
-            if cred is None or typing.cast(datetime.datetime, cred["Expiration"]) < datetime.datetime.now(tz=tzutc()):
-                # retries will occur by default ref:
-                # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#legacy-retry-mode
-                _logger.debug("Credentials expired or not found...requesting from boto")
-                provider_type: IamHelper.IAMAuthenticationType = IamHelper.get_authentication_type(cred_provider)
-                get_creds_api_version: IamHelper.GetClusterCredentialsAPIType = (
-                    IamHelper.get_cluster_credentials_api_type(info, provider_type)
-                )
-                _logger.debug("boto3 get_credentials api version: {} will be used".format(get_creds_api_version.value))
-
-                if get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1:
-                    get_cred_args: typing.Dict[str, str] = {"dbName": info.db_name}
-                    if info.serverless_work_group:
-                        get_cred_args["workgroupName"] = info.serverless_work_group
-
-                    cred = typing.cast(
-                        typing.Dict[str, typing.Union[str, datetime.datetime]],
-                        client.get_credentials(**get_cred_args),
-                    )
-                    # re-map expiration for compatibility with redshift credential response
-                    cred["Expiration"] = cred["expiration"]
-                    del cred["expiration"]
-                elif get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.IAM_V2:
-                    cred = typing.cast(
-                        typing.Dict[str, typing.Union[str, datetime.datetime]],
-                        client.get_cluster_credentials_with_iam(
-                            DbName=info.db_name,
-                            ClusterIdentifier=info.cluster_identifier,
-                            DurationSeconds=info.duration,
-                        ),
-                    )
-                else:
-                    cred = typing.cast(
-                        typing.Dict[str, typing.Union[str, datetime.datetime]],
-                        client.get_cluster_credentials(
-                            DbUser=info.db_user,
-                            DbName=info.db_name,
-                            DbGroups=info.db_groups,
-                            ClusterIdentifier=info.cluster_identifier,
-                            AutoCreate=info.auto_create,
-                        ),
-                    )
-
-                if info.iam_disable_cache is False:
-                    IamHelper.credentials_cache[cache_key] = typing.cast(
-                        typing.Dict[str, typing.Union[str, datetime.datetime]], cred
-                    )
-            # redshift-serverless api json response payload slightly differs
-            if info._is_serverless:
-                info.put("user_name", typing.cast(str, cred["dbUser"]))
-                info.put("password", typing.cast(str, cred["dbPassword"]))
-            else:
-                info.put("user_name", typing.cast(str, cred["DbUser"]))
-                info.put("password", typing.cast(str, cred["DbPassword"]))
-
-            _logger.debug("Using temporary aws credentials with expiration: {}".format(cred.get("Expiration")))
-
+            _logger.debug("host={} port={}".format(info.host, info.port))
         except botocore.exceptions.ClientError as e:
-            _logger.error("ClientError: %s", e)
+            _logger.error("ClientError when requesting cluster identifier for Redshift with custom domain: %s", e)
             raise e
         except Exception as e:
-            _logger.error("other Exception: %s", e)
+            _logger.error("Other Exception when requesting cluster identifier for Redshift with custom domain: %s", e)
             raise e
+
+    @staticmethod
+    def set_cluster_credentials(
+        cred_provider: typing.Union[IPlugin, AWSCredentialsProvider], info: RedshiftProperty
+    ) -> None:
+        """
+        Calls the AWS SDK methods to return temporary credentials.
+        The expiration date is returned as the local time set by the client machines OS.
+        """
+        import boto3  # type: ignore
+        import botocore  # type: ignore
+        from botocore.exceptions import ClientError
+
+        client = IamHelper.get_boto3_redshift_client(cred_provider, info)
+        cred: typing.Optional[typing.Dict[str, typing.Union[str, datetime.datetime]]] = None
+
+        if info.iam_disable_cache is False:
+            _logger.debug("iam_disable_cache=False")
+            # temporary credentials are cached by redshift_connector and will be used if they have not expired
+            cache_key: str = IamHelper.get_credentials_cache_key(info, cred_provider)
+            cred = IamHelper.credentials_cache.get(cache_key, None)
+
+            _logger.debug(
+                "Searching credential cache for temporary AWS credentials. Found: {} Expiration: {}".format(
+                    bool(cache_key in IamHelper.credentials_cache),
+                    cred["Expiration"] if cred is not None else "N/A",
+                )
+            )
+
+        if cred is None or typing.cast(datetime.datetime, cred["Expiration"]) < datetime.datetime.now(tz=tzutc()):
+            # retries will occur by default ref:
+            # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#legacy-retry-mode
+            _logger.debug("Credentials expired or not found...requesting from boto")
+            provider_type: IamHelper.IAMAuthenticationType = IamHelper.get_authentication_type(cred_provider)
+            get_creds_api_version: IamHelper.GetClusterCredentialsAPIType = IamHelper.get_cluster_credentials_api_type(
+                info, provider_type
+            )
+            _logger.debug("boto3 get_credentials api version: {} will be used".format(get_creds_api_version.value))
+
+            if get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1:
+                # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-serverless/client/get_credentials.html#
+                get_cred_args: typing.Dict[str, str] = {"dbName": info.db_name}
+                if info.serverless_work_group:
+                    get_cred_args["workgroupName"] = info.serverless_work_group
+
+                _logger.debug("Calling get_credentials with parameters {}".format(get_cred_args))
+                cred = typing.cast(
+                    typing.Dict[str, typing.Union[str, datetime.datetime]],
+                    client.get_credentials(**get_cred_args),
+                )
+                # re-map expiration for compatibility with redshift credential response
+                cred["Expiration"] = cred["expiration"]
+                del cred["expiration"]
+            elif get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.IAM_V2:
+                # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials_with_iam.html#
+                request_params = {
+                    "DbName": info.db_name,
+                    "DurationSeconds": info.duration,
+                }
+
+                if info.is_cname:
+                    request_params["CustomDomainName"] = info.host
+                else:
+                    request_params["ClusterIdentifier"] = info.cluster_identifier
+                _logger.debug("Calling get_cluster_credentials_with_iam with parameters {}".format(request_params))
+
+                try:
+                    cred = typing.cast(
+                        typing.Dict[str, typing.Union[str, datetime.datetime]],
+                        client.get_cluster_credentials_with_iam(**request_params),
+                    )
+                except ClientError as e:
+                    if info.is_cname:
+                        _logger.debug(
+                            "Failed to get_cluster_credentials_with_iam. Assuming cluster incorrectly classified as cname, retrying..."
+                        )
+                        del request_params["CustomDomainName"]
+                        request_params["ClusterIdentifier"] = info.cluster_identifier
+
+                        _logger.debug(
+                            "Retrying calling get_cluster_credentials_with_iam with parameters {}".format(
+                                request_params
+                            )
+                        )
+
+                        cred = typing.cast(
+                            typing.Dict[str, typing.Union[str, datetime.datetime]],
+                            client.get_cluster_credentials_with_iam(**request_params),
+                        )
+                    else:
+                        raise e
+
+            else:
+                if info.db_user is None or info.db_user == "":
+                    raise InterfaceError("Connection parameter db_user must be specified when using IAM authentication")
+                # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html
+                request_params = {
+                    "DbUser": info.db_user,
+                    "DbName": info.db_name,
+                    "DbGroups": info.db_groups,
+                    "AutoCreate": info.auto_create,
+                }
+
+                if info.is_cname:
+                    request_params["CustomDomainName"] = info.host
+                else:
+                    request_params["ClusterIdentifier"] = info.cluster_identifier
+
+                _logger.debug("Calling get_cluster_credentials with parameters {}".format(request_params))
+
+                try:
+                    cred = typing.cast(
+                        typing.Dict[str, typing.Union[str, datetime.datetime]],
+                        client.get_cluster_credentials(**request_params),
+                    )
+                except ClientError as e:
+                    if info.is_cname:
+                        _logger.debug(
+                            "Failed to get_cluster_credentials. Assuming cluster incorrectly classified as cname, retrying..."
+                        )
+                        del request_params["CustomDomainName"]
+                        request_params["ClusterIdentifier"] = info.cluster_identifier
+
+                        _logger.debug(
+                            "Retrying calling get_cluster_credentials with parameters {}".format(request_params)
+                        )
+
+                        cred = typing.cast(
+                            typing.Dict[str, typing.Union[str, datetime.datetime]],
+                            client.get_cluster_credentials(**request_params),
+                        )
+
+                    else:
+                        raise e
+
+            if info.iam_disable_cache is False:
+                IamHelper.credentials_cache[cache_key] = typing.cast(
+                    typing.Dict[str, typing.Union[str, datetime.datetime]], cred
+                )
+        # redshift-serverless api json response payload slightly differs
+        if info._is_serverless:
+            info.put("user_name", typing.cast(str, cred["dbUser"]))
+            info.put("password", typing.cast(str, cred["dbPassword"]))
+        else:
+            info.put("user_name", typing.cast(str, cred["DbUser"]))
+            info.put("password", typing.cast(str, cred["DbPassword"]))
+
+        _logger.debug("Using temporary aws credentials with expiration: {}".format(cred.get("Expiration")))

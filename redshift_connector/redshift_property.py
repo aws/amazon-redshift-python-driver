@@ -1,11 +1,14 @@
+import logging
 import typing
 
 from redshift_connector.config import DEFAULT_PROTOCOL_VERSION
-from redshift_connector.error import ProgrammingError
 
 SERVERLESS_HOST_PATTERN: str = r"(.+)\.(.+).redshift-serverless(-dev)?\.amazonaws\.com(.)*"
 SERVERLESS_WITH_WORKGROUP_HOST_PATTERN: str = r"(.+)\.(.+)\.(.+).redshift-serverless(-dev)?\.amazonaws\.com(.)*"
 IAM_URL_PATTERN: str = r"^(https)://[-a-zA-Z0-9+&@#/%?=~_!:,.']*[-a-zA-Z0-9+&@#/%=~_']"
+PROVISIONED_HOST_PATTERN: str = r"(.+)\.(.+)\.(.+).redshift(-dev)?\.amazonaws\.com(.)*"
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 class RedshiftProperty:
@@ -118,6 +121,8 @@ class RedshiftProperty:
             self.serverless_acct_id: typing.Optional[str] = None
             self.serverless_work_group: typing.Optional[str] = None
             self.group_federation: bool = False
+            # flag indicating if host name and RedshiftProperty indicate Redshift with custom domain name is used
+            self.is_cname: bool = False
 
         else:
             for k, v in kwargs.items():
@@ -162,9 +167,44 @@ class RedshiftProperty:
         )
 
     @property
-    def _is_serverless(self):
+    def is_provisioned_host(self: "RedshiftProperty") -> bool:
         """
-        Returns True if host patches serverless pattern or if is_serverless flag set by user
+        Returns True if host matches Regex for Redshift provisioned. Otherwise returns False.
+        """
+        if not self.host:
+            return False
+
+        import re
+
+        return bool(re.fullmatch(pattern=PROVISIONED_HOST_PATTERN, string=str(self.host)))
+
+    def set_is_cname(self: "RedshiftProperty") -> None:
+        """
+        Sets RedshiftProperty is_cname attribute based on RedshiftProperty attribute values and host name Regex matching.
+        """
+        is_cname: bool = False
+        _logger.debug("determining if host indicates Redshift instance with custom name")
+
+        if self.is_provisioned_host:
+            _logger.debug("cluster identified as Redshift provisioned")
+        elif self.is_serverless_host:
+            _logger.debug("cluster identified as Redshift serverless")
+        elif self.is_serverless:
+            if self.serverless_work_group is not None:
+                _logger.debug("cluster identified as Redshift serverless with NLB")
+            else:
+                _logger.debug("cluster identified as Redshift serverless with with custom name")
+                is_cname = True
+        else:
+            _logger.debug("cluster identified as Redshift provisioned with with custom name/NLB")
+            is_cname = True
+
+        self.put(key="is_cname", value=is_cname)
+
+    @property
+    def _is_serverless(self: "RedshiftProperty"):
+        """
+        Returns True if host matches serverless pattern or if is_serverless flag set by user. Otherwise returns False.
         """
         return self.is_serverless_host or self.is_serverless
 

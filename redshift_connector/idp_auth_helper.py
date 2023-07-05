@@ -108,7 +108,7 @@ class IdpAuthHelper:
                     )
                     info.put_all(resp)
 
-            if info.cluster_identifier is None and not info._is_serverless:
+            if info.cluster_identifier is None and not info._is_serverless and not info.is_cname:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"
                 )
