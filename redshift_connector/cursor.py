@@ -924,7 +924,6 @@ class Cursor:
             " WHEN 'v' THEN 'VIEW' "
             " WHEN 'c' THEN 'TYPE' "
             " WHEN 'f' THEN 'FOREIGN TABLE' "
-            " WHEN 'm' THEN 'MATERIALIZED VIEW' "
             " ELSE NULL "
             " END "
             " ELSE NULL "
