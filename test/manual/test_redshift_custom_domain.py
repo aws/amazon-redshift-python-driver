@@ -13,7 +13,7 @@ Pre-requisites:
 """
 
 
-# @pytest.mark.skip(reason="manual")
+@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("sslmode", (SupportedSSLMode.VERIFY_CA, SupportedSSLMode.VERIFY_FULL))
 def test_native_connect(provisioned_cname_db_kwargs, sslmode):
     # this test requires aws default profile contains valid credentials that provide permissions for
@@ -40,7 +40,7 @@ def test_native_connect(provisioned_cname_db_kwargs, sslmode):
         pass
 
 
-# @pytest.mark.skip(reason="manual")
+@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("sslmode", (SupportedSSLMode.VERIFY_CA, SupportedSSLMode.VERIFY_FULL))
 def test_iam_connect(provisioned_cname_db_kwargs, sslmode):
     # this test requires aws default profile contains valid credentials that provide permissions for
@@ -62,7 +62,7 @@ def test_idp_connect(okta_idp, provisioned_cname_db_kwargs):
     pass
 
 
-# @pytest.mark.skip(reason="manual")
+@pytest.mark.skip(reason="manual")
 def test_nlb_connect():
     args = {
         "iam": True,

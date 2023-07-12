@@ -114,7 +114,7 @@ class IamHelper(IdpAuthHelper):
 
         if info.iam and info.is_cname:
             if IdpAuthHelper.get_pkg_version("boto3") < Version("1.26.157"):
-                raise ModuleNotFoundError(
+                _logger.debug(
                     "boto3 >= 1.26.157 required for authentication with Amazon Redshift using custom domain name. "
                     "Please upgrade the installed version of boto3 to use this functionality."
                 )
@@ -440,7 +440,7 @@ class IamHelper(IdpAuthHelper):
                         typing.Dict[str, typing.Union[str, datetime.datetime]],
                         client.get_cluster_credentials_with_iam(**request_params),
                     )
-                except ClientError as e:
+                except Exception as e:
                     if info.is_cname:
                         _logger.debug(
                             "Failed to get_cluster_credentials_with_iam. Assuming cluster incorrectly classified as cname, retrying..."
@@ -484,7 +484,7 @@ class IamHelper(IdpAuthHelper):
                         typing.Dict[str, typing.Union[str, datetime.datetime]],
                         client.get_cluster_credentials(**request_params),
                     )
-                except ClientError as e:
+                except Exception as e:
                     if info.is_cname:
                         _logger.debug(
                             "Failed to get_cluster_credentials. Assuming cluster incorrectly classified as cname, retrying..."

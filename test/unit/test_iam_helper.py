@@ -810,7 +810,6 @@ def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, prov
     (
         ("1.17.110", {"iam": True, "ssl": True, "auth_profile": "SomeTestProfile", "cluster_identifier": "my_cluster"}),
         ("1.17.100", {"iam": True, "ssl": True, "auth_profile": "SomeTestProfile", "cluster_identifier": "my_cluster"}),
-        ("1.26.156", {"iam": True, "host": "mycustom.domain.name"}),
     ),
 )
 def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(mocker, boto3_version, connection_args):
