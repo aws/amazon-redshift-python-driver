@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+v2.0.913 (2023-07-12)
+---------------------
+- Fix(auth, iam): log if boto3 version insufficient for cname. [Brooke
+  White]
+
+
 v2.0.912 (2023-07-05)
 ---------------------
 - Test(cursor): correct test_insert_data_invalid_column_raises. [Brooke
