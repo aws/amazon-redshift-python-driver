@@ -144,5 +144,5 @@ class ArrayDimensionsNotConsistentError(ProgrammingError):
 
 MISSING_MODULE_ERROR_MSG: str = (
     "redshift_connector requires {module} support for this functionality. "
-    "Please install redshfit_connector[full] for {module} support"
+    "Please install redshift_connector[full] for {module} support"
 )
