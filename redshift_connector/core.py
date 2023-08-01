@@ -658,7 +658,10 @@ class Connection:
                 self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
         except socket.error as e:
             self._usock.close()
-            raise InterfaceError("communication error", e)
+            if socket.timeout:
+                raise OperationalError("connection time out", e)
+            else:
+                raise InterfaceError("communication error", e)
         self._flush: typing.Callable = self._sock.flush
         self._read: typing.Callable = self._sock.read
         self._write: typing.Callable = self._sock.write
