@@ -311,5 +311,5 @@ def test_execute_do_parsing_bind_params_when_exist(mocker, db_kwargs, sql, args)
 def test_socket_timeout(db_kwargs):
     db_kwargs["timeout"] = 0
 
-    with pytest.raises(redshift_connector.OperationalError):
+    with pytest.raises(redshift_connector.InterfaceError):
         redshift_connector.connect(**db_kwargs)
