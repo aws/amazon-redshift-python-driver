@@ -333,7 +333,7 @@ def test_client_os_version_is_not_present():
         assert mock_connection.client_os_version == "unknown"
 
 def test_socket_timeout_error():
-    with mock.patch('socket.socket.bind') as mock_socket:
-        mock_socket.side_effect = socket.timeout
+    with mock.patch('socket.socket.connect') as mock_socket:
+        mock_socket.side_effect = (socket.timeout)
         with pytest.raises(OperationalError):
             Connection(user='mock_user', password='mock_password', host='localhost', port=8080, database='mocked')
