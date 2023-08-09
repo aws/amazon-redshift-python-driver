@@ -17,7 +17,7 @@ from redshift_connector.config import (
 from redshift_connector.error import (
     MISSING_MODULE_ERROR_MSG,
     InterfaceError,
-    ProgrammingError,
+    ProgrammingError, DataError,
 )
 
 if TYPE_CHECKING:
@@ -338,7 +338,9 @@ class Cursor:
                     sql_param_lists = [sql_param_list_template] * row_count
                     insert_stmt = base_stmt + ", ".join(sql_param_lists) + ";"
                     self.execute(insert_stmt, values_list)
-
+        except DataError as e:
+            raise DataError("Prepared statement exceeds bind parameter limit 32767. Please set a smaller "
+                            "batch size or retry with fewer bind parameters.")
         except Exception as e:
             raise InterfaceError(e)
         finally:
