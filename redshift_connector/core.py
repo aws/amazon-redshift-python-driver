@@ -656,6 +656,11 @@ class Connection:
             self._sock: typing.Optional[typing.BinaryIO] = self._usock.makefile(mode="rwb")
             if tcp_keepalive:
                 self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+        except socket.timeout as timeout_error:
+            self._usock.close()
+            raise OperationalError("connection time out", timeout_error)
+
         except socket.error as e:
             self._usock.close()
             raise InterfaceError("communication error", e)

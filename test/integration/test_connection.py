@@ -307,3 +307,9 @@ def test_execute_do_parsing_bind_params_when_exist(mocker, db_kwargs, sql, args)
     with redshift_connector.connect(**db_kwargs) as conn:
         conn.cursor().execute(sql, args)
     assert convert_paramstyle_spy.called
+
+def test_socket_timeout(db_kwargs):
+    db_kwargs["timeout"] = 0
+
+    with pytest.raises(redshift_connector.InterfaceError):
+        redshift_connector.connect(**db_kwargs)
