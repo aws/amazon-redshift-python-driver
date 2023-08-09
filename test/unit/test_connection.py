@@ -2,6 +2,8 @@ import typing
 from collections import deque
 from decimal import Decimal
 from unittest.mock import patch
+import socket
+from unittest import mock
 
 import pytest  # type: ignore
 
@@ -12,6 +14,7 @@ from redshift_connector import (
     IntegrityError,
     InterfaceError,
     ProgrammingError,
+    OperationalError
 )
 from redshift_connector.config import (
     ClientProtocolVersion,
@@ -328,3 +331,9 @@ def test_client_os_version_is_not_present():
 
     with patch("platform.platform", side_effect=Exception("not for you")):
         assert mock_connection.client_os_version == "unknown"
+
+def test_socket_timeout_error():
+    with mock.patch('socket.socket.connect') as mock_socket:
+        mock_socket.side_effect = (socket.timeout)
+        with pytest.raises(OperationalError):
+            Connection(user='mock_user', password='mock_password', host='localhost', port=8080, database='mocked')
