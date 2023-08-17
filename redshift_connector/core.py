@@ -36,6 +36,7 @@ from redshift_connector.error import (
     ArrayContentNotHomogenousError,
     ArrayContentNotSupportedError,
     DatabaseError,
+    DataError,
     Error,
     IntegrityError,
     InterfaceError,
@@ -43,7 +44,7 @@ from redshift_connector.error import (
     NotSupportedError,
     OperationalError,
     ProgrammingError,
-    Warning, DataError,
+    Warning,
 )
 from redshift_connector.utils import (
     FC_BINARY,
@@ -181,20 +182,33 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
                     state = INSIDE_MC
             elif style == DbApiParamstyle.QMARK.value and c == "?":
                 output_query.append(next(param_idx))
-            elif style == DbApiParamstyle.NUMERIC.value and c == ":" and next_c not in ":=" and prev_c != ":":
+            elif (
+                style == DbApiParamstyle.NUMERIC.value
+                and c == ":"
+                and next_c not in ":="
+                and prev_c != ":"
+            ):
                 # Treat : as beginning of parameter name if and only
                 # if it's the only : around
                 # Needed to properly process type conversions
                 # i.e. sum(x)::float
                 output_query.append("$")
-            elif style == DbApiParamstyle.NAMED.value and c == ":" and next_c not in ":=" and prev_c != ":":
+            elif (
+                style == DbApiParamstyle.NAMED.value
+                and c == ":"
+                and next_c not in ":="
+                and prev_c != ":"
+            ):
                 # Same logic for : as in numeric parameters
                 state = INSIDE_PN
                 placeholders.append("")
             elif style == DbApiParamstyle.PYFORMAT.value and c == "%" and next_c == "(":
                 state = INSIDE_PN
                 placeholders.append("")
-            elif style in (DbApiParamstyle.FORMAT.value, DbApiParamstyle.PYFORMAT.value) and c == "%":
+            elif (
+                style in (DbApiParamstyle.FORMAT.value, DbApiParamstyle.PYFORMAT.value)
+                and c == "%"
+            ):
                 style = DbApiParamstyle.FORMAT.value
                 if in_param_escape:
                     in_param_escape = False
@@ -206,7 +220,9 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
                         state = INSIDE_PN
                         output_query.append(next(param_idx))
                     else:
-                        raise InterfaceError("Only %s and %% are supported in the query.")
+                        raise InterfaceError(
+                            "Only %s and %% are supported in the query."
+                        )
             else:
                 output_query.append(c)
 
@@ -271,7 +287,11 @@ def convert_paramstyle(style: str, query) -> typing.Tuple[str, typing.Any]:
 
         prev_c = c
 
-    if style in (DbApiParamstyle.NUMERIC.value, DbApiParamstyle.QMARK.value, DbApiParamstyle.FORMAT.value):
+    if style in (
+        DbApiParamstyle.NUMERIC.value,
+        DbApiParamstyle.QMARK.value,
+        DbApiParamstyle.FORMAT.value,
+    ):
 
         def make_args(vals):
             return vals
@@ -359,7 +379,9 @@ IDLE: bytes = b"I"
 IDLE_IN_TRANSACTION: bytes = b"T"
 IDLE_IN_FAILED_TRANSACTION: bytes = b"E"
 
-arr_trans: typing.Mapping[int, typing.Optional[str]] = dict(zip(map(ord, "[] 'u"), ["{", "}", None, None, None]))
+arr_trans: typing.Mapping[int, typing.Optional[str]] = dict(
+    zip(map(ord, "[] 'u"), ["{", "}", None, None, None])
+)
 
 
 class Connection:
@@ -404,7 +426,9 @@ class Connection:
         _logger.debug("getaddrinfo response {}".format(response))
 
         if not response:
-            raise InterfaceError("Unable to determine ip for host {} port {}".format(host, port))
+            raise InterfaceError(
+                "Unable to determine ip for host {} port {}".format(host, port)
+            )
 
         return response[0][4]
 
@@ -496,7 +520,9 @@ class Connection:
         self._database = database
         self.py_types = deepcopy(PY_TYPES)
         self.redshift_types = deepcopy(REDSHIFT_TYPES)
-        self._database_metadata_current_db_only: bool = database_metadata_current_db_only
+        self._database_metadata_current_db_only: bool = (
+            database_metadata_current_db_only
+        )
         self.numeric_to_float: bool = numeric_to_float
 
         # based on _client_protocol_version value, we must use different conversion functions
@@ -571,7 +597,9 @@ class Connection:
             elif v is None:
                 del init_params[k]
             elif not isinstance(v, (bytes, bytearray)):
-                raise InterfaceError("The parameter " + k + " can't be of type " + str(type(v)) + ".")
+                raise InterfaceError(
+                    "The parameter " + k + " can't be of type " + str(type(v)) + "."
+                )
 
         if "user" in init_params:
             self.user: bytes = typing.cast(bytes, init_params["user"])
@@ -599,7 +627,9 @@ class Connection:
                     self._usock.bind((source_address, 0))
             elif unix_sock is not None:
                 if not hasattr(socket, "AF_UNIX"):
-                    raise InterfaceError("attempt to connect to unix socket on unsupported " "platform")
+                    raise InterfaceError(
+                        "attempt to connect to unix socket on unsupported " "platform"
+                    )
                 self._usock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             else:
                 raise ProgrammingError("one of host or unix_sock must be provided")
@@ -607,9 +637,13 @@ class Connection:
                 self._usock.settimeout(timeout)
 
             if unix_sock is None and host is not None:
-                hostport: typing.Tuple[str, int] = Connection.__get_host_address_info(host, port)
+                hostport: typing.Tuple[str, int] = Connection.__get_host_address_info(
+                    host, port
+                )
                 _logger.debug(
-                    "Attempting to create connection socket with address {} {}".format(hostport[0], str(hostport[1]))
+                    "Attempting to create connection socket with address {} {}".format(
+                        hostport[0], str(hostport[1])
+                    )
                 )
                 self._usock.connect(hostport)
             elif unix_sock is not None:
@@ -625,9 +659,15 @@ class Connection:
 
                     path = os.path.abspath(__file__)
                     if os.name == "nt":
-                        path = "\\".join(path.split("\\")[:-1]) + "\\files\\redshift-ca-bundle.crt"
+                        path = (
+                            "\\".join(path.split("\\")[:-1])
+                            + "\\files\\redshift-ca-bundle.crt"
+                        )
                     else:
-                        path = "/".join(path.split("/")[:-1]) + "/files/redshift-ca-bundle.crt"
+                        path = (
+                            "/".join(path.split("/")[:-1])
+                            + "/files/redshift-ca-bundle.crt"
+                        )
 
                     ssl_context: SSLContext = SSLContext()
                     ssl_context.verify_mode = CERT_REQUIRED
@@ -640,7 +680,9 @@ class Connection:
                     resp: bytes = self._usock.recv(1)
                     if resp != b"S":
                         _logger.debug(
-                            "Server response code when attempting to establish ssl connection: {!r}".format(resp)
+                            "Server response code when attempting to establish ssl connection: {!r}".format(
+                                resp
+                            )
                         )
                         raise InterfaceError("Server refuses SSL")
 
@@ -648,12 +690,19 @@ class Connection:
                         self._usock = ssl_context.wrap_socket(self._usock)
                     elif sslmode == "verify-full":
                         ssl_context.check_hostname = True
-                        self._usock = ssl_context.wrap_socket(self._usock, server_hostname=host)
+                        self._usock = ssl_context.wrap_socket(
+                            self._usock, server_hostname=host
+                        )
 
                 except ImportError:
-                    raise InterfaceError("SSL required but ssl module not available in " "this python installation")
+                    raise InterfaceError(
+                        "SSL required but ssl module not available in "
+                        "this python installation"
+                    )
 
-            self._sock: typing.Optional[typing.BinaryIO] = self._usock.makefile(mode="rwb")
+            self._sock: typing.Optional[typing.BinaryIO] = self._usock.makefile(
+                mode="rwb"
+            )
             if tcp_keepalive:
                 self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
@@ -718,7 +767,9 @@ class Connection:
 
         # Message include parameters name and value (user, database, application_name, replication)
         for k, v in init_params.items():
-            val.extend(k.encode("ascii") + NULL_BYTE + typing.cast(bytes, v) + NULL_BYTE)
+            val.extend(
+                k.encode("ascii") + NULL_BYTE + typing.cast(bytes, v) + NULL_BYTE
+            )
         val.append(0)
         # Use write and flush function to write the content of the buffer
         # and then send the message to the database
@@ -748,7 +799,11 @@ class Connection:
         # being out of date
         if (
             self._client_protocol_version > ClientProtocolVersion.BASE_SERVER
-            and not (b"server_protocol_version", str(self._client_protocol_version).encode()) in self.parameter_statuses
+            and not (
+                b"server_protocol_version",
+                str(self._client_protocol_version).encode(),
+            )
+            in self.parameter_statuses
         ):
             _logger.debug("Server_protocol_version not received from server")
             self._client_protocol_version = ClientProtocolVersion.BASE_SERVER
@@ -760,40 +815,103 @@ class Connection:
         if self._client_protocol_version >= ClientProtocolVersion.BINARY.value:
             self.redshift_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_in_binary)
             self.redshift_types[RedshiftOID.DATE] = (FC_BINARY, date_recv_binary)
-            self.redshift_types[RedshiftOID.GEOGRAPHY] = (FC_BINARY, geographyhex_recv)  # GEOGRAPHY
+            self.redshift_types[RedshiftOID.GEOGRAPHY] = (
+                FC_BINARY,
+                geographyhex_recv,
+            )  # GEOGRAPHY
             self.redshift_types[RedshiftOID.TIME] = (FC_BINARY, time_recv_binary)
             self.redshift_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
-            self.redshift_types[RedshiftOID.CHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # CHAR[]
-            self.redshift_types[RedshiftOID.SMALLINT_ARRAY] = (FC_BINARY, array_recv_binary)  # INT2[]
-            self.redshift_types[RedshiftOID.INTEGER_ARRAY] = (FC_BINARY, array_recv_binary)  # INT4[]
-            self.redshift_types[RedshiftOID.TEXT_ARRAY] = (FC_BINARY, array_recv_binary)  # TEXT[]
-            self.redshift_types[RedshiftOID.VARCHAR_ARRAY] = (FC_BINARY, array_recv_binary)  # VARCHAR[]
-            self.redshift_types[RedshiftOID.REAL_ARRAY] = (FC_BINARY, array_recv_binary)  # FLOAT4[]
-            self.redshift_types[RedshiftOID.OID_ARRAY] = (FC_BINARY, array_recv_binary)  # OID[]
-            self.redshift_types[RedshiftOID.ACLITEM_ARRAY] = (FC_BINARY, array_recv_binary)  # ACLITEM[]
+            self.redshift_types[RedshiftOID.CHAR_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # CHAR[]
+            self.redshift_types[RedshiftOID.SMALLINT_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # INT2[]
+            self.redshift_types[RedshiftOID.INTEGER_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # INT4[]
+            self.redshift_types[RedshiftOID.TEXT_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # TEXT[]
+            self.redshift_types[RedshiftOID.VARCHAR_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # VARCHAR[]
+            self.redshift_types[RedshiftOID.REAL_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # FLOAT4[]
+            self.redshift_types[RedshiftOID.OID_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # OID[]
+            self.redshift_types[RedshiftOID.ACLITEM_ARRAY] = (
+                FC_BINARY,
+                array_recv_binary,
+            )  # ACLITEM[]
             self.redshift_types[RedshiftOID.VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
 
             if self.numeric_to_float:
-                self.redshift_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_to_float_binary)
+                self.redshift_types[RedshiftOID.NUMERIC] = (
+                    FC_BINARY,
+                    numeric_to_float_binary,
+                )
 
         else:  # text protocol
             self.redshift_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_in)
             self.redshift_types[RedshiftOID.TIME] = (FC_TEXT, time_in)
             self.redshift_types[RedshiftOID.DATE] = (FC_TEXT, date_in)
-            self.redshift_types[RedshiftOID.GEOGRAPHY] = (FC_TEXT, text_recv)  # GEOGRAPHY
+            self.redshift_types[RedshiftOID.GEOGRAPHY] = (
+                FC_TEXT,
+                text_recv,
+            )  # GEOGRAPHY
             self.redshift_types[RedshiftOID.TIMETZ] = (FC_BINARY, timetz_recv_binary)
-            self.redshift_types[RedshiftOID.CHAR_ARRAY] = (FC_TEXT, array_recv_text)  # CHAR[]
-            self.redshift_types[RedshiftOID.SMALLINT_ARRAY] = (FC_TEXT, int_array_recv)  # INT2[]
-            self.redshift_types[RedshiftOID.INTEGER_ARRAY] = (FC_TEXT, int_array_recv)  # INT4[]
-            self.redshift_types[RedshiftOID.TEXT_ARRAY] = (FC_TEXT, array_recv_text)  # TEXT[]
-            self.redshift_types[RedshiftOID.VARCHAR_ARRAY] = (FC_TEXT, array_recv_text)  # VARCHAR[]
-            self.redshift_types[RedshiftOID.REAL_ARRAY] = (FC_TEXT, float_array_recv)  # FLOAT4[]
-            self.redshift_types[RedshiftOID.OID_ARRAY] = (FC_TEXT, int_array_recv)  # OID[]
-            self.redshift_types[RedshiftOID.ACLITEM_ARRAY] = (FC_TEXT, array_recv_text)  # ACLITEM[]
-            self.redshift_types[RedshiftOID.VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
+            self.redshift_types[RedshiftOID.CHAR_ARRAY] = (
+                FC_TEXT,
+                array_recv_text,
+            )  # CHAR[]
+            self.redshift_types[RedshiftOID.SMALLINT_ARRAY] = (
+                FC_TEXT,
+                int_array_recv,
+            )  # INT2[]
+            self.redshift_types[RedshiftOID.INTEGER_ARRAY] = (
+                FC_TEXT,
+                int_array_recv,
+            )  # INT4[]
+            self.redshift_types[RedshiftOID.TEXT_ARRAY] = (
+                FC_TEXT,
+                array_recv_text,
+            )  # TEXT[]
+            self.redshift_types[RedshiftOID.VARCHAR_ARRAY] = (
+                FC_TEXT,
+                array_recv_text,
+            )  # VARCHAR[]
+            self.redshift_types[RedshiftOID.REAL_ARRAY] = (
+                FC_TEXT,
+                float_array_recv,
+            )  # FLOAT4[]
+            self.redshift_types[RedshiftOID.OID_ARRAY] = (
+                FC_TEXT,
+                int_array_recv,
+            )  # OID[]
+            self.redshift_types[RedshiftOID.ACLITEM_ARRAY] = (
+                FC_TEXT,
+                array_recv_text,
+            )  # ACLITEM[]
+            self.redshift_types[RedshiftOID.VARBYTE] = (
+                FC_TEXT,
+                varbytehex_recv,
+            )  # VARBYTE
 
             if self.numeric_to_float:
-                self.redshift_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_to_float_in)
+                self.redshift_types[RedshiftOID.NUMERIC] = (
+                    FC_TEXT,
+                    numeric_to_float_in,
+                )
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
@@ -805,7 +923,10 @@ class Connection:
 
     @property
     def is_single_database_metadata(self):
-        return self._database_metadata_current_db_only or not self._is_multi_databases_catalog_enable_in_server
+        return (
+            self._database_metadata_current_db_only
+            or not self._is_multi_databases_catalog_enable_in_server
+        )
 
     def handle_ERROR_RESPONSE(self: "Connection", data, ps):
         """
@@ -838,7 +959,9 @@ class Connection:
         None:None
         """
         msg: typing.Dict[str, str] = dict(
-            (s[:1].decode(_client_encoding), s[1:].decode(_client_encoding)) for s in data.split(NULL_BYTE) if s != b""
+            (s[:1].decode(_client_encoding), s[1:].decode(_client_encoding))
+            for s in data.split(NULL_BYTE)
+            if s != b""
         )
 
         response_code: str = msg[RESPONSE_CODE]
@@ -1070,7 +1193,9 @@ class Connection:
         is_binary, num_cols = bh_unpack(data)
         # column_formats = unpack_from('!' + 'h' * num_cols, data, 3)
         if ps.stream is None:
-            raise InterfaceError("An output stream is required for the COPY OUT response.")
+            raise InterfaceError(
+                "An output stream is required for the COPY OUT response."
+            )
 
     def handle_COPY_DATA(self: "Connection", data, ps) -> None:
         """
@@ -1135,7 +1260,9 @@ class Connection:
         is_binary, num_cols = bh_unpack(data)
         # column_formats = unpack_from('!' + 'h' * num_cols, data, 3)
         if ps.stream is None:
-            raise InterfaceError("An input stream is required for the COPY IN response.")
+            raise InterfaceError(
+                "An input stream is required for the COPY IN response."
+            )
 
         bffr: bytearray = bytearray(8192)
         while True:
@@ -1212,7 +1339,9 @@ class Connection:
     def description(self: "Connection") -> typing.Optional[typing.List]:
         return self._run_cursor._getDescription()
 
-    def run(self: "Connection", sql, stream=None, **params) -> typing.Tuple[typing.Any, ...]:
+    def run(
+        self: "Connection", sql, stream=None, **params
+    ) -> typing.Tuple[typing.Any, ...]:
         """
         Executes an sql statement, and returns the results as a `tuple`.
 
@@ -1276,7 +1405,9 @@ class Connection:
             self._usock.close()
             self._sock = None
 
-    def handle_AUTHENTICATION_REQUEST(self: "Connection", data: bytes, cursor: Cursor) -> None:
+    def handle_AUTHENTICATION_REQUEST(
+        self: "Connection", data: bytes, cursor: Cursor
+    ) -> None:
         """
         Handler for AuthenticationRequest message received via Amazon Redshift wire protocol, represented by
         b'R' code.
@@ -1318,7 +1449,10 @@ class Connection:
             pass
         elif auth_code == 3:
             if self.password is None:
-                raise InterfaceError("server requesting password authentication, but no " "password was provided")
+                raise InterfaceError(
+                    "server requesting password authentication, but no "
+                    "password was provided"
+                )
             self._send_message(PASSWORD, self.password + NULL_BYTE)
             self._flush()
         elif auth_code == 5:
@@ -1331,7 +1465,10 @@ class Connection:
             #  Byte4 - Hash salt.
             salt: bytes = b"".join(cccc_unpack(data, 4))
             if self.password is None:
-                raise InterfaceError("server requesting MD5 password authentication, but no " "password was provided")
+                raise InterfaceError(
+                    "server requesting MD5 password authentication, but no "
+                    "password was provided"
+                )
             pwd: bytes = b"md5" + md5(
                 md5(self.password + self.user).hexdigest().encode("ascii") + salt
             ).hexdigest().encode("ascii")
@@ -1343,14 +1480,22 @@ class Connection:
 
         elif auth_code == 10:
             # AuthenticationSASL
-            mechanisms: typing.List[str] = [m.decode("ascii") for m in data[4:-1].split(NULL_BYTE)]
+            mechanisms: typing.List[str] = [
+                m.decode("ascii") for m in data[4:-1].split(NULL_BYTE)
+            ]
 
-            self.auth: ScramClient = ScramClient(mechanisms, self.user.decode("utf8"), self.password.decode("utf8"))
+            self.auth: ScramClient = ScramClient(
+                mechanisms, self.user.decode("utf8"), self.password.decode("utf8")
+            )
 
             init: bytes = self.auth.get_client_first().encode("utf8")
 
             # SASLInitialResponse
-            self._write(create_message(PASSWORD, b"SCRAM-SHA-256" + NULL_BYTE + i_pack(len(init)) + init))
+            self._write(
+                create_message(
+                    PASSWORD, b"SCRAM-SHA-256" + NULL_BYTE + i_pack(len(init)) + init
+                )
+            )
             self._flush()
 
         elif auth_code == 11:
@@ -1400,7 +1545,10 @@ class Connection:
             server_nonce: bytes = data[offset : offset + server_nonce_len]
             offset += server_nonce_len
 
-            ms_since_epoch: int = int((Datetime.utcnow() - Datetime.utcfromtimestamp(0)).total_seconds() * 1000.0)
+            ms_since_epoch: int = int(
+                (Datetime.utcnow() - Datetime.utcfromtimestamp(0)).total_seconds()
+                * 1000.0
+            )
             client_nonce: bytes = str(ms_since_epoch).encode("utf-8")
 
             _logger.debug("handle_AUTHENTICATION_REQUEST: AUTH_REQ_DIGEST")
@@ -1438,9 +1586,17 @@ class Connection:
             self._flush()
 
         elif auth_code in (2, 4, 6, 7, 8, 9):
-            raise InterfaceError("Authentication method " + str(auth_code) + " not supported by redshift_connector.")
+            raise InterfaceError(
+                "Authentication method "
+                + str(auth_code)
+                + " not supported by redshift_connector."
+            )
         else:
-            raise InterfaceError("Authentication method " + str(auth_code) + " not recognized by redshift_connector.")
+            raise InterfaceError(
+                "Authentication method "
+                + str(auth_code)
+                + " not recognized by redshift_connector."
+            )
 
     def handle_READY_FOR_QUERY(self: "Connection", data: bytes, ps) -> None:
         """
@@ -1488,7 +1644,9 @@ class Connection:
             return self.py_types[RedshiftOID.BIGINT]
         return self.py_types[Decimal]
 
-    def make_params(self: "Connection", values) -> typing.Tuple[typing.Tuple[int, int, typing.Callable], ...]:
+    def make_params(
+        self: "Connection", values
+    ) -> typing.Tuple[typing.Tuple[int, int, typing.Callable], ...]:
         params: typing.List[typing.Tuple[int, int, typing.Callable]] = []
         for value in values:
             typ: typing.Type = type(value)
@@ -1498,7 +1656,9 @@ class Connection:
                 try:
                     params.append(self.inspect_funcs[typ](value))
                 except KeyError as e:
-                    param: typing.Optional[typing.Tuple[int, int, typing.Callable]] = None
+                    param: typing.Optional[
+                        typing.Tuple[int, int, typing.Callable]
+                    ] = None
                     for k, v in self.py_types.items():
                         try:
                             if isinstance(value, typing.cast(type, k)):
@@ -1511,7 +1671,9 @@ class Connection:
                         for k, v in self.inspect_funcs.items():  # type: ignore
                             try:
                                 if isinstance(value, k):
-                                    v_func: typing.Callable = typing.cast(typing.Callable, v)
+                                    v_func: typing.Callable = typing.cast(
+                                        typing.Callable, v
+                                    )
                                     param = v_func(value)
                                     break
                             except TypeError:
@@ -1520,7 +1682,9 @@ class Connection:
                                 pass
 
                     if param is None:
-                        raise NotSupportedError("type " + str(e) + " not mapped to pg type")
+                        raise NotSupportedError(
+                            "type " + str(e) + " not mapped to pg type"
+                        )
                     else:
                         params.append(param)
 
@@ -1589,15 +1753,30 @@ class Connection:
 
             field: typing.Dict = dict(
                 zip(
-                    ("table_oid", "column_attrnum", "type_oid", "type_size", "type_modifier", "format"),
+                    (
+                        "table_oid",
+                        "column_attrnum",
+                        "type_oid",
+                        "type_size",
+                        "type_modifier",
+                        "format",
+                    ),
                     ihihih_unpack(data, idx),
                 )
             )
             field["label"] = column_label
             idx += 18
 
-            if self._client_protocol_version >= ClientProtocolVersion.EXTENDED_RESULT_METADATA:
-                for entry in ("schema_name", "table_name", "column_name", "catalog_name"):
+            if (
+                self._client_protocol_version
+                >= ClientProtocolVersion.EXTENDED_RESULT_METADATA
+            ):
+                for entry in (
+                    "schema_name",
+                    "table_name",
+                    "column_name",
+                    "catalog_name",
+                ):
                     field[entry] = data[idx : data.find(NULL_BYTE, idx)]
                     idx += len(field[entry]) + 1
 
@@ -1609,7 +1788,9 @@ class Connection:
                 idx += 2
 
             cursor.ps["row_desc"].append(field)
-            field["redshift_connector_fc"], field["func"] = self.redshift_types[field["type_oid"]]
+            field["redshift_connector_fc"], field["func"] = self.redshift_types[
+                field["type_oid"]
+            ]
 
         _logger.debug(cursor.ps["row_desc"])
 
@@ -1633,7 +1814,9 @@ class Connection:
 
         args: typing.Tuple[typing.Optional[typing.Tuple[str, typing.Any]], ...] = ()
         # transforms user provided bind parameters to server friendly bind parameters
-        params: typing.Tuple[typing.Optional[typing.Tuple[int, int, typing.Callable]], ...] = ()
+        params: typing.Tuple[
+            typing.Optional[typing.Tuple[int, int, typing.Callable]], ...
+        ] = ()
         has_bind_parameters: bool = False if vals is None else True
         # multi dimensional dictionary to store the data
         # cache = self._caches[cursor.paramstyle][pid]
@@ -1657,10 +1840,15 @@ class Connection:
             statement, make_args = cache["statement"][operation]
         except KeyError:
             if has_bind_parameters:
-                statement, make_args = cache["statement"][operation] = convert_paramstyle(cursor.paramstyle, operation)
+                statement, make_args = cache["statement"][
+                    operation
+                ] = convert_paramstyle(cursor.paramstyle, operation)
             else:
                 # use a no-op make_args in lieu of parsing the sql statement
-                statement, make_args = cache["statement"][operation] = operation, lambda p: ()
+                statement, make_args = cache["statement"][operation] = (
+                    operation,
+                    lambda p: (),
+                )
         if has_bind_parameters:
             args = make_args(vals)
             # change the args to the format that the DB will identify
@@ -1685,7 +1873,9 @@ class Connection:
             statement_num: int = sorted(statement_nums)[-1] + 1
             # consist of "redshift_connector", statement, process id and statement number.
             # e.g redshift_connector_statement_11432_2
-            statement_name: str = "_".join(("redshift_connector", "statement", str(pid), str(statement_num)))
+            statement_name: str = "_".join(
+                ("redshift_connector", "statement", str(pid), str(statement_num))
+            )
             statement_name_bin: bytes = statement_name.encode("ascii") + NULL_BYTE
             # row_desc: list that used to store metadata of rows from DB
             # param_funcs: type transform function
@@ -1709,17 +1899,16 @@ class Connection:
             # For each parameter:
             #   Int32 - The OID of the parameter data type.
             val: typing.Union[bytes, bytearray] = bytearray(statement_name_bin)
-            typing.cast(bytearray, val).extend(statement.encode(_client_encoding) + NULL_BYTE)
+            typing.cast(bytearray, val).extend(
+                statement.encode(_client_encoding) + NULL_BYTE
+            )
             if len(params) > 32767:
-                raise DataError("Prepared statement exceeds bind parameter limit 32767. {} bind parameters "
-                                "were provided. Please retry with fewer bind parameters. \n"
-                                "If you are a dbt user please see the following: \n"
-                                " 1. Please try setting a smaller batch size. See "
-                                "documentation for details if using dbt: "
-                                "https://docs.getdbt.com/docs/core/connect-data-platform/redshift-setup \n"
-                                " 2. Your seed use case may be inappropriate. Try using Redshift COPY instead. See "
-                                "seed documentation for details: "
-                                "https://docs.getdbt.com/docs/build/seeds \n".format(len(params)))
+                raise DataError(
+                    "Prepared statement exceeds bind parameter limit 32767. {} bind parameters "
+                    "were provided. Please retry with fewer bind parameters.".format(
+                        len(params)
+                    )
+                )
 
             typing.cast(bytearray, val).extend(h_pack(len(params)))
             for oid, fc, send_func in params:  # type: ignore
@@ -1754,7 +1943,9 @@ class Connection:
 
             # We've got row_desc that allows us to identify what we're
             # going to get back from this statement.
-            output_fc = tuple(self.redshift_types[f["type_oid"]][0] for f in ps["row_desc"])
+            output_fc = tuple(
+                self.redshift_types[f["type_oid"]][0] for f in ps["row_desc"]
+            )
 
             ps["input_funcs"] = tuple(f["func"] for f in ps["row_desc"])
             # Byte1('B') - Identifies the Bind command.
@@ -1781,7 +1972,9 @@ class Connection:
                 + h_pack(len(params))
             )
 
-            ps["bind_2"] = h_pack(len(output_fc)) + pack("!" + "h" * len(output_fc), *output_fc)
+            ps["bind_2"] = h_pack(len(output_fc)) + pack(
+                "!" + "h" * len(output_fc), *output_fc
+            )
 
             if len(cache["ps"]) > self.max_prepared_statements:
                 for p in cache["ps"].values():
@@ -1901,7 +2094,9 @@ class Connection:
         """
         pass
 
-    def handle_COMMAND_COMPLETE(self: "Connection", data: bytes, cursor: Cursor) -> None:
+    def handle_COMMAND_COMPLETE(
+        self: "Connection", data: bytes, cursor: Cursor
+    ) -> None:
         """
         Handler for CommandComplete message received via Amazon Redshift wire protocol, represented by b'C' code.
         Modifies the cursor object and prepared statement.
@@ -2163,13 +2358,20 @@ class Connection:
                 self._client_protocol_version = int(value)
                 self._enable_protocol_based_conversion_funcs()
         elif key == b"server_version":
-            self._server_version: typing.Union[version.LegacyVersion, version.Version] = version.parse(
-                (value.decode("ascii"))
-            )
+            self._server_version: typing.Union[
+                version.LegacyVersion, version.Version
+            ] = version.parse((value.decode("ascii")))
             if self._server_version < version.parse("8.2.0"):
                 self._commands_with_count = (b"INSERT", b"DELETE", b"UPDATE", b"MOVE")
             elif self._server_version < version.parse("9.0.0"):
-                self._commands_with_count = (b"INSERT", b"DELETE", b"UPDATE", b"MOVE", b"FETCH", b"COPY")
+                self._commands_with_count = (
+                    b"INSERT",
+                    b"DELETE",
+                    b"UPDATE",
+                    b"MOVE",
+                    b"FETCH",
+                    b"COPY",
+                )
 
     def array_inspect(self: "Connection", value):
         # Check if array has any values. If empty, we can just assume it's an
@@ -2212,7 +2414,9 @@ class Connection:
                     array_oid = 1016  # INT8[]
                     oid, fc, send_func = (20, FC_BINARY, q_pack)
                 else:
-                    raise ArrayContentNotSupportedError("numeric not supported as array contents")
+                    raise ArrayContentNotSupportedError(
+                        "numeric not supported as array contents"
+                    )
             else:
                 try:
                     oid, fc, send_func = self.make_params((first_element,))[0]
@@ -2225,9 +2429,13 @@ class Connection:
                         fc = FC_BINARY
                     array_oid = pg_array_types[oid]
                 except KeyError:
-                    raise ArrayContentNotSupportedError("oid " + str(oid) + " not supported as array contents")
+                    raise ArrayContentNotSupportedError(
+                        "oid " + str(oid) + " not supported as array contents"
+                    )
                 except NotSupportedError:
-                    raise ArrayContentNotSupportedError("type " + str(typ) + " not supported as array contents")
+                    raise ArrayContentNotSupportedError(
+                        "type " + str(typ) + " not supported as array contents"
+                    )
         if fc == FC_BINARY:
 
             def send_array(arr: typing.List) -> typing.Union[bytes, bytearray]:
@@ -2247,7 +2455,9 @@ class Connection:
                         data += i_pack(len(inner_data))
                         data += inner_data
                     else:
-                        raise ArrayContentNotHomogenousError("not all array elements are of type " + str(typ))
+                        raise ArrayContentNotHomogenousError(
+                            "not all array elements are of type " + str(typ)
+                        )
                 return data
 
         else:
@@ -2261,12 +2471,16 @@ class Connection:
                     elif isinstance(v, typ):
                         a[i] = send_func(v).decode("ascii")
                     else:
-                        raise ArrayContentNotHomogenousError("not all array elements are of type " + str(typ))
+                        raise ArrayContentNotHomogenousError(
+                            "not all array elements are of type " + str(typ)
+                        )
                 return str(ar).translate(arr_trans).encode("ascii")
 
         return (array_oid, fc, send_array)
 
-    def xid(self: "Connection", format_id, global_transaction_id, branch_qualifier) -> typing.Tuple:
+    def xid(
+        self: "Connection", format_id, global_transaction_id, branch_qualifier
+    ) -> typing.Tuple:
         """Create a Transaction IDs (only global_transaction_id is used in pg)
         format_id and branch_qualifier are not used in Amazon Redshift
         global_transaction_id may be any string identifier supported by
@@ -2382,7 +2596,9 @@ class Connection:
             xid = self._xid
 
         if xid is None:
-            raise ProgrammingError("Cannot tpc_rollback() without a TPC prepared transaction!")
+            raise ProgrammingError(
+                "Cannot tpc_rollback() without a TPC prepared transaction!"
+            )
 
         try:
             previous_autocommit_mode: bool = self.autocommit

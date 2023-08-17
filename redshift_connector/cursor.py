@@ -16,8 +16,9 @@ from redshift_connector.config import (
 )
 from redshift_connector.error import (
     MISSING_MODULE_ERROR_MSG,
+    DataError,
     InterfaceError,
-    ProgrammingError, DataError,
+    ProgrammingError,
 )
 
 if TYPE_CHECKING:
@@ -147,13 +148,18 @@ class Cursor:
     @functools.lru_cache()
     def truncated_row_desc(self: "Cursor"):
         _data: typing.List[
-            typing.Optional[typing.Union[typing.Tuple[typing.Callable, int], typing.Tuple[typing.Callable]]]
+            typing.Optional[
+                typing.Union[
+                    typing.Tuple[typing.Callable, int], typing.Tuple[typing.Callable]
+                ]
+            ]
         ] = []
 
         for cidx in range(len(self.ps["row_desc"])):
-            if self._c._client_protocol_version == ClientProtocolVersion.BINARY and self.ps["row_desc"][cidx][
-                "type_oid"
-            ] in (1700,):
+            if (
+                self._c._client_protocol_version == ClientProtocolVersion.BINARY
+                and self.ps["row_desc"][cidx]["type_oid"] in (1700,)
+            ):
                 scale: int
                 if self.ps["row_desc"][cidx]["type_modifier"] != -1:
                     scale = (self.ps["row_desc"][cidx]["type_modifier"] - 4) & 0xFFFF
@@ -167,16 +173,22 @@ class Cursor:
 
     description = property(lambda self: self._getDescription())
 
-    def _getDescription(self: "Cursor") -> typing.Optional[typing.List[typing.Optional[typing.Tuple]]]:
+    def _getDescription(
+        self: "Cursor",
+    ) -> typing.Optional[typing.List[typing.Optional[typing.Tuple]]]:
         if self.ps is None:
             return None
-        row_desc: typing.List[typing.Dict[str, typing.Union[bytes, str, int, typing.Callable]]] = self.ps["row_desc"]
+        row_desc: typing.List[
+            typing.Dict[str, typing.Union[bytes, str, int, typing.Callable]]
+        ] = self.ps["row_desc"]
         if len(row_desc) == 0:
             return None
         columns: typing.List[typing.Optional[typing.Tuple]] = []
         for col in row_desc:
             try:
-                col_name: typing.Union[str, bytes] = typing.cast(bytes, col["label"]).decode(_client_encoding)
+                col_name: typing.Union[str, bytes] = typing.cast(
+                    bytes, col["label"]
+                ).decode(_client_encoding)
             except UnicodeError:
                 warn("failed to decode column name: {}, reverting to bytes".format(col["label"]))  # type: ignore
                 col_name = typing.cast(bytes, col["label"])
@@ -188,7 +200,9 @@ class Cursor:
     # or mapping and will be bound to variables in the operation.
     # <p>
     # Stability: Part of the DBAPI 2.0 specification.
-    def execute(self: "Cursor", operation, args=None, stream=None, merge_socket_read=False) -> "Cursor":
+    def execute(
+        self: "Cursor", operation, args=None, stream=None, merge_socket_read=False
+    ) -> "Cursor":
         """Executes a database operation.  Parameters may be provided as a
         sequence, or as a mapping, depending upon the value of
         :data:`paramstyle`.
@@ -281,7 +295,6 @@ class Cursor:
         delimiter: str,
         batch_size: int = 1,
     ) -> "Cursor":
-
         """runs a single bulk insert statement into the database.
         This method is native to redshift_connector.
          :param filename: str
@@ -303,14 +316,20 @@ class Cursor:
         if batch_size < 1:
             raise InterfaceError("batch_size must be greater than 1")
         if not self.__is_valid_table(table_name):
-            raise InterfaceError("Invalid table name passed to insert_data_bulk: {}".format(table_name))
+            raise InterfaceError(
+                "Invalid table name passed to insert_data_bulk: {}".format(table_name)
+            )
         if not self.__has_valid_columns(table_name, column_names):
-            raise InterfaceError("Invalid column names passed to insert_data_bulk: {}".format(table_name))
+            raise InterfaceError(
+                "Invalid column names passed to insert_data_bulk: {}".format(table_name)
+            )
         orig_paramstyle = self.paramstyle
         import csv
 
         if len(column_names) != len(parameter_indices):
-            raise InterfaceError("Column names and parameter indexes must be the same length")
+            raise InterfaceError(
+                "Column names and parameter indexes must be the same length"
+            )
         base_stmt = f"INSERT INTO  {table_name} ("
         base_stmt += ", ".join(column_names)
         base_stmt += ") VALUES "
@@ -338,9 +357,8 @@ class Cursor:
                     sql_param_lists = [sql_param_list_template] * row_count
                     insert_stmt = base_stmt + ", ".join(sql_param_lists) + ";"
                     self.execute(insert_stmt, values_list)
-        except DataError as e:
-            raise DataError("Prepared statement exceeds bind parameter limit 32767. Please set a smaller "
-                            "batch size or retry with fewer bind parameters.")
+        except Exception as e:
+            raise e
         except Exception as e:
             raise InterfaceError(e)
         finally:
@@ -349,12 +367,16 @@ class Cursor:
 
         return self
 
-    def __has_valid_columns(self: "Cursor", table: str, columns: typing.List[str]) -> bool:
+    def __has_valid_columns(
+        self: "Cursor", table: str, columns: typing.List[str]
+    ) -> bool:
         split_table_name: typing.List[str] = table.split(".")
         q: str = "select 1 from information_schema.columns where table_name = ? and column_name = ?"
         if len(split_table_name) == 2:
             q += " and table_schema = ?"
-            param_list = [[split_table_name[1], c, split_table_name[0]] for c in columns]
+            param_list = [
+                [split_table_name[1], c, split_table_name[0]] for c in columns
+            ]
         else:
             param_list = [[split_table_name[0], c] for c in columns]
         temp = self.paramstyle
@@ -370,7 +392,11 @@ class Cursor:
                         )
                     )
                 if typing.cast(typing.List[int], res)[0] != 1:
-                    raise InterfaceError("Invalid column name: {} specified for table: {}".format(params[1], table))
+                    raise InterfaceError(
+                        "Invalid column name: {} specified for table: {}".format(
+                            params[1], table
+                        )
+                    )
         except:
             raise
         finally:
@@ -381,11 +407,19 @@ class Cursor:
 
     def callproc(self, procname, parameters=None):
         args = [] if parameters is None else parameters
-        operation = "CALL " + self.__sanitize_str(procname) + "(" + ", ".join(["%s" for _ in args]) + ")"
+        operation = (
+            "CALL "
+            + self.__sanitize_str(procname)
+            + "("
+            + ", ".join(["%s" for _ in args])
+            + ")"
+        )
         from redshift_connector.core import convert_paramstyle
 
         try:
-            statement, make_args = convert_paramstyle(DbApiParamstyle.FORMAT.value, operation)
+            statement, make_args = convert_paramstyle(
+                DbApiParamstyle.FORMAT.value, operation
+            )
             vals = make_args(args)
             self.execute(statement, vals)
 
@@ -502,7 +536,9 @@ class Cursor:
             else:
                 raise StopIteration()
 
-    def fetch_dataframe(self: "Cursor", num: typing.Optional[int] = None) -> "pandas.DataFrame":
+    def fetch_dataframe(
+        self: "Cursor", num: typing.Optional[int] = None
+    ) -> "pandas.DataFrame":
         """
         Fetches a user defined number of rows of a query result as a :class:`pandas.DataFrame`.
 
@@ -523,7 +559,10 @@ class Cursor:
         try:
             columns = [column[0].lower() for column in self.description]
         except:
-            warn("No row description was found. pandas dataframe will be missing column labels.", stacklevel=2)
+            warn(
+                "No row description was found. pandas dataframe will be missing column labels.",
+                stacklevel=2,
+            )
 
         if num:
             fetcheddata: tuple = self.fetchmany(num)
@@ -580,7 +619,9 @@ class Cursor:
             raise ModuleNotFoundError(MISSING_MODULE_ERROR_MSG.format(module="pandas"))
 
         if not self.__is_valid_table(table):
-            raise InterfaceError("Invalid table name passed to write_dataframe: {}".format(table))
+            raise InterfaceError(
+                "Invalid table name passed to write_dataframe: {}".format(table)
+            )
         sanitized_table_name: str = self.__sanitize_str(table)
         arrays: "numpy.ndarray" = df.values
         placeholder: str = ", ".join(["%s"] * len(arrays[0]))
@@ -598,12 +639,16 @@ class Cursor:
                 self.executemany(sql, arrays)
         except:
             raise InterfaceError(
-                "An error occurred when attempting to insert the pandas.DataFrame into ${}".format(table)
+                "An error occurred when attempting to insert the pandas.DataFrame into ${}".format(
+                    table
+                )
             )
         finally:
             self.paramstyle = cursor_paramstyle
 
-    def fetch_numpy_array(self: "Cursor", num: typing.Optional[int] = None) -> "numpy.ndarray":
+    def fetch_numpy_array(
+        self: "Cursor", num: typing.Optional[int] = None
+    ) -> "numpy.ndarray":
         """
         Fetches a user defined number of rows of a query result as a :class:`numpy.ndarray`.
 
@@ -689,18 +734,26 @@ class Cursor:
 
         catalog_filter: str = ""
         if catalog is not None and catalog != "":
-            if self._c.is_single_database_metadata is True or api_supported_only_for_connected_database is True:
-                catalog_filter += " AND current_database() = {catalog}".format(catalog=self.__escape_quotes(catalog))
+            if (
+                self._c.is_single_database_metadata is True
+                or api_supported_only_for_connected_database is True
+            ):
+                catalog_filter += " AND current_database() = {catalog}".format(
+                    catalog=self.__escape_quotes(catalog)
+                )
             else:
                 if database_col_name is None or database_col_name == "":
                     database_col_name = "database_name"
                 catalog_filter += " AND {col_name} = {catalog}".format(
-                    col_name=self.__sanitize_str(database_col_name), catalog=self.__escape_quotes(catalog)
+                    col_name=self.__sanitize_str(database_col_name),
+                    catalog=self.__escape_quotes(catalog),
                 )
         return catalog_filter
 
     def get_schemas(
-        self: "Cursor", catalog: typing.Optional[str] = None, schema_pattern: typing.Optional[str] = None
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema_pattern: typing.Optional[str] = None,
     ) -> tuple:
         if self._c is None:
             raise InterfaceError("connection is closed")
@@ -858,7 +911,9 @@ class Cursor:
         sql_args: typing.Tuple[str, ...] = tuple()
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
-            sql, sql_args = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
+            sql, sql_args = self.__build_local_schema_tables_query(
+                catalog, schema_pattern, table_name_pattern, types
+            )
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
             if self._c.is_single_database_metadata is True:
                 sql, sql_args = self.__build_universal_schema_tables_query(
@@ -941,7 +996,13 @@ class Cursor:
             " WHERE c.relnamespace = n.oid "
         )
         filter_clause, filter_args = self.__get_table_filter_clause(
-            catalog, schema_pattern, table_name_pattern, types, "LOCAL_SCHEMA_QUERY", True, None
+            catalog,
+            schema_pattern,
+            table_name_pattern,
+            types,
+            "LOCAL_SCHEMA_QUERY",
+            True,
+            None,
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
 
@@ -982,13 +1043,18 @@ class Cursor:
                                 type, table_type_clauses.keys()
                             )
                         )
-                    clauses: typing.Optional[typing.Dict[str, str]] = table_type_clauses[type]
+                    clauses: typing.Optional[
+                        typing.Dict[str, str]
+                    ] = table_type_clauses[type]
                     if clauses is not None:
                         cluase: str = clauses[use_schemas]
                         orclause += " OR ( {cluase} ) ".format(cluase=cluase)
                 filter_clause += orclause + ") "
 
-            elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY" or schema_pattern_type == "EXTERNAL_SCHEMA_QUERY":
+            elif (
+                schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY"
+                or schema_pattern_type == "EXTERNAL_SCHEMA_QUERY"
+            ):
                 filter_clause += " AND TABLE_TYPE IN ( "
                 length = len(types)
                 for type in types:
@@ -1045,7 +1111,13 @@ class Cursor:
             " WHERE true "
         )
         filter_clause, filter_args = self.__get_table_filter_clause(
-            catalog, schema_pattern, table_name_pattern, types, "NO_SCHEMA_UNIVERSAL_QUERY", True, None
+            catalog,
+            schema_pattern,
+            table_name_pattern,
+            types,
+            "NO_SCHEMA_UNIVERSAL_QUERY",
+            True,
+            None,
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
@@ -1081,7 +1153,13 @@ class Cursor:
             " WHERE true "
         )
         filter_clause, filter_args = self.__get_table_filter_clause(
-            catalog, schema_pattern, table_name_pattern, types, "NO_SCHEMA_UNIVERSAL_QUERY", False, "TABLE_CAT"
+            catalog,
+            schema_pattern,
+            table_name_pattern,
+            types,
+            "NO_SCHEMA_UNIVERSAL_QUERY",
+            False,
+            "TABLE_CAT",
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
 
@@ -1112,7 +1190,13 @@ class Cursor:
             " WHERE true "
         )
         filter_clause, filter_args = self.__get_table_filter_clause(
-            catalog, schema_pattern, table_name_pattern, types, "EXTERNAL_SCHEMA_QUERY", True, None
+            catalog,
+            schema_pattern,
+            table_name_pattern,
+            types,
+            "EXTERNAL_SCHEMA_QUERY",
+            True,
+            None,
         )
         orderby: str = " ORDER BY TABLE_TYPE,TABLE_SCHEM,TABLE_NAME "
         sql += filter_clause + orderby
@@ -1390,11 +1474,17 @@ class Cursor:
         sql += self._get_catalog_filter_conditions(catalog, True, None)
 
         if schema_pattern is not None and schema_pattern != "":
-            sql += " AND n.nspname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND n.nspname LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern)
+            )
         if tablename_pattern is not None and tablename_pattern != "":
-            sql += " AND c.relname LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            sql += " AND c.relname LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern)
+            )
         if columnname_pattern is not None and columnname_pattern != "":
-            sql += " AND attname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            sql += " AND attname LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern)
+            )
 
         sql += " ORDER BY TABLE_SCHEM,c.relname,attnum ) "
 
@@ -1573,11 +1663,17 @@ class Cursor:
             " WHERE true "
         )
         if schema_pattern is not None and schema_pattern != "":
-            sql += " AND schemaname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND schemaname LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern)
+            )
         if tablename_pattern is not None and tablename_pattern != "":
-            sql += " AND tablename LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            sql += " AND tablename LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern)
+            )
         if columnname_pattern is not None and columnname_pattern != "":
-            sql += " AND columnname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            sql += " AND columnname LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern)
+            )
 
         return sql
 
@@ -1590,11 +1686,17 @@ class Cursor:
         filter_clause: str = ""
 
         if schema_pattern is not None and schema_pattern != "":
-            filter_clause += " AND schema_name LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            filter_clause += " AND schema_name LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern)
+            )
         if tablename_pattern is not None and tablename_pattern != "":
-            filter_clause += " AND table_name LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            filter_clause += " AND table_name LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern)
+            )
         if columnname_pattern is not None and columnname_pattern != "":
-            filter_clause += " AND COLUMN_NAME LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            filter_clause += " AND COLUMN_NAME LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern)
+            )
 
         return filter_clause
 
@@ -2261,17 +2363,25 @@ class Cursor:
         sql += self._get_catalog_filter_conditions(catalog, True, None)
 
         if schema_pattern is not None and schema_pattern != "":
-            sql += " AND schemaname LIKE {schema}".format(schema=self.__escape_quotes(schema_pattern))
+            sql += " AND schemaname LIKE {schema}".format(
+                schema=self.__escape_quotes(schema_pattern)
+            )
         if tablename_pattern is not None and tablename_pattern != "":
-            sql += " AND tablename LIKE {table}".format(table=self.__escape_quotes(tablename_pattern))
+            sql += " AND tablename LIKE {table}".format(
+                table=self.__escape_quotes(tablename_pattern)
+            )
         if columnname_pattern is not None and columnname_pattern != "":
-            sql += " AND columnname LIKE {column}".format(column=self.__escape_quotes(columnname_pattern))
+            sql += " AND columnname LIKE {column}".format(
+                column=self.__escape_quotes(columnname_pattern)
+            )
 
         sql += " ORDER BY table_schem,table_name,ORDINAL_POSITION "
 
         return sql
 
-    def __schema_pattern_match(self: "Cursor", schema_pattern: typing.Optional[str]) -> str:
+    def __schema_pattern_match(
+        self: "Cursor", schema_pattern: typing.Optional[str]
+    ) -> str:
         if self._c is None:
             raise InterfaceError("connection is closed")
         if schema_pattern is not None and schema_pattern != "":
