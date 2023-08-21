@@ -334,11 +334,13 @@ def test_client_os_version_is_not_present():
     with patch("platform.platform", side_effect=Exception("not for you")):
         assert mock_connection.client_os_version == "unknown"
 
+
 def test_socket_timeout_error():
     with mock.patch('socket.socket.connect') as mock_socket:
         mock_socket.side_effect = (socket.timeout)
         with pytest.raises(OperationalError):
             Connection(user='mock_user', password='mock_password', host='localhost', port=8080, database='mocked')
+
 
 def mock_read(*args, **kwargs):
     return b""
@@ -358,9 +360,9 @@ def test_handle_messages_broken_pipe_blocking():
     mock_cursor.ps = None
 
     with pytest.raises(
-        InterfaceError,
-        match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
-        "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
+            InterfaceError,
+            match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                  "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
     ):
         mock_connection.handle_messages(mock_cursor)
 
@@ -379,9 +381,9 @@ def test_handle_messages_broken_pipe_timeout():
     mock_cursor.ps = None
 
     with pytest.raises(
-        InterfaceError,
-        match="BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
-        "raising the timeout or defaulting timeout to none.",
+            InterfaceError,
+            match="BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+                  "raising the timeout or defaulting timeout to none.",
     ):
         mock_connection.handle_messages(mock_cursor)
 
@@ -400,9 +402,9 @@ def test_handle_messages_merge_socket_read_broken_pipe_blocking():
     mock_cursor.ps = None
 
     with pytest.raises(
-        InterfaceError,
-        match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
-        "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
+            InterfaceError,
+            match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                  "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
     ):
         mock_connection.handle_messages_merge_socket_read(mock_cursor)
 
@@ -426,3 +428,37 @@ def test_handle_messages_merge_socket_read_broken_pipe_timeout():
         "raising the timeout or defaulting timeout to none.",
     ):
         mock_connection.handle_messages_merge_socket_read(mock_cursor)
+
+
+def test_broken_pipe_on_connect(db_kwargs):
+    db_kwargs["ssl"] = False
+
+    with mock.patch("socket.socket.makefile") as mock_sock:
+        mock_file = mock_sock.return_value
+        mock_file._read.return_value = b""
+
+        with pytest.raises(
+            InterfaceError,
+            match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                  "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
+        ):
+            db_kwargs.pop("region")
+            db_kwargs.pop("cluster_identifier")
+            Connection(**db_kwargs)
+
+def test_broken_pipe_timeout_on_connect(db_kwargs):
+    db_kwargs["ssl"] = False
+    db_kwargs["timeout"] = 60
+    with mock.patch("socket.socket.makefile") as mock_sock:
+        mock_file = mock_sock.return_value
+        mock_file._read.return_value = b""
+
+        with pytest.raises(
+            InterfaceError,
+            match="BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+            "raising the timeout or defaulting timeout to none.",
+        ):
+            db_kwargs.pop("region")
+            db_kwargs.pop("cluster_identifier")
+
+            Connection(**db_kwargs)
