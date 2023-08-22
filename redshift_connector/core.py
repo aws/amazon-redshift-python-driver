@@ -36,6 +36,7 @@ from redshift_connector.error import (
     ArrayContentNotHomogenousError,
     ArrayContentNotSupportedError,
     DatabaseError,
+    DataError,
     Error,
     IntegrityError,
     InterfaceError,
@@ -1710,6 +1711,9 @@ class Connection:
             #   Int32 - The OID of the parameter data type.
             val: typing.Union[bytes, bytearray] = bytearray(statement_name_bin)
             typing.cast(bytearray, val).extend(statement.encode(_client_encoding) + NULL_BYTE)
+            if len(params) > 32767:
+                raise DataError("Prepared statement exceeds bind parameter limit 32767. {} bind parameters were "
+                                "provided. Please retry with fewer bind parameters.".format(len(params)))
             typing.cast(bytearray, val).extend(h_pack(len(params)))
             for oid, fc, send_func in params:  # type: ignore
                 # Parse message doesn't seem to handle the -1 type_oid for NULL

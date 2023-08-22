@@ -340,7 +340,7 @@ class Cursor:
                     self.execute(insert_stmt, values_list)
 
         except Exception as e:
-            raise InterfaceError(e)
+            raise e
         finally:
             # reset paramstyle to it's original value
             self.paramstyle = orig_paramstyle
