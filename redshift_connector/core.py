@@ -739,7 +739,21 @@ class Connection:
             # Each time will read 5 bytes, the first byte, the code, inform the type of message
             # following 4 bytes inform the message's length
             # then can use this length to minus 4 to get the real data.
-            code, data_len = ci_unpack(self._read(5))
+            buffer = self._read(5)
+
+            if len(buffer) == 0:
+                if self._usock.timeout is not None:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+                        "raising the timeout or defaulting timeout to none."
+                    )
+                else:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                        "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
+                    )
+
+            code, data_len = ci_unpack(buffer)
             self.message_types[code](self._read(data_len - 4), None)
         if self.error is not None:
             raise self.error
@@ -2007,7 +2021,22 @@ class Connection:
         code = self.error = None
 
         while code != READY_FOR_QUERY:
-            code, data_len = ci_unpack(self._read(5))
+            buffer = self._read(5)
+
+            if len(buffer) == 0:
+                if self._usock.timeout is not None:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+                        "raising the timeout or defaulting timeout to none."
+                    )
+                else:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                        "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
+                    )
+
+            code, data_len = ci_unpack(buffer)
+
             self.message_types[code](self._read(data_len - 4), cursor)
 
         if self.error is not None:
@@ -2028,7 +2057,20 @@ class Connection:
         """
         code = self.error = None
         # read 5 bytes of message firstly
-        code, data_len = ci_unpack(self._read(5))
+        buffer = self._read(5)
+        if len(buffer) == 0:
+            if self._usock.timeout is not None:
+                raise InterfaceError(
+                    "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+                    "raising the timeout or defaulting timeout to none."
+                )
+            else:
+                raise InterfaceError(
+                    "BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                    "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
+                )
+
+        code, data_len = ci_unpack(buffer)
 
         while True:
             if code == READY_FOR_QUERY:
