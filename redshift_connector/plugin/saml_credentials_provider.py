@@ -64,47 +64,58 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
         return not self.ssl_insecure
 
     def get_credentials(self: "SamlCredentialsProvider") -> CredentialsHolder:
+        _logger.debug("SamlCredentialsProvider.get_credentials")
         key: str = self.get_cache_key()
         if key not in self.cache or self.cache[key].is_expired():
             try:
                 self.refresh()
+                _logger.debug("Successfully refreshed credentials")
             except Exception as e:
-                _logger.error("Refreshing IdP credentials failed: {}".format(str(e)))
+                _logger.debug("Refreshing IdP credentials failed")
                 raise InterfaceError(e)
         # if the SAML response has db_user argument, it will be picked up at this point.
         credentials: CredentialsHolder = self.cache[key]
 
         if credentials is None:
-            raise InterfaceError("Unable to load AWS credentials from IDP")
+            exec_msg = "Unable to load AWS credentials from IdP"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
 
         # if db_user argument has been passed in the connection string, add it to metadata.
         if self.db_user:
+            _logger.debug("adding db_user to metadata")
             credentials.metadata.set_db_user(self.db_user)
 
         return credentials
 
     def refresh(self: "SamlCredentialsProvider") -> None:
+        _logger.debug("SamlCredentialsProvider.refresh")
         import boto3  # type: ignore
         import bs4  # type: ignore
 
         try:
             # get SAML assertion from specific identity provider
             saml_assertion = self.get_saml_assertion()
+            _logger.debug("Successfully retrieved SAML assertion")
         except Exception as e:
-            _logger.error("Get saml assertion failed: {}".format(str(e)))
-            raise InterfaceError(e)
+            exec_msg = "Failed to get SAML assertion"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         # decode SAML assertion into xml format
         doc: bytes = base64.b64decode(saml_assertion)
+        _logger.debug("decoded SAML assertion into xml format")
         soup = bs4.BeautifulSoup(doc, "xml")
         attrs = soup.findAll("Attribute")
         # extract RoleArn adn PrincipleArn from SAML assertion
         role_pattern = re.compile(r"arn:aws:iam::\d*:role/\S+")
         provider_pattern = re.compile(r"arn:aws:iam::\d*:saml-provider/\S+")
         roles: typing.Dict[str, str] = {}
+        _logger.debug("searching SAML assertion for values matching patterns for RoleArn and PrincipalArn")
         for attr in attrs:
             name: str = attr.attrs["Name"]
             values: typing.Any = attr.findAll("AttributeValue")
             if name == "https://aws.amazon.com/SAML/Attributes/Role":
+                _logger.debug("Attribute with name %s found. Checking if pattern match occurs", name)
                 for value in values:
                     arns = value.contents[0].split(",")
                     role: str = ""
@@ -112,34 +123,49 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
                     for arn in arns:
                         arn = arn.strip()  # remove trailing or leading whitespace
                         if role_pattern.match(arn):
+                            _logger.debug("RoleArn pattern matched")
                             role = arn
                         if provider_pattern.match(arn):
+                            _logger.debug("PrincipleArn pattern matched")
                             provider = arn
                     if role != "" and provider != "":
                         roles[role] = provider
+        _logger.debug("Done reading SAML assertion attributes")
+        _logger.debug("%s roles identified in SAML assertion", len(roles))
 
         if len(roles) == 0:
-            raise InterfaceError("No role found in SamlAssertion")
+            exec_msg = "No roles were found in SAML assertion. Please verify IdP configuration provides ARNs in the SAML https://aws.amazon.com/SAML/Attributes/Role Attribute."
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
         role_arn: str = ""
         principle: str = ""
         if self.preferred_role:
+            _logger.debug("User provided preferred_role, trying to use...")
             role_arn = self.preferred_role
             if role_arn not in roles:
-                raise InterfaceError("Preferred role not found in SamlAssertion")
+                exec_msg = "User specified preferred_role was not found in SAML assertion https://aws.amazon.com/SAML/Attributes/Role Attribute"
+                _logger.debug(exec_msg)
+                raise InterfaceError(exec_msg)
             principle = roles[role_arn]
         else:
+            _logger.debug(
+                "User did not specify a preferred_role. A randomly selected role from the SAML assertion https://aws.amazon.com/SAML/Attributes/Role Attribute will be used."
+            )
             role_arn = random.choice(list(roles))
             principle = roles[role_arn]
 
         client = boto3.client("sts")
 
         try:
+            _logger.debug(
+                "Attempting to retrieve temporary AWS credentials using the SAML assertion, principal ARN, and role ARN."
+            )
             response = client.assume_role_with_saml(
                 RoleArn=role_arn,  # self.preferred_role,
                 PrincipalArn=principle,  # self.principal,
                 SAMLAssertion=saml_assertion,
             )
-
+            _logger.debug("Extracting temporary AWS credentials from assume_role_with_saml response")
             stscred: typing.Dict[str, typing.Any] = response["Credentials"]
             credentials: CredentialsHolder = CredentialsHolder(stscred)
             # get metadata from SAML assertion
@@ -147,31 +173,31 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
             key: str = self.get_cache_key()
             self.cache[key] = credentials
         except AttributeError as e:
-            _logger.error("AttributeError: %s", e)
+            _logger.debug("AttributeError: %s", e)
             raise e
         except KeyError as e:
-            _logger.error("KeyError: %s", e)
+            _logger.debug("KeyError: %s", e)
             raise e
         except client.exceptions.MalformedPolicyDocumentException as e:
-            _logger.error("MalformedPolicyDocumentException: %s", e)
+            _logger.debug("MalformedPolicyDocumentException: %s", e)
             raise e
         except client.exceptions.PackedPolicyTooLargeException as e:
-            _logger.error("PackedPolicyTooLargeException: %s", e)
+            _logger.debug("PackedPolicyTooLargeException: %s", e)
             raise e
         except client.exceptions.IDPRejectedClaimException as e:
-            _logger.error("IDPRejectedClaimException: %s", e)
+            _logger.debug("IDPRejectedClaimException: %s", e)
             raise e
         except client.exceptions.InvalidIdentityTokenException as e:
-            _logger.error("InvalidIdentityTokenException: %s", e)
+            _logger.debug("InvalidIdentityTokenException: %s", e)
             raise e
         except client.exceptions.ExpiredTokenException as e:
-            _logger.error("ExpiredTokenException: %s", e)
+            _logger.debug("ExpiredTokenException: %s", e)
             raise e
         except client.exceptions.RegionDisabledException as e:
-            _logger.error("RegionDisabledException: %s", e)
+            _logger.debug("RegionDisabledException: %s", e)
             raise e
         except Exception as e:
-            _logger.error("Other Exception: %s", e)
+            _logger.debug("Other Exception: %s", e)
             raise e
 
     def get_cache_key(self: "SamlCredentialsProvider") -> str:
@@ -189,14 +215,16 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
         pass
 
     def check_required_parameters(self: "SamlCredentialsProvider") -> None:
+        _logger.debug("SamlCredentialsProvider.check_required_parameters")
         if self.user_name == "" or self.user_name is None:
-            raise InterfaceError("Missing required property: user_name")
+            SamlCredentialsProvider.handle_missing_required_property("user_name")
         if self.password == "" or self.password is None:
-            raise InterfaceError("Missing required property: password")
+            SamlCredentialsProvider.handle_missing_required_property("password")
         if self.idp_host == "" or self.idp_host is None:
-            raise InterfaceError("Missing required property: idp_host")
+            SamlCredentialsProvider.handle_missing_required_property("idp_host")
 
     def read_metadata(self: "SamlCredentialsProvider", doc: bytes) -> CredentialsHolder.IamMetadata:
+        _logger.debug("SamlCredentialsProvider.read_metadata")
         import bs4  # type: ignore
 
         try:
@@ -206,8 +234,10 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
 
             # prefer using Attributes in saml-compliant namespace
             for idx, namespace in enumerate(SAML_RESP_NAMESPACES):
+                _logger.debug("Looking for attributes under %s namespace", namespace)
                 attrs = soup.find_all("{}Attribute".format(namespace))
                 if len(attrs) > 0:
+                    _logger.debug("Attributes found under SAML response namespace %s", namespace)
                     namespace_used_idx = idx
                     break
 
@@ -215,8 +245,11 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
 
             for attr in attrs:
                 name: str = attr.attrs["Name"]
-                values: typing.Any = attr.findAll("{}AttributeValue".format(SAML_RESP_NAMESPACES[namespace_used_idx]))
+                _logger.debug("Searching SAML attribute %s for attribute values", name)
+                attribute_name: str = "{}AttributeValue".format(SAML_RESP_NAMESPACES[namespace_used_idx])
+                values: typing.Any = attr.findAll(attribute_name)
                 if len(values) == 0 or not values[0].contents:
+                    _logger.debug("No SAML attribute %s found. Continuing to search", attribute_name)
                     # Ignore empty-valued attributes.
                     continue
                 value: str = values[0].contents[0]
@@ -237,10 +270,10 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
 
             return metadata
         except AttributeError as e:
-            _logger.error("AttributeError: %s", e)
+            _logger.debug("AttributeError: %s", e)
             raise e
         except KeyError as e:
-            _logger.error("KeyError: %s", e)
+            _logger.debug("KeyError: %s", e)
             raise e
 
     def get_form_action(self: "SamlCredentialsProvider", soup) -> typing.Optional[str]:

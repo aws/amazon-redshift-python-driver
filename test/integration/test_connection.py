@@ -2,9 +2,7 @@ import configparser
 import logging
 import os
 import random
-import socket
 import string
-import struct
 import sys
 
 import pytest  # type: ignore
@@ -178,11 +176,30 @@ def test_broken_pipe(con, db_kwargs):
             pid1 = cur1.fetchone()[0]
 
             cur2.execute("select pg_terminate_backend(%s)", (pid1,))
-            try:
+            with pytest.raises(
+                redshift_connector.InterfaceError,
+                match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
+            ):
                 cur1.execute("select 1")
-            except Exception as e:
-                assert isinstance(e, (socket.error, struct.error))
 
+# case 2: same connector configuration, but should throw an error since the timeout is set,
+def test_broken_pipe_timeout(con, db_kwargs):
+    db_kwargs["timeout"] = 60
+    with redshift_connector.connect(**db_kwargs) as db1:
+        with db1.cursor() as cur1, con.cursor() as cur2:
+            print(db1._usock.timeout)
+            cur1.execute("select pg_backend_pid()")
+            pid1 = cur1.fetchone()[0]
+
+            cur2.execute("select pg_terminate_backend(%s)", (pid1,))
+            with pytest.raises(
+                redshift_connector.InterfaceError,
+                match="BrokenPipe: server socket closed. We noticed a timeout is "
+                "set for this connection. Consider raising the timeout or "
+                "defaulting timeout to none.",
+            ):
+                cur1.execute("select 1")
 
 def test_application_name_integer(db_kwargs):
     db_kwargs["application_name"] = 1

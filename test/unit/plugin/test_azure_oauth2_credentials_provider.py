@@ -36,7 +36,7 @@ def test_check_required_parameters_raises_if_idp_tenant_missing_or_too_small(val
     acp, _ = make_valid_azure_oauth2_provider()
     acp.idp_tenant = value
 
-    with pytest.raises(InterfaceError, match="BrowserAzureOauth2CredentialsProvider requires idp_tenant"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: idp_tenant"):
         acp.get_jwt_assertion()
 
 
@@ -45,7 +45,7 @@ def test_check_required_parameters_raises_if_client_id_missing(value):
     acp, _ = make_valid_azure_oauth2_provider()
     acp.client_id = value
 
-    with pytest.raises(InterfaceError, match="BrowserAzureOauth2CredentialsProvider requires client_id"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: client_id"):
         acp.get_jwt_assertion()
 
 
@@ -54,7 +54,10 @@ def test_check_required_parameters_raises_if_idp_response_timeout_missing(value)
     acp, _ = make_valid_azure_oauth2_provider()
     acp.idp_response_timeout = value
 
-    with pytest.raises(InterfaceError, match="BrowserAzureOauth2CredentialsProvider requires idp_response_timeout"):
+    with pytest.raises(
+        InterfaceError,
+        match="Invalid value specified for connection property: idp_response_timeout. Must be 10 seconds or greater",
+    ):
         acp.get_jwt_assertion()
 
 

@@ -71,25 +71,26 @@ class IamHelper(IdpAuthHelper):
         """
         Returns an enum representing the Python SDK method to use for getting temporary IAM credentials.
         """
-        _logger.debug("Determining which API to use for retrieving Redshift instance credentials")
+        _logger.debug("Determining which Redshift API to use for retrieving temporary Redshift instance credentials")
 
         if not info._is_serverless:
             _logger.debug("Redshift provisioned")
             if not info.group_federation:
-                _logger.debug("group_federation disabled")
+                _logger.debug("Provisioned cluster GetClusterCredentialsAPIType.IAM_V1")
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V1
             elif IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type):
+                _logger.debug("Provisioned cluster GetClusterCredentialsAPIType.IAM_V2")
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V2
             else:
                 raise InterfaceError("Authentication with plugin is not supported for group federation")
         elif not info.group_federation:
-            _logger.debug("Redshift serverless")
-            _logger.debug("group_federation disabled")
+            _logger.debug("Serverless cluster GetClusterCredentialsAPIType.SERVERLESS_V1")
             return IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1
         elif IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type):
             if info.is_cname:
                 raise InterfaceError("Custom cluster names are not supported for Redshift Serverless")
             else:
+                _logger.debug("Serverless cluster GetClusterCredentialsAPIType.IAM_V2")
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V2
         else:
             raise InterfaceError("Authentication with plugin is not supported for group federation")
@@ -100,6 +101,7 @@ class IamHelper(IdpAuthHelper):
         Helper function to handle connection properties and ensure required parameters are specified.
         Parameters
         """
+        _logger.debug("IamHelper.set_iam_properties")
         provider_type: IamHelper.IAMAuthenticationType = IamHelper.IAMAuthenticationType.NONE
         info.set_is_cname()
         # set properties present for both IAM, Native authentication
@@ -121,6 +123,7 @@ class IamHelper(IdpAuthHelper):
 
         # consider overridden connection parameters
         if info.is_serverless_host:
+            _logger.debug("Redshift Serverless host detected")
             if not info.serverless_acct_id:
                 info.set_serverless_acct_id()
             if not info.serverless_work_group:
@@ -129,7 +132,6 @@ class IamHelper(IdpAuthHelper):
             info.set_region_from_host()
 
         if info.iam is True:
-
             if info.region is None:
                 _logger.debug("Setting region via DNS lookup as region was not provided in connection parameters")
                 info.set_region_from_endpoint_lookup()
@@ -148,10 +150,12 @@ class IamHelper(IdpAuthHelper):
         """
         Helper function to create the appropriate credential providers.
         """
+        _logger.debug("IamHelper.set_iam_credentials")
         klass: typing.Optional[IPlugin] = None
         provider: typing.Union[IPlugin, AWSCredentialsProvider]
 
         if info.credentials_provider is not None:
+            _logger.debug("IdP plugin will be used for authentication")
             provider = IdpAuthHelper.load_credentials_provider(info)
 
         else:  # indicates AWS Credentials will be used
@@ -160,9 +164,11 @@ class IamHelper(IdpAuthHelper):
             provider.add_parameter(info)
 
         if isinstance(provider, SamlCredentialsProvider):
+            _logger.debug("SAML based credential provider identified")
             credentials: CredentialsHolder = provider.get_credentials()
             metadata: CredentialsHolder.IamMetadata = credentials.get_metadata()
             if metadata is not None:
+                _logger.debug("Using SAML metadata to set connection properties")
                 auto_create: bool = metadata.get_auto_create()
                 db_user: typing.Optional[str] = metadata.get_db_user()
                 saml_db_user: typing.Optional[str] = metadata.get_saml_db_user()
@@ -171,30 +177,41 @@ class IamHelper(IdpAuthHelper):
                 force_lowercase: bool = metadata.get_force_lowercase()
                 allow_db_user_override: bool = metadata.get_allow_db_user_override()
                 if auto_create is True:
+                    _logger.debug("setting auto_create %s", auto_create)
                     info.put("auto_create", auto_create)
 
                 if force_lowercase is True:
+                    _logger.debug("setting force_lowercase %s", force_lowercase)
                     info.put("force_lowercase", force_lowercase)
 
                 if allow_db_user_override is True:
+                    _logger.debug("allow_db_user_override enabled")
                     if saml_db_user is not None:
+                        _logger.debug("setting db_user to saml_db_user %s", saml_db_user)
                         info.put("db_user", saml_db_user)
                     elif db_user is not None:
+                        _logger.debug("setting db_user to db_user %s", db_user)
                         info.put("db_user", db_user)
                     elif profile_db_user is not None:
+                        _logger.debug("setting db_user to profile_db_user %s", profile_db_user)
                         info.put("db_user", profile_db_user)
                 else:
                     if db_user is not None:
+                        _logger.debug("setting db_user to db_user %s", db_user)
                         info.put("db_user", db_user)
                     elif profile_db_user is not None:
+                        _logger.debug("setting db_user to profile_db_user %s", profile_db_user)
                         info.put("db_user", profile_db_user)
                     elif saml_db_user is not None:
+                        _logger.debug("setting db_user to saml_db_user %s", saml_db_user)
                         info.put("db_user", saml_db_user)
 
                 if (len(info.db_groups) == 0) and (len(db_groups) > 0):
                     if force_lowercase:
+                        _logger.debug("setting db_groups after cast to lowercase")
                         info.db_groups = [group.lower() for group in db_groups]
                     else:
+                        _logger.debug("setting db_groups")
                         info.db_groups = db_groups
 
         if not isinstance(provider, INativePlugin):
@@ -257,6 +274,7 @@ class IamHelper(IdpAuthHelper):
         """
         Returns an enum representing the type of authentication the user is requesting based on connection parameters.
         """
+        _logger.debug("IamHelper.get_authentication_type")
         provider_type: IamHelper.IAMAuthenticationType = IamHelper.IAMAuthenticationType.NONE
         if isinstance(provider, IPlugin):
             provider_type = IamHelper.IAMAuthenticationType.PLUGIN
@@ -267,6 +285,7 @@ class IamHelper(IdpAuthHelper):
                 provider_type = IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION
             else:
                 provider_type = IamHelper.IAMAuthenticationType.IAM_KEYS
+        _logger.debug("Inferred authentication type %s from connection parameters", provider_type)
 
         return provider_type
 
@@ -275,6 +294,7 @@ class IamHelper(IdpAuthHelper):
         """
         Returns a boto3 client configured for Amazon Redshift using AWS credentials provided by user, system, or IdP.
         """
+        _logger.debug("IamHelper.set_cluster_credentials")
         import boto3  # type: ignore
         import botocore  # type: ignore
 
@@ -291,10 +311,11 @@ class IamHelper(IdpAuthHelper):
             ] = cred_provider.get_credentials()  # type: ignore
             session_credentials: typing.Dict[str, str] = credentials_holder.get_session_credentials()
 
-            _logger.debug("boto3.client(service_name={}) being used for IAM auth".format(session_args["service_name"]))
+            _logger.debug("boto3.client(service_name=%s) being used for IAM auth", session_args["service_name"])
 
             # if AWS credentials were used to create a boto3.Session object, use it
             if credentials_holder.has_associated_session:
+                _logger.debug("Using cached boto3 session")
                 cached_session: boto3.Session = typing.cast(
                     ABCAWSCredentialsHolder, credentials_holder
                 ).get_boto_session()
@@ -305,10 +326,10 @@ class IamHelper(IdpAuthHelper):
                 client = boto3.client(**{**session_credentials, **session_args})
             return client
         except botocore.exceptions.ClientError as e:
-            _logger.error("ClientError when establishing boto3 client: %s", e)
+            _logger.debug("ClientError when establishing boto3 client: %s", e)
             raise e
         except Exception as e:
-            _logger.error("Other Exception when establishing boto3 client: %s", e)
+            _logger.debug("Other Exception when establishing boto3 client: %s", e)
             raise e
 
     @staticmethod
@@ -327,11 +348,11 @@ class IamHelper(IdpAuthHelper):
             _logger.debug("Redshift custom domain name in use. Determining cluster identifier.")
             response = client.describe_custom_domain_associations(CustomDomainName=info.host)
             cluster_identifier: str = response["Associations"][0]["CertificateAssociations"][0]["ClusterIdentifier"]
-            _logger.debug("Retrieved cluster_identifier={}".format(cluster_identifier))
+            _logger.debug("Retrieved cluster_identifier=%s", cluster_identifier)
             info.put(key="cluster_identifier", value=cluster_identifier)
         except Exception as e:
             if info.cluster_identifier is None or info.cluster_identifier == "":
-                _logger.error(
+                _logger.debug(
                     "Other Exception when requesting cluster identifier for Redshift with custom domain: %s", e
                 )
                 raise e
@@ -367,12 +388,12 @@ class IamHelper(IdpAuthHelper):
                     response = client.describe_clusters(ClusterIdentifier=info.cluster_identifier)
                     info.put("host", response["Clusters"][0]["Endpoint"]["Address"])
                     info.put("port", response["Clusters"][0]["Endpoint"]["Port"])
-            _logger.debug("host={} port={}".format(info.host, info.port))
+            _logger.debug("host=%s port=%s", info.host, info.port)
         except botocore.exceptions.ClientError as e:
-            _logger.error("ClientError when requesting cluster identifier for Redshift with custom domain: %s", e)
+            _logger.debug("ClientError when requesting cluster identifier for Redshift with custom domain: %s", e)
             raise e
         except Exception as e:
-            _logger.error("Other Exception when requesting cluster identifier for Redshift with custom domain: %s", e)
+            _logger.debug("Other Exception when requesting cluster identifier for Redshift with custom domain: %s", e)
             raise e
 
     @staticmethod
@@ -397,10 +418,9 @@ class IamHelper(IdpAuthHelper):
             cred = IamHelper.credentials_cache.get(cache_key, None)
 
             _logger.debug(
-                "Searching credential cache for temporary AWS credentials. Found: {} Expiration: {}".format(
-                    bool(cache_key in IamHelper.credentials_cache),
-                    cred["Expiration"] if cred is not None else "N/A",
-                )
+                "Searching credential cache for temporary AWS credentials. Found: %s Expiration: %s",
+                bool(cache_key in IamHelper.credentials_cache),
+                cred["Expiration"] if cred is not None else "N/A",
             )
 
         if cred is None or typing.cast(datetime.datetime, cred["Expiration"]) < datetime.datetime.now(tz=tzutc()):
@@ -411,7 +431,7 @@ class IamHelper(IdpAuthHelper):
             get_creds_api_version: IamHelper.GetClusterCredentialsAPIType = IamHelper.get_cluster_credentials_api_type(
                 info, provider_type
             )
-            _logger.debug("boto3 get_credentials api version: {} will be used".format(get_creds_api_version.value))
+            _logger.debug("boto3 get_credentials api version: %s will be used", get_creds_api_version.value)
 
             if get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1:
                 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-serverless/client/get_credentials.html#
@@ -419,7 +439,7 @@ class IamHelper(IdpAuthHelper):
                 if info.serverless_work_group:
                     get_cred_args["workgroupName"] = info.serverless_work_group
 
-                _logger.debug("Calling get_credentials with parameters {}".format(get_cred_args))
+                _logger.debug("Calling get_credentials with parameters %s", get_cred_args)
                 cred = typing.cast(
                     typing.Dict[str, typing.Union[str, datetime.datetime]],
                     client.get_credentials(**get_cred_args),
@@ -438,7 +458,7 @@ class IamHelper(IdpAuthHelper):
                     request_params["CustomDomainName"] = info.host
                 else:
                     request_params["ClusterIdentifier"] = info.cluster_identifier
-                _logger.debug("Calling get_cluster_credentials_with_iam with parameters {}".format(request_params))
+                _logger.debug("Calling get_cluster_credentials_with_iam with parameters %s", request_params)
 
                 try:
                     cred = typing.cast(
@@ -454,9 +474,7 @@ class IamHelper(IdpAuthHelper):
                         request_params["ClusterIdentifier"] = info.cluster_identifier
 
                         _logger.debug(
-                            "Retrying calling get_cluster_credentials_with_iam with parameters {}".format(
-                                request_params
-                            )
+                            "Retrying calling get_cluster_credentials_with_iam with parameters %s", request_params
                         )
 
                         cred = typing.cast(
@@ -482,7 +500,7 @@ class IamHelper(IdpAuthHelper):
                 else:
                     request_params["ClusterIdentifier"] = info.cluster_identifier
 
-                _logger.debug("Calling get_cluster_credentials with parameters {}".format(request_params))
+                _logger.debug("Calling get_cluster_credentials with parameters %s", request_params)
 
                 try:
                     cred = typing.cast(
@@ -497,9 +515,7 @@ class IamHelper(IdpAuthHelper):
                         del request_params["CustomDomainName"]
                         request_params["ClusterIdentifier"] = info.cluster_identifier
 
-                        _logger.debug(
-                            "Retrying calling get_cluster_credentials with parameters {}".format(request_params)
-                        )
+                        _logger.debug("Retrying calling get_cluster_credentials with parameters %s", request_params)
 
                         cred = typing.cast(
                             typing.Dict[str, typing.Union[str, datetime.datetime]],
@@ -521,4 +537,4 @@ class IamHelper(IdpAuthHelper):
             info.put("user_name", typing.cast(str, cred["DbUser"]))
             info.put("password", typing.cast(str, cred["DbPassword"]))
 
-        _logger.debug("Using temporary aws credentials with expiration: {}".format(cred.get("Expiration")))
+        _logger.debug("Using temporary aws credentials with expiration: %s", cred.get("Expiration"))

@@ -152,7 +152,7 @@ class CredentialsHolder(ABCCredentialsHolder):
         return self.expiration
 
     def is_expired(self: "CredentialsHolder") -> bool:
-        _logger.debug("Credentials will expire at {} (UTC)".format(self.expiration))
+        _logger.debug("AWS Credentials will expire at %s (UTC)", self.expiration)
 
         return datetime.datetime.now(datetime.timezone.utc) > self.expiration
 
@@ -174,6 +174,7 @@ class CredentialsHolder(ABCCredentialsHolder):
             return self.auto_create
 
         def set_auto_create(self: "CredentialsHolder.IamMetadata", auto_create: str) -> None:
+            _logger.debug("CredentialsHolder.IamMetadata.set_auto_create %s", auto_create)
             if auto_create.lower() == "true":
                 self.auto_create = True
             else:
@@ -183,6 +184,7 @@ class CredentialsHolder(ABCCredentialsHolder):
             return self.db_user
 
         def set_db_user(self: "CredentialsHolder.IamMetadata", db_user: str) -> None:
+            _logger.debug("CredentialsHolder.IamMetadata.set_db_user %s", db_user)
             self.db_user = db_user
 
         def get_saml_db_user(
@@ -191,6 +193,7 @@ class CredentialsHolder(ABCCredentialsHolder):
             return self.saml_db_user
 
         def set_saml_db_user(self: "CredentialsHolder.IamMetadata", saml_db_user: str) -> None:
+            _logger.debug("CredentialsHolder.IamMetadata.set_saml_db_user %s", saml_db_user)
             self.saml_db_user = saml_db_user
 
         def get_profile_db_user(
@@ -199,18 +202,21 @@ class CredentialsHolder(ABCCredentialsHolder):
             return self.profile_db_user
 
         def set_profile_db_user(self: "CredentialsHolder.IamMetadata", profile_db_user: str) -> None:
+            _logger.debug("CredentialsHolder.IamMetadata.set_profile_db_user %s", profile_db_user)
             self.profile_db_user = profile_db_user
 
         def get_db_groups(self: "CredentialsHolder.IamMetadata") -> typing.List[str]:
             return self.db_groups
 
         def set_db_groups(self: "CredentialsHolder.IamMetadata", db_groups: typing.List[str]) -> None:
+            _logger.debug("CredentialsHolder.IamMetadata.set_db_groups %s", db_groups)
             self.db_groups = db_groups
 
         def get_allow_db_user_override(self: "CredentialsHolder.IamMetadata") -> bool:
             return self.allow_db_user_override
 
         def set_allow_db_user_override(self: "CredentialsHolder.IamMetadata", allow_db_user_override: str) -> None:
+            _logger.debug("CredentialsHolder.IamMetadata.set_allow_db_user_override %s", allow_db_user_override)
             if allow_db_user_override.lower() == "true":
                 self.allow_db_user_override = True
             else:
@@ -220,6 +226,7 @@ class CredentialsHolder(ABCCredentialsHolder):
             return self.force_lowercase
 
         def set_force_lowercase(self: "CredentialsHolder.IamMetadata", force_lowercase: str) -> None:
+            _logger.debug("CredentialsHolder.IamMetadata.set_allow_db_user_override %s", force_lowercase)
             if force_lowercase.lower() == "true":
                 self.force_lowercase = True
             else:

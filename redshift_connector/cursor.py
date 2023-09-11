@@ -106,7 +106,7 @@ class Cursor:
         else:
             self.paramstyle = paramstyle
 
-        _logger.debug("Cursor.paramstyle={}".format(self.paramstyle))
+        _logger.debug("Cursor.paramstyle=%s", self.paramstyle)
 
     def __enter__(self: "Cursor") -> "Cursor":
         return self
@@ -239,7 +239,12 @@ class Cursor:
                 self._c.execute(self, "begin transaction", None)
             self._c.merge_socket_read = merge_socket_read
             self._c.execute(self, operation, args)
-        except AttributeError as e:
+        except Exception as e:
+            try:
+                _logger.debug("Cursor's connection._usock state: %s", self.connection._usock.__dict__)  # type: ignore
+                _logger.debug("Cursor's connection._sock is closed: %s", self.connection._sock.closed)  # type: ignore
+            except:
+                pass
             raise e
         return self
 
@@ -339,7 +344,7 @@ class Cursor:
                     self.execute(insert_stmt, values_list)
 
         except Exception as e:
-            raise InterfaceError(e)
+            raise e
         finally:
             # reset paramstyle to it's original value
             self.paramstyle = orig_paramstyle

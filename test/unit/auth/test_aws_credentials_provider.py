@@ -85,7 +85,7 @@ def test_get_credentials_checks_cache_first(mocker):
 def test_get_credentials_refresh_error_is_raised(mocker):
     cred_provider: AWSCredentialsProvider = AWSCredentialsProvider()
     mocker.patch("redshift_connector.auth.AWSCredentialsProvider.get_cache_key", return_value="tomato")
-    expected_exception = "something went wrong"
+    expected_exception = "Refreshing IdP credentials failed"
 
     with patch("redshift_connector.auth.AWSCredentialsProvider.refresh") as mocked_refresh:
         mocked_refresh.side_effect = Exception(expected_exception)

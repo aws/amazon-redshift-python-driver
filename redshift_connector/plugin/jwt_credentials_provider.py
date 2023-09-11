@@ -50,9 +50,11 @@ class JwtCredentialsProvider(INativePlugin, IdpCredentialsProvider):
         self.group_federation = group_federation
 
     def get_credentials(self: "JwtCredentialsProvider") -> NativeTokenHolder:
+        _logger.debug("JwtCredentialsProvider.get_credentials")
         credentials: typing.Optional[NativeTokenHolder] = None
 
         if not self.disable_cache:
+            _logger.debug("checking cache for credentials")
             key = self.get_cache_key()
             credentials = typing.cast(NativeTokenHolder, self.cache.get(key))
 
@@ -72,16 +74,18 @@ class JwtCredentialsProvider(INativePlugin, IdpCredentialsProvider):
         return typing.cast(NativeTokenHolder, credentials)
 
     def refresh(self: "JwtCredentialsProvider") -> None:
+        _logger.debug("JwtCredentialsProvider.refresh")
         jwt: str = self.get_jwt_assertion()
-        _logger.debug("JWT: {}".format(jwt))
 
         if jwt is None:
-            raise InterfaceError("Unable to refresh, no jwt provided")
+            exec_msg = "Unable to refresh, no jwt provided"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
 
         credentials: NativeTokenHolder = NativeTokenHolder(access_token=jwt, expiration=None)
         credentials.refresh = True
 
-        _logger.debug("disable_cache={}".format(str(self.disable_cache)))
+        _logger.debug("disable_cache=%s", self.disable_cache)
         if not self.disable_cache:
             self.cache[self.get_cache_key()] = credentials
 
@@ -122,7 +126,7 @@ class BasicJwtCredentialsProvider(JwtCredentialsProvider):
     def check_required_parameters(self: "BasicJwtCredentialsProvider") -> None:
         super().check_required_parameters()
         if not self.jwt:
-            raise InterfaceError("Missing required property jwt")
+            BasicJwtCredentialsProvider.handle_missing_required_property("jwt")
 
     def get_cache_key(self: "BasicJwtCredentialsProvider") -> str:
         return typing.cast(str, self.jwt)

@@ -29,100 +29,134 @@ class OktaCredentialsProvider(SamlCredentialsProvider):
         self.app_name = info.app_name
 
     def get_saml_assertion(self: "OktaCredentialsProvider") -> str:
+        _logger.debug("OktaCredentialsProvider.get_saml_assertion")
         self.check_required_parameters()
         if self.app_id == "" or self.app_id is None:
-            raise InterfaceError("Missing required property: app_id")
+            OktaCredentialsProvider.handle_missing_required_property("app_id")
 
         okta_session_token: str = self.okta_authentication()
         return self.handle_saml_assertion(okta_session_token)
 
     # Authenticates users credentials via Okta, return Okta session token.
     def okta_authentication(self: "OktaCredentialsProvider") -> str:
+        _logger.debug("OktaCredentialsProvider.okta_authentication")
         import requests
 
         # HTTP Post request to Okta API for session token
         url: str = "https://{host}/api/v1/authn".format(host=self.idp_host)
-        _logger.debug("Okta authentication request uri: {}".format(url))
+        _logger.debug("Okta authentication request uri: %s", url)
         self.validate_url(url)
         headers: typing.Dict[str, str] = okta_headers
         payload: typing.Dict[str, typing.Optional[str]] = {"username": self.user_name, "password": self.password}
-        _logger.debug("Okta authentication payload contains username={}".format(self.user_name))
+        _logger.debug("Okta authentication payload contains username=%s", self.user_name)
 
         try:
+            _logger.debug("Issuing Okta authentication request using uri %s verify %s", url, self.do_verify_ssl_cert())
             response: "requests.Response" = requests.post(
                 url, data=json.dumps(payload), headers=headers, verify=self.do_verify_ssl_cert()
             )
+            _logger.debug("Response code: %s", response.status_code)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
             if "response" in vars():
-                _logger.debug("Okta authentication response body: {}".format(response.content))  # type: ignore
+                _logger.debug("Okta authentication response body was non empty")  # type: ignore
             else:
                 _logger.debug("Okta authentication response raised an exception. No response returned.")
-            _logger.error("Request for authentication from Okta was unsuccessful. {}".format(str(e)))
+            _logger.debug(
+                "Request for authentication from Okta was unsuccessful. Please verify connection properties are correct. {}".format(
+                    str(e)
+                )
+            )
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            _logger.error("A timeout occurred when requesting authentication from Okta")
+            _logger.debug(
+                "A timeout occurred when requesting authentication from Okta. Please verify connection properties are correct."
+            )
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            _logger.error(
-                "A error occurred when requesting authentication from Okta. Verify RedshiftProperties are correct"
+            _logger.debug(
+                "A error occurred when requesting authentication from Okta. Please verify connection properties are correct."
             )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            _logger.error("A unknown error occurred when requesting authentication from Okta")
+            _logger.debug(
+                "A unknown error occurred when requesting authentication from Okta. Please verify connection properties are correct."
+            )
             raise InterfaceError(e)
 
         # Retrieve and parse the Okta response for session token
         if response is None:
-            raise InterfaceError("Request for authentication returned empty payload")
-        _logger.debug("Okta_authentication https response: {!r}".format(response.content))
+            exec_msg = (
+                "Request for authentication returned empty payload. Please verify connection properties are correct."
+            )
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
+        _logger.debug("Okta_authentication https response length: %s", len(response.content))
         response_payload: typing.Dict[str, typing.Any] = response.json()
 
         if "status" not in response_payload:
-            _logger.debug("Status key not found in payload")
-            raise InterfaceError("Request for authentication retrieved malformed payload.")
+            exec_msg = "Request for authentication with Okta IdP failed. The status key was missing."
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
         elif response_payload["status"] != "SUCCESS":
-            _logger.debug("Status={} found in payload. Status must equal SUCCESS".format(response_payload["status"]))
-            raise InterfaceError("Request for authentication received non success response.")
+            exec_msg = "Request for authentication with Okta IdP failed due to a unsuccessful status in the authentication response payload. Response status was {}".format(
+                response_payload["status"]
+            )
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
         else:
+            _logger.debug("response payload status indicated success. extracting sessionToken")
             return str(response_payload["sessionToken"])
 
     # Retrieves SAML assertion from Okta containing AWS roles.
     def handle_saml_assertion(self: "OktaCredentialsProvider", okta_session_token: str) -> str:
+        _logger.debug("OktaCredentialsProvider.handle_saml_assertion")
         import bs4  # type: ignore
         import requests
 
         url: str = "https://{host}/home/{app_name}/{app_id}?onetimetoken={session_token}".format(
             host=self.idp_host, app_name=self.app_name, app_id=self.app_id, session_token=okta_session_token
         )
-        _logger.debug("OktaAWSAppUrl: {}".format(url))
+        _logger.debug("OktaAWSAppUrl: %s", url)
         self.validate_url(url)
 
         try:
+            _logger.debug(
+                "Issuing request for SAML assertion to Okta IdP using uri=%s verify=%s", url, self.do_verify_ssl_cert()
+            )
             response: "requests.Response" = requests.get(url, verify=self.do_verify_ssl_cert())
+            _logger.debug("Response code: %s", response.status_code)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
-            _logger.error("Request for SAML assertion from Okta was unsuccessful. {}".format(str(e)))
+            _logger.debug(
+                "Request for SAML assertion from Okta was unsuccessful. Please verify connection properties are correct. {}".format(
+                    str(e)
+                )
+            )
             raise InterfaceError(e)
         except requests.exceptions.Timeout as e:
-            _logger.error("A timeout occurred when requesting SAML assertion from Okta")
+            _logger.debug(
+                "A timeout occurred when requesting SAML assertion from Okta. Please verify connection properties are correct."
+            )
             raise InterfaceError(e)
         except requests.exceptions.TooManyRedirects as e:
-            _logger.error(
-                "A error occurred when requesting SAML assertion from Okta. Verify RedshiftProperties are correct"
+            _logger.debug(
+                "A error occurred when requesting SAML assertion from Okta. Please verify connection properties are correct."
             )
             raise InterfaceError(e)
         except requests.exceptions.RequestException as e:
-            _logger.error("A unknown error occurred when requesting SAML assertion from Okta")
+            _logger.debug(
+                "A unknown error occurred when requesting SAML assertion from Okta. Please verify connection properties are correct."
+            )
             raise InterfaceError(e)
 
         text: str = response.text
-        _logger.debug(response.content)
+        _logger.debug("Length of response from Okta with SAML response %s", len(response.content))
 
         try:
             soup = bs4.BeautifulSoup(text, "html.parser")
             saml_response: str = soup.find("input", {"name": "SAMLResponse"})["value"]
             return saml_response
         except Exception as e:
-            _logger.error("An error occurred while parsing SAML response: {}".format(str(e)))
+            _logger.debug("An error occurred while parsing SAML response: %s", str(e))
             raise InterfaceError(e)

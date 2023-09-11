@@ -157,7 +157,9 @@ class RedshiftProperty:
         """
         If the host indicate Redshift serverless will be used for connection.
         """
+
         if not self.host:
+            _logger.debug("host field is empty, cannot be serverless host")
             return False
 
         import re
@@ -212,19 +214,23 @@ class RedshiftProperty:
         """
         Sets the AWS account id as parsed from the Redshift serverless endpoint.
         """
+        _logger.debug("RedshiftProperty.set_serverless_acct_id")
         import re
 
         for serverless_pattern in (SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, SERVERLESS_HOST_PATTERN):
             m2 = re.fullmatch(pattern=serverless_pattern, string=self.host)
 
             if m2:
+                _logger.debug("host matches serverless pattern %s", serverless_pattern)
                 self.put(key="serverless_acct_id", value=m2.group(typing.cast(int, m2.lastindex) - 1))
+                _logger.debug("serverless_acct_id set to %s", self.region)
                 break
 
     def set_region_from_host(self: "RedshiftProperty") -> None:
         """
         Sets the AWS region as parsed from the Redshift instance endpoint.
         """
+        _logger.debug("RedshiftProperty.set_region_from_host")
         import re
 
         if self.is_serverless_host:
@@ -236,6 +242,7 @@ class RedshiftProperty:
             m2 = re.fullmatch(pattern=host_pattern, string=self.host)
 
             if m2:
+                _logger.debug("host matches pattern %s", host_pattern)
                 self.put(key="region", value=m2.group(typing.cast(int, m2.lastindex)))
                 _logger.debug("region set to %s", self.region)
                 break
@@ -277,9 +284,12 @@ class RedshiftProperty:
         """
         Sets the work_group as parsed from the Redshift serverless endpoint.
         """
+        _logger.debug("RedshiftProperty.set_serverless_work_group_from_host")
         import re
 
         m2 = re.fullmatch(pattern=SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, string=self.host)
 
         if m2:
+            _logger.debug("host matches serverless pattern %s", m2)
             self.put(key="serverless_work_group", value=m2.group(1))
+            _logger.debug("serverless_work_group set to %s", self.region)

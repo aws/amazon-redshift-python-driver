@@ -65,15 +65,16 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
     def check_required_parameters(self: "BrowserAzureOAuth2CredentialsProvider") -> None:
         super().check_required_parameters()
         if not self.idp_tenant:
-            raise InterfaceError("BrowserAzureOauth2CredentialsProvider requires idp_tenant")
+            BrowserAzureOAuth2CredentialsProvider.handle_missing_required_property("idp_tenant")
         if not self.client_id:
-            raise InterfaceError("BrowserAzureOauth2CredentialsProvider requires client_id")
+            BrowserAzureOAuth2CredentialsProvider.handle_missing_required_property("client_id")
         if not self.idp_response_timeout or self.idp_response_timeout < 10:
-            raise InterfaceError(
-                "BrowserAzureOauth2CredentialsProvider requires idp_response_timeout to be 10 seconds or greater"
+            BrowserAzureOAuth2CredentialsProvider.handle_invalid_property_value(
+                "idp_response_timeout", "Must be 10 seconds or greater"
             )
 
     def get_jwt_assertion(self: "BrowserAzureOAuth2CredentialsProvider") -> str:
+        _logger.debug("BrowserAzureOAuth2CredentialsProvider.get_jwt_assertion")
         self.check_required_parameters()
 
         if self.listen_port == 0:
@@ -110,7 +111,10 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         -------
         The IdP's response, including JWT assertion
         """
+        _logger.debug("BrowserAzureOAuth2CredentialsProvider.run_server")
+
         conn, addr = listen_socket.accept()
+        _logger.debug("local server socket connection established")
         conn.settimeout(float(idp_response_timeout))
         size: int = 102400
         with conn:
@@ -125,22 +129,26 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
                     received_state: str = decoded_part[state_idx + 6 : decoded_part.find("&", state_idx)]
 
                     if received_state != state:
-                        raise InterfaceError(
-                            "Incoming state {received} does not match the outgoing state {expected}".format(
-                                received=received_state, expected=state
-                            )
+                        exec_msg = "Incoming state {received} does not match the outgoing state {expected}".format(
+                            received=received_state, expected=state
                         )
+                        _logger.debug(exec_msg)
+                        raise InterfaceError(exec_msg)
 
                     code_idx: int = decoded_part.find(
                         "{}=".format(BrowserAzureOAuth2CredentialsProvider.OAuthParamNames.IDP_CODE.value)
                     )
 
                     if code_idx < 0:
-                        raise InterfaceError("No code found")
+                        exec_msg = "No code found"
+                        _logger.debug(exec_msg)
+                        raise InterfaceError(exec_msg)
                     received_code: str = decoded_part[code_idx + 5 : state_idx - 1]
 
                     if received_code == "":
-                        raise InterfaceError("No valid code found")
+                        exec_msg = "No valid code found"
+                        _logger.debug(exec_msg)
+                        raise InterfaceError(exec_msg)
                     conn.send(self.close_window_http_resp())
                     return received_code
 
@@ -157,14 +165,13 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         -------
         None
         """
+        _logger.debug("BrowserAzureOAuth2CredentialsProvider.open_browser")
         import webbrowser
 
         url: str = self.get_authorization_token_url(state=state)
 
-        _logger.debug("SSO URI: {}".format(url))
-
         if url is None:
-            raise InterfaceError("the login_url could not be empty")
+            BrowserAzureOAuth2CredentialsProvider.handle_missing_required_property("login_url")
         self.validate_url(url)
         webbrowser.open(url)
 
@@ -173,6 +180,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         Returns a listen socket used for user authentication
         """
         s: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _logger.debug("attempting socket bind on localhost with any free port")
         s.bind(("127.0.0.1", 0))  # bind to any free port
         s.listen()
         self.listen_port = s.getsockname()[1]
@@ -182,6 +190,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         """
         Returns a URL used for requesting authentication token from IdP
         """
+        _logger.debug("BrowserAzureOAuth2CredentialsProvider.get_authorization_token_url")
         from urllib.parse import urlencode, urlunsplit
 
         params: typing.Dict[str, str] = {
@@ -209,6 +218,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         """
         Returns authorization token retrieved from IdP following user authentication in web browser.
         """
+        _logger.debug("BrowserAzureOAuth2CredentialsProvider.fetch_authorization_token")
         import concurrent
         import random
         import socket
@@ -217,6 +227,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         state: str = "".join(random.sample(alphabet, 10))
         listen_socket: socket.socket = self.get_listen_socket()
         self.redirectUri = "http://localhost:{port}/redshift/".format(port=self.listen_port)
+        _logger.debug("redirectUri=%s", self.redirectUri)
         try:
             return_value: str = ""
             with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -226,10 +237,10 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
 
             return str(return_value)
         except socket.error as e:
-            _logger.error("Socket error: %s", e)
+            _logger.debug("Socket error: %s", e)
             raise e
         except Exception as e:
-            _logger.error("Other Exception: %s", e)
+            _logger.debug("Other Exception: %s", e)
             raise e
         finally:
             listen_socket.close()
@@ -248,6 +259,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         """
         Returns JWT Response from IdP POST request.
         """
+        _logger.debug("BrowserAzureOAuth2CredentialsProvider.fetch_jwt_response")
         import requests
 
         url: str = self.get_jwt_post_request_url()
@@ -260,10 +272,11 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
             BrowserAzureOAuth2CredentialsProvider.OAuthParamNames.CLIENT_ID.value: typing.cast(str, self.client_id),
             BrowserAzureOAuth2CredentialsProvider.OAuthParamNames.REDIRECT.value: self.redirectUri,
         }
-
+        _logger.debug("Issuing POST request uri=%s verify=%s", url, self.do_verify_ssl_cert())
         response: requests.Response = requests.post(
             url, data=params, headers=azure_headers, verify=self.do_verify_ssl_cert()
         )
+        _logger.debug("Response code: %s", response.status_code)
         response.raise_for_status()
         return response.text
 
@@ -271,17 +284,23 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         """
         Returns encoded JWT assertion extracted from IdP response content
         """
+        _logger.debug("BrowserAzureOAuth2CredentialsProvider.extract_jwt_assertion")
         import json
 
+        _logger.debug("parsing payload JSON response")
         response_content: typing.Dict[str, str] = json.loads(content)
 
         if "access_token" not in response_content:
-            raise InterfaceError("Failed to find access_token")
+            exec_msg = "Failed to find access_token"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
 
         encoded_jwt_assertion: str = response_content["access_token"]
 
         if not encoded_jwt_assertion:
-            raise InterfaceError("Invalid access_token value")
+            exec_msg = "Invalid access_token value"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
 
         return encoded_jwt_assertion
 

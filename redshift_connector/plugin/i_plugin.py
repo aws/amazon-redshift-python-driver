@@ -1,3 +1,4 @@
+import logging
 import typing
 from abc import ABC, abstractmethod
 
@@ -5,6 +6,8 @@ if typing.TYPE_CHECKING:
     from redshift_connector.credentials_holder import CredentialsHolder
     from redshift_connector.plugin.native_token_holder import NativeTokenHolder
     from redshift_connector.redshift_property import RedshiftProperty
+
+_logger: logging.Logger = logging.getLogger(__name__)
 
 
 class IPlugin(ABC):
@@ -46,3 +49,19 @@ class IPlugin(ABC):
     @abstractmethod
     def set_group_federation(self: "IPlugin", group_federation: bool):
         pass
+
+    @staticmethod
+    def handle_missing_required_property(property_name: str) -> None:
+        from redshift_connector import InterfaceError
+
+        error_msg: str = "Missing required connection property: {}".format(property_name)
+        _logger.debug(error_msg)
+        raise InterfaceError(error_msg)
+
+    @staticmethod
+    def handle_invalid_property_value(property_name: str, reason: str) -> None:
+        from redshift_connector import InterfaceError
+
+        error_msg: str = "Invalid value specified for connection property: {}. {}".format(property_name, reason)
+        _logger.debug(error_msg)
+        raise InterfaceError(error_msg)

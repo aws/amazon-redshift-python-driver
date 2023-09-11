@@ -31,8 +31,10 @@ class NativeAuthPluginHelper:
         if info.credentials_provider:
             # include the authentication token which will be used for authentication via
             # Redshift Native IDP Integration
+            _logger.debug("Attempting to get native auth plugin credentials")
             idp_token: str = NativeAuthPluginHelper.get_native_auth_plugin_credentials(info)
             if idp_token:
+                _logger.debug("setting info.web_identity_token")
                 info.put("web_identity_token", idp_token)
 
     @staticmethod
@@ -63,25 +65,25 @@ class NativeAuthPluginHelper:
                 "Required credentials_provider parameter is null or empty: {}".format(info.credentials_provider)
             )
 
-        _logger.debug("Native IDP Credential Provider {}:{}".format(provider, info.credentials_provider))
+        _logger.debug("Native IDP Credential Provider %s:%s", provider, info.credentials_provider)
         _logger.debug("Calling provider.getCredentials()")
 
         # Provider will cache the credentials, it's OK to call get_credentials() here
         credentials: "NativeTokenHolder" = typing.cast("NativeTokenHolder", provider.get_credentials())
 
-        _logger.debug("credentials is None = {}".format(str(credentials is None)))
-        _logger.debug("credentials.is_expired() = {}".format(credentials.is_expired()))
+        _logger.debug("credentials is None = %s", credentials is None)
+        _logger.debug("credentials.is_expired() = %s", credentials.is_expired())
 
         if credentials is None or (credentials.expiration is not None and credentials.is_expired()):
             # get idp token
             plugin: INativePlugin = provider
-            _logger.debug("Calling plugin.get_idp_token()")
+            _logger.debug("Unable to get IdP token from cache. Calling plugin.get_idp_token()")
 
             idp_token = plugin.get_idp_token()
-            _logger.debug("idp token retrieved")
+            _logger.debug("IdP token retrieved")
             info.put("idp_token", idp_token)
         else:
-            _logger.debug("cached idp_token will be used")
+            _logger.debug("Cached idp_token will be used")
             idp_token = credentials.access_token
 
         return idp_token

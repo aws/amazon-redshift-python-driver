@@ -37,31 +37,34 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
 
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "AzureCredentialsProvider") -> str:
+        _logger.debug("AzureCredentialsProvider.get_saml_assertion")
         # idp_tenant, client_secret, and client_id are
         # all required parameters to be able to authenticate with Microsoft Azure.
         # user and password are also required and need to be set to the username and password of the
         # Microsoft Azure account that is logging in.
+
         if self.user_name == "" or self.user_name is None:
-            raise InterfaceError("Missing required property: user_name")
+            AzureCredentialsProvider.handle_missing_required_property("user_name")
         if self.password == "" or self.password is None:
-            raise InterfaceError("Missing required property: password")
+            AzureCredentialsProvider.handle_missing_required_property("password")
         if self.idp_tenant == "" or self.idp_tenant is None:
-            raise InterfaceError("Missing required property: idp_tenant")
+            AzureCredentialsProvider.handle_missing_required_property("idp_tenant")
         if self.client_secret == "" or self.client_secret is None:
-            raise InterfaceError("Missing required property: client_secret")
+            AzureCredentialsProvider.handle_missing_required_property("client_secret")
         if self.client_id == "" or self.client_id is None:
-            raise InterfaceError("Missing required property: client_id")
+            AzureCredentialsProvider.handle_missing_required_property("client_id")
 
         return self.azure_oauth_based_authentication()
 
     #  Method to initiate a POST request to grab the SAML Assertion from Microsoft Azure
     #  and convert it to a SAML Response.
     def azure_oauth_based_authentication(self: "AzureCredentialsProvider") -> str:
+        _logger.debug("AzureCredentialsProvider.azure_oauth_based_authentication")
         import requests
 
         # endpoint to connect with Microsoft Azure to get SAML Assertion token
         url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
-        _logger.debug("Uri: {}".format(url))
+        _logger.debug("Uri: %s", url)
         self.validate_url(url)
 
         # headers to pass with POST request
@@ -78,55 +81,66 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         }
 
         try:
+            _logger.debug("Issuing POST request uri=%s verify=%s", url, self.do_verify_ssl_cert())
             response: "requests.Response" = requests.post(
                 url, data=payload, headers=headers, verify=self.do_verify_ssl_cert()
             )
+            _logger.debug("Response code: %s", response.status_code)
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
+            exec_msg: str = ""
             if "response" in vars():
-                _logger.debug(
-                    "azure_oauth_based_authentication https response: {}".format(response.content)  # type: ignore
-                )
+                exec_msg = "Azure OAuth authentication request yielded HTTP error"
             else:
-                _logger.debug("Azure_oauth_based_authentication could not receive https response due to an error")
-            _logger.error("Request for authentication from Azure was unsuccessful. {}".format(str(e)))
-            raise InterfaceError(e)
+                exec_msg = "Azure OAuth authentication request could not receive https response due to an unknown error"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except requests.exceptions.Timeout as e:
-            _logger.error("A timeout occurred when requesting authentication from Azure")
-            raise InterfaceError(e)
+            exec_msg = "Azure OAuth authentication request timed out"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except requests.exceptions.TooManyRedirects as e:
-            _logger.error(
-                "A error occurred when requesting authentication from Azure. Verify RedshiftProperties are correct"
-            )
-            raise InterfaceError(e)
+            exec_msg = "Too many redirects occurred when requesting Azure OAuth authentication"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except requests.exceptions.RequestException as e:
-            _logger.error("A unknown error occurred when requesting authentication from Azure.")
-            raise InterfaceError(e)
+            exec_msg = "A unknown error occurred when requesting Azure OAuth authentication"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
 
-        _logger.debug("Azure Oauth authentication response length: {}".format(len(response.text)))
+        _logger.debug("Azure Oauth authentication response length: %s", len(response.text))
 
         # parse the JSON response to grab access_token field which contains Base64 encoded SAML
         # Assertion and decode it
         saml_assertion: str = ""
         try:
+            _logger.debug("attempting to parse Azure Oauth authentication response and grab access_token")
             saml_assertion = response.json()["access_token"]
         except Exception as e:
-            _logger.error("Failed to authenticate with Azure. Response from Azure did not include access_token.")
-            raise InterfaceError(e)
+            exec_msg = "Failed to authenticate with Azure. Response from Azure did not include access_token."
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         if saml_assertion == "":
-            raise InterfaceError("Azure access_token is empty")
+            exec_msg = "Azure Oauth authentication response access_token is empty"
+            _logger.debug(exec_msg)
+            raise InterfaceError("Azure Oauth authentication response access_token is empty")
 
         missing_padding: int = 4 - len(saml_assertion) % 4
         if missing_padding:
+            _logger.debug("fixing saml assertion padding")
             saml_assertion += "=" * missing_padding
 
         # decode the SAML Assertion to a String to add XML tags to form a SAML Response
         decoded_saml_assertion: str = ""
         try:
+            _logger.debug("attempting to decode SAML assertion")
             decoded_saml_assertion = str(base64.urlsafe_b64decode(saml_assertion))
         except TypeError as e:
-            _logger.error("Failed to decode saml assertion returned from Azure")
-            raise InterfaceError(e)
+            exec_msg = (
+                "Failed to base64 decode SAML assertion returned from Azure Oauth authentication response payload"
+            )
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
 
         # SAML Response is required to be sent to base class. We need to provide a minimum of:
         # 1) samlp:Response XML tag with xmlns:samlp protocol value
@@ -142,6 +156,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         )
 
         # re-encode the SAML Response in Base64 and return this to the base class
+        _logger.debug("Base64 encoding SAML response")
         saml_response = str(base64.b64encode(saml_response.encode("utf-8")))[2:-1]
 
         return saml_response

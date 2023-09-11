@@ -52,7 +52,7 @@ def test_idp_password(idp_arg):
 
     with pytest.raises(
         redshift_connector.InterfaceError,
-        match=r"(Unauthorized)|(400 Client Error: Bad Request)|(Failed to find Adfs access_token)",
+        match=r"(Failed to get SAML assertion)",
     ):
         redshift_connector.connect(**idp_arg)
 
@@ -87,7 +87,10 @@ def test_credentials_provider(idp_arg):
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_preferred_role_invalid_should_fail(idp_arg):
     idp_arg["preferred_role"] = "arn:aws:iam::111111111111:role/Trash-role"
-    with pytest.raises(redshift_connector.InterfaceError, match="Preferred role not found in SamlAssertion"):
+    with pytest.raises(
+        redshift_connector.InterfaceError,
+        match="User specified preferred_role was not found in SAML assertion https://aws.amazon.com/SAML/Attributes/Role Attribute",
+    ):
         redshift_connector.connect(**idp_arg)
 
 
@@ -130,7 +133,7 @@ def test_invalid_credentials_provider_should_raise(idp_arg):
     idp_arg["credentials_provider"] = "OktacredentialSProvider"
     with pytest.raises(
         redshift_connector.InterfaceError,
-        match="Invalid credentials provider",
+        match="Invalid IdP specified in credential_provider connection parameter",
     ):
         redshift_connector.connect(**idp_arg)
 
@@ -138,7 +141,9 @@ def test_invalid_credentials_provider_should_raise(idp_arg):
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
 def testWrongCredentialsProvider(idp_arg):
     idp_arg["credentials_provider"] = "WrongProvider"
-    with pytest.raises(redshift_connector.InterfaceError, match="Invalid credentials provider WrongProvider"):
+    with pytest.raises(
+        redshift_connector.InterfaceError, match="Invalid IdP specified in credential_provider connection paramete"
+    ):
         redshift_connector.connect(**idp_arg)
 
 

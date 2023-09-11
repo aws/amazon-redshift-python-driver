@@ -338,7 +338,7 @@ def connect(
     _logger.debug(make_divider_block())
     _logger.debug("Connection arguments following validation and IAM auth (if applicable)")
     _logger.debug(make_divider_block())
-    _logger.debug(mask_secure_info_in_props(info).__str__())
+    _logger.debug(mask_secure_info_in_props(info))
     _logger.debug(make_divider_block())
 
     return Connection(

@@ -64,9 +64,9 @@ class IdpAuthHelper:
             if info.sslmode not in SupportedSSLMode.list():
                 info.put("sslmode", SupportedSSLMode.default())
                 _logger.debug(
-                    "A non-supported value: {} was provides for sslmode. Falling back to default value: {}".format(
-                        info.sslmode, SupportedSSLMode.default()
-                    )
+                    "A non-supported value: %s was provided for sslmode. Falling back to default value: %s",
+                    info.sslmode,
+                    SupportedSSLMode.default(),
                 )
         else:
             info.put("sslmode", "")
@@ -79,8 +79,8 @@ class IdpAuthHelper:
         #         "AWS credentials, Amazon Redshift authentication profile, or AWS profile"
         #     )
         if info.iam is True:
-            _logger.debug("boto3 version: {}".format(IdpAuthHelper.get_pkg_version("boto3")))
-            _logger.debug("botocore version: {}".format(IdpAuthHelper.get_pkg_version("botocore")))
+            _logger.debug("boto3 version: %s", IdpAuthHelper.get_pkg_version("boto3"))
+            _logger.debug("botocore version: %s", IdpAuthHelper.get_pkg_version("botocore"))
 
             # Check for IAM keys and AuthProfile first
             if info.auth_profile is not None:
@@ -137,7 +137,9 @@ class IdpAuthHelper:
                     pass
                 elif info.password != "":
                     info.put("secret_access_key", info.password)
-                    _logger.debug("Value of password will be used for secret_access_key")
+                    _logger.debug(
+                        "Connection parameter secret_access_key was empty. The value of password will be used for secret_access_key"
+                    )
                 else:
                     raise InterfaceError(
                         "Invalid connection property setting. "
@@ -145,9 +147,10 @@ class IdpAuthHelper:
                     )
 
                 _logger.debug(
-                    "AWS Credentials access_key_id: {} secret_access_key: {} session_token: {}".format(
-                        bool(info.access_key_id), bool(info.secret_access_key), bool(info.session_token)
-                    )
+                    "Are AWS Credentials present? access_key_id: %s secret_access_key: %s session_token: %s",
+                    bool(info.access_key_id),
+                    bool(info.secret_access_key),
+                    bool(info.session_token),
                 )
             elif info.secret_access_key is not None:
                 raise InterfaceError(
@@ -192,16 +195,16 @@ class IdpAuthHelper:
                 creds[opt_key] = opt_val
 
         try:
-            _logger.debug("Initial authentication with boto3...")
+            _logger.debug("Establishing boto3 redshift client")
             client = boto3.client(service_name="redshift", **creds)
-            _logger.debug("Requesting authentication profiles")
+            _logger.debug("Requesting authentication profile: %s", auth_profile)
             # 2nd phase - request Amazon Redshift authentication profiles and record contents for retrieving
             # temporary credentials for the Amazon Redshift cluster specified by end user
             response = client.describe_authentication_profiles(AuthenticationProfileName=auth_profile)
         except ClientError as e:
             raise InterfaceError(e)
 
-        _logger.debug("Received {} authentication profiles".format(len(response["AuthenticationProfiles"])))
+        _logger.debug("Received %s authentication profiles", len(response["AuthenticationProfiles"]))
         # the first matching authentication profile will be used
         profile_content: typing.Union[str] = response["AuthenticationProfiles"][0]["AuthenticationProfileContent"]
 
@@ -220,18 +223,22 @@ class IdpAuthHelper:
         try:
             klass = dynamic_plugin_import(info.credentials_provider)
         except (AttributeError, ModuleNotFoundError):
-            _logger.debug("Failed to load user defined plugin: {}".format(info.credentials_provider))
+            _logger.debug(
+                "Failed to load user defined IdP specified in credential_provider connection parameters: %s",
+                info.credentials_provider,
+            )
             try:
                 predefined_idp: str = "redshift_connector.plugin.{}".format(info.credentials_provider)
                 klass = dynamic_plugin_import(predefined_idp)
                 info.put("credentials_provider", predefined_idp)
             except (AttributeError, ModuleNotFoundError):
                 _logger.debug(
-                    "Failed to load pre-defined IdP plugin from redshift_connector.plugin: {}".format(
-                        info.credentials_provider
-                    )
+                    "Failed to load pre-defined IdP plugin from redshift_connector.plugin: %s",
+                    info.credentials_provider,
                 )
-                raise InterfaceError("Invalid credentials provider " + info.credentials_provider)
+                raise InterfaceError(
+                    "Invalid IdP specified in credential_provider connection parameter: " + info.credentials_provider
+                )
 
         if not issubclass(klass, IPlugin):
             raise InterfaceError("Invalid value passed to credentials_provider: {}".format(info.credentials_provider))

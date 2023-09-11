@@ -42,7 +42,7 @@ def test_get_saml_assertion_no_login_url_should_fail(login_url):
 
     with pytest.raises(InterfaceError) as ex:
         browser_saml_credentials.get_saml_assertion()
-    assert "Missing required property: login_url" in str(ex.value)
+    assert "Missing required connection property: login_url" in str(ex.value)
 
 
 def test_get_saml_assertion_low_idp_response_timeout_should_fail():
@@ -52,7 +52,10 @@ def test_get_saml_assertion_low_idp_response_timeout_should_fail():
 
     with pytest.raises(InterfaceError) as ex:
         browser_saml_credentials.get_saml_assertion()
-    assert "idp_response_timeout should be 10 seconds or greater" in str(ex.value)
+    assert (
+        "Invalid value specified for connection property: idp_response_timeout. Must be 10 seconds or greater"
+        in str(ex.value)
+    )
 
 
 invalid_listen_port_vals: typing.List[int] = [-1, 0, 65536]
@@ -67,7 +70,7 @@ def test_get_saml_assertion_invalid_listen_port_should_fail(listen_port):
 
     with pytest.raises(InterfaceError) as ex:
         browser_saml_credentials.get_saml_assertion()
-    assert "Invalid property value: listen_port" in str(ex.value)
+    assert "Invalid value specified for connection property: listen_port. Must be in range [1,65535]" in str(ex.value)
 
 
 def test_authenticate_returns_authorization_token(mocker):
@@ -98,4 +101,4 @@ def test_open_browser_no_url_should_fail():
 
     with pytest.raises(InterfaceError) as ex:
         browser_saml_credentials.open_browser()
-    assert "the login_url could not be empty" in str(ex.value)
+    assert "Missing required connection property: login_url" in str(ex.value)

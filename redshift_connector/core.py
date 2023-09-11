@@ -36,6 +36,7 @@ from redshift_connector.error import (
     ArrayContentNotHomogenousError,
     ArrayContentNotSupportedError,
     DatabaseError,
+    DataError,
     Error,
     IntegrityError,
     InterfaceError,
@@ -401,10 +402,10 @@ class Connection:
         """
         # https://docs.python.org/3/library/socket.html#socket.getaddrinfo
         response = socket.getaddrinfo(host=host, port=port, family=socket.AF_INET)
-        _logger.debug("getaddrinfo response {}".format(response))
+        _logger.debug("getaddrinfo response %s", response)
 
         if not response:
-            raise InterfaceError("Unable to determine ip for host {} port {}".format(host, port))
+            raise InterfaceError("Unable to determine ip for host %s port %s", host, port)
 
         return response[0][4]
 
@@ -561,7 +562,7 @@ class Connection:
             init_params["user"] = user
 
         _logger.debug(make_divider_block())
-        _logger.debug("Establishing a connection")
+        _logger.debug("Building Redshift wire protocol start-up packet")
         _logger.debug(init_params)
         _logger.debug(make_divider_block())
 
@@ -592,6 +593,7 @@ class Connection:
         # if there already has a socket, it will not create new connection when run connect again
         try:
             if unix_sock is None and host is not None:
+                _logger.debug("creating tcp/ip socket")
                 self._usock: typing.Union[socket.socket, "SSLSocket"] = socket.socket(
                     socket.AF_INET, socket.SOCK_STREAM
                 )
@@ -599,22 +601,24 @@ class Connection:
                     self._usock.bind((source_address, 0))
             elif unix_sock is not None:
                 if not hasattr(socket, "AF_UNIX"):
-                    raise InterfaceError("attempt to connect to unix socket on unsupported " "platform")
+                    raise InterfaceError("attempt to connect to unix socket on unsupported platform")
+                _logger.debug("creating af_unix socket")
                 self._usock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             else:
                 raise ProgrammingError("one of host or unix_sock must be provided")
             if timeout is not None:
+                _logger.debug("set socket timeout=%s", timeout)
                 self._usock.settimeout(timeout)
 
             if unix_sock is None and host is not None:
                 hostport: typing.Tuple[str, int] = Connection.__get_host_address_info(host, port)
-                _logger.debug(
-                    "Attempting to create connection socket with address {} {}".format(hostport[0], str(hostport[1]))
-                )
+                _logger.debug("Attempting to create connection socket with address %s", hostport)
                 self._usock.connect(hostport)
             elif unix_sock is not None:
+                _logger.debug("connecting to socket with unix socket")
                 self._usock.connect(unix_sock)
 
+            _logger.debug("Connection socket established")
             # For Redshift, we the default ssl approve is True
             # create ssl connection with Redshift CA certificates and check the hostname
             if ssl is True:
@@ -632,29 +636,35 @@ class Connection:
                     ssl_context: SSLContext = SSLContext()
                     ssl_context.verify_mode = CERT_REQUIRED
                     ssl_context.load_default_certs()
+                    _logger.debug("try to load Redshift CA certs from location %s", path)
                     ssl_context.load_verify_locations(path)
 
                     # Int32(8) - Message length, including self.
                     # Int32(80877103) - The SSL request code.
+                    _logger.debug("Sending SSLRequestMessage to BE")
                     self._usock.sendall(ii_pack(8, 80877103))
                     resp: bytes = self._usock.recv(1)
                     if resp != b"S":
-                        _logger.debug(
-                            "Server response code when attempting to establish ssl connection: {!r}".format(resp)
-                        )
+                        _logger.debug("Server response code when attempting to establish ssl connection: $s", resp)
                         raise InterfaceError("Server refuses SSL")
 
                     if sslmode == "verify-ca":
+                        _logger.debug("applying sslmode=%s to socket", sslmode)
                         self._usock = ssl_context.wrap_socket(self._usock)
                     elif sslmode == "verify-full":
+                        _logger.debug("applying sslmode=%s to socket and force check_hostname", sslmode)
                         ssl_context.check_hostname = True
                         self._usock = ssl_context.wrap_socket(self._usock, server_hostname=host)
+                    else:
+                        _logger.debug("unknown sslmode=%s is ignored", sslmode)
+                    _logger.debug("Socket SSL details: %s", self._usock.cipher())  # type: ignore
 
                 except ImportError:
-                    raise InterfaceError("SSL required but ssl module not available in " "this python installation")
+                    raise InterfaceError("SSL required but ssl module not available in this Python installation")
 
             self._sock = self._usock.makefile(mode="rwb")
             if tcp_keepalive:
+                _logger.debug("enabling tcp keepalive on socket")
                 self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
         except socket.timeout as timeout_error:
@@ -662,6 +672,10 @@ class Connection:
             raise OperationalError("connection time out", timeout_error)
 
         except socket.error as e:
+            try:
+                _logger.debug("Socket state: %s", self._usock.__dict__)
+            except:
+                pass
             self._usock.close()
             raise InterfaceError("communication error", e)
         self._flush: typing.Callable = self._sock.flush
@@ -720,6 +734,8 @@ class Connection:
         for k, v in init_params.items():
             val.extend(k.encode("ascii") + NULL_BYTE + typing.cast(bytes, v) + NULL_BYTE)
         val.append(0)
+
+        _logger.debug("Sending start-up parameters to BE")
         # Use write and flush function to write the content of the buffer
         # and then send the message to the database
         self._write(i_pack(len(val) + 4))
@@ -730,17 +746,33 @@ class Connection:
 
         code = None
         self.error: typing.Optional[Exception] = None
-        _logger.debug("Sending start-up message")
+        _logger.debug("Awaiting BE response to start-up parameters")
         # When driver send the start-up message to database, DB will respond multi messages to driver
-        # whose format is same with the message that driver send to DB.
+        # whose format is same with the message that driver sent to DB.
         while code not in (READY_FOR_QUERY, ERROR_RESPONSE):
             # Thus use a loop to process each message
             # Each time will read 5 bytes, the first byte, the code, inform the type of message
             # following 4 bytes inform the message's length
             # then can use this length to minus 4 to get the real data.
-            code, data_len = ci_unpack(self._read(5))
+            buffer = self._read(5)
+
+            if len(buffer) == 0:
+                if self._usock.timeout is not None:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+                        "raising the timeout or defaulting timeout to none."
+                    )
+                else:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                        "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
+                    )
+
+            code, data_len = ci_unpack(buffer)
+            _logger.debug("Wire message from BE Code=%s", code)
             self.message_types[code](self._read(data_len - 4), None)
         if self.error is not None:
+            _logger.debug("Error occurred during start up communication: %s", self.error)
             raise self.error
 
         # if we didn't receive a server_protocol_version from the server, default to
@@ -755,9 +787,11 @@ class Connection:
             self._enable_protocol_based_conversion_funcs()
 
         self.in_transaction = False
+        _logger.debug("Connection.__init__ completed")
 
     def _enable_protocol_based_conversion_funcs(self: "Connection"):
         if self._client_protocol_version >= ClientProtocolVersion.BINARY.value:
+            _logger.debug("Enabling binary protocol data conversion functions")
             self.redshift_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_in_binary)
             self.redshift_types[RedshiftOID.DATE] = (FC_BINARY, date_recv_binary)
             self.redshift_types[RedshiftOID.GEOGRAPHY] = (FC_BINARY, geographyhex_recv)  # GEOGRAPHY
@@ -774,9 +808,11 @@ class Connection:
             self.redshift_types[RedshiftOID.VARBYTE] = (FC_TEXT, text_recv)  # VARBYTE
 
             if self.numeric_to_float:
+                _logger.debug("Enabling numeric to float binary conversion function")
                 self.redshift_types[RedshiftOID.NUMERIC] = (FC_BINARY, numeric_to_float_binary)
 
         else:  # text protocol
+            _logger.debug("Enabling text protocol data conversion functions")
             self.redshift_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_in)
             self.redshift_types[RedshiftOID.TIME] = (FC_TEXT, time_in)
             self.redshift_types[RedshiftOID.DATE] = (FC_TEXT, date_in)
@@ -793,7 +829,9 @@ class Connection:
             self.redshift_types[RedshiftOID.VARBYTE] = (FC_TEXT, varbytehex_recv)  # VARBYTE
 
             if self.numeric_to_float:
+                _logger.debug("Enabling numeric to float text conversion function")
                 self.redshift_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_to_float_in)
+        _logger.debug("connection.redshift_types=%s", self.redshift_types)
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
@@ -840,7 +878,7 @@ class Connection:
         msg: typing.Dict[str, str] = dict(
             (s[:1].decode(_client_encoding), s[1:].decode(_client_encoding)) for s in data.split(NULL_BYTE) if s != b""
         )
-
+        _logger.debug("ErrorResponse received from BE: %s", msg)
         response_code: str = msg[RESPONSE_CODE]
         if response_code == "28000":
             cls: type = InterfaceError
@@ -873,6 +911,7 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("EmptyQueryResponse received from BE")
         self.error = ProgrammingError("query was empty")
 
     def handle_CLOSE_COMPLETE(self: "Connection", data, ps):
@@ -898,7 +937,7 @@ class Connection:
         -------
         None:None
         """
-        pass
+        _logger.debug("CloseComplete received from BE")
 
     def handle_PARSE_COMPLETE(self: "Connection", data, ps):
         """
@@ -923,7 +962,7 @@ class Connection:
         -------
         None:None
         """
-        pass
+        _logger.debug("ParseComplete received from BE")
 
     def handle_BIND_COMPLETE(self: "Connection", data, ps):
         """
@@ -948,7 +987,7 @@ class Connection:
         -------
         None:None
         """
-        pass
+        _logger.debug("BindComplete received from BE")
 
     def handle_PORTAL_SUSPENDED(self: "Connection", data, cursor: Cursor):
         """
@@ -973,7 +1012,7 @@ class Connection:
         -------
         None:None
         """
-        pass
+        _logger.debug("PortalSuspend received from BE")
 
     def handle_PARAMETER_DESCRIPTION(self: "Connection", data, ps):
         """
@@ -1010,7 +1049,7 @@ class Connection:
 
         # count = h_unpack(data)[0]
         # type_oids = unpack_from("!" + "i" * count, data, 2)
-        pass
+        _logger.debug("ParameterDescription received from BE")
 
     def handle_COPY_DONE(self: "Connection", data, ps):
         """
@@ -1034,6 +1073,7 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("CopyDone received from BE")
         self._copy_done = True
 
     def handle_COPY_OUT_RESPONSE(self: "Connection", data, ps):
@@ -1067,7 +1107,9 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("CopyOutResponse received from BE")
         is_binary, num_cols = bh_unpack(data)
+        _logger.debug("isbinary=%s num_cols=%s", is_binary, num_cols)
         # column_formats = unpack_from('!' + 'h' * num_cols, data, 3)
         if ps.stream is None:
             raise InterfaceError("An output stream is required for the COPY OUT response.")
@@ -1097,6 +1139,7 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("CopyData received from BE")
         ps.stream.write(data)
 
     def handle_COPY_IN_RESPONSE(self: "Connection", data, ps):
@@ -1130,9 +1173,11 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("CopyInResponse received from BE")
         # Int16(2) - Number of columns
         # Int16(N) - Format codes for each column (0 text, 1 binary)
         is_binary, num_cols = bh_unpack(data)
+        _logger.debug("isbinary=%s num_cols=%s", (is_binary, num_cols))
         # column_formats = unpack_from('!' + 'h' * num_cols, data, 3)
         if ps.stream is None:
             raise InterfaceError("An input stream is required for the COPY IN response.")
@@ -1149,7 +1194,9 @@ class Connection:
         # Send CopyDone
         # Byte1('c') - Identifier.
         # Int32(4) - Message length, including self.
+        _logger.debug("Sending CopyDone message to BE")
         self._write(COPY_DONE_MSG)
+        _logger.debug("Sending Sync message to BE")
         self._write(SYNC_MSG)
         self._flush()
 
@@ -1185,10 +1232,14 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("NotificationResponse received from BE")
+
         backend_pid = i_unpack(data)[0]
+        _logger.debug("backend pid=%s", backend_pid)
         idx: int = 4
         null: int = data.find(NULL_BYTE, idx) - idx
         condition: str = data[idx : idx + null].decode("ascii")
+        _logger.debug("condition=%s", condition)
         idx += null + 1
         null = data.find(NULL_BYTE, idx) - idx
         # additional_info = data[idx:idx + null]
@@ -1233,6 +1284,7 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("Connection.commit()")
         self.execute(self._cursor, "commit", None)
 
     def rollback(self: "Connection") -> None:
@@ -1245,7 +1297,9 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("Connection.rollback()")
         if not self.in_transaction:
+            _logger.debug("not in transaction")
             return
         self.execute(self._cursor, "rollback", None)
 
@@ -1259,9 +1313,11 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("Connection.close()")
         try:
             # Byte1('X') - Identifies the message as a terminate message.
             # Int32(4) - Message length, including self.
+            _logger.debug("Sending Terminate message to BE")
             self._write(TERMINATE_MSG)
             self._flush()
             if self._sock is not None:
@@ -1313,12 +1369,16 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("AuthenticationRequest received from BE")
         auth_code: int = i_unpack(data)[0]
+        _logger.debug("authentication code=%s", auth_code)
         if auth_code == 0:
             pass
         elif auth_code == 3:
+            _logger.debug("BE requested cleartext password authentication")
             if self.password is None:
-                raise InterfaceError("server requesting password authentication, but no " "password was provided")
+                raise InterfaceError("server requesting password authentication, but no password was provided")
+            _logger.debug("Sending cleartext password to BE")
             self._send_message(PASSWORD, self.password + NULL_BYTE)
             self._flush()
         elif auth_code == 5:
@@ -1329,20 +1389,23 @@ class Connection:
 
             # Additional message data:
             #  Byte4 - Hash salt.
+            _logger.debug("BE requested MD5 hashed password authentication")
             salt: bytes = b"".join(cccc_unpack(data, 4))
             if self.password is None:
-                raise InterfaceError("server requesting MD5 password authentication, but no " "password was provided")
+                raise InterfaceError("server requesting MD5 password authentication, but no password was provided")
             pwd: bytes = b"md5" + md5(
                 md5(self.password + self.user).hexdigest().encode("ascii") + salt
             ).hexdigest().encode("ascii")
             # Byte1('p') - Identifies the message as a password message.
             # Int32 - Message length including self.
             # String - The password.  Password may be encrypted.
+            _logger.debug("Sending MD5 hashed password to BE")
             self._send_message(PASSWORD, pwd + NULL_BYTE)
             self._flush()
 
         elif auth_code == 10:
             # AuthenticationSASL
+            _logger.debug("BE requested SASL authentication")
             mechanisms: typing.List[str] = [m.decode("ascii") for m in data[4:-1].split(NULL_BYTE)]
 
             self.auth: ScramClient = ScramClient(mechanisms, self.user.decode("utf8"), self.password.decode("utf8"))
@@ -1350,32 +1413,36 @@ class Connection:
             init: bytes = self.auth.get_client_first().encode("utf8")
 
             # SASLInitialResponse
+            _logger.debug("Sending SASLInitialResponse to BE")
             self._write(create_message(PASSWORD, b"SCRAM-SHA-256" + NULL_BYTE + i_pack(len(init)) + init))
             self._flush()
 
         elif auth_code == 11:
             # AuthenticationSASLContinue
+            _logger.debug("BE requested SASLContinue authentication")
             self.auth.set_server_first(data[4:].decode("utf8"))
 
             # SASLResponse
+            _logger.debug("Sending SASLResponse to BE")
             msg: bytes = self.auth.get_client_final().encode("utf8")
             self._write(create_message(PASSWORD, msg))
             self._flush()
 
         elif auth_code == 12:
             # AuthenticationSASLFinal
+            _logger.debug("BE requested SASLFinal authentication")
             self.auth.set_server_final(data[4:].decode("utf8"))
         elif auth_code == 14:
             # Redshift Native IDP Integration
+            _logger.debug("BE requested Redshift Native IDP authentication")
             aad_token: str = typing.cast(str, self.web_identity_token)
-            _logger.debug("<=BE Authentication request IDP")
 
             if not aad_token:
                 raise ConnectionAbortedError(
                     "The server requested AAD token-based authentication, but no token was provided."
                 )
 
-            _logger.debug("FE=> IDP(AAD Token)")
+            _logger.debug("Sending IdP token to BE")
 
             token: bytes = aad_token.encode(encoding="utf-8")
             self._write(create_message(b"i", token))
@@ -1383,6 +1450,8 @@ class Connection:
             self._flush()
 
         elif auth_code == 13:  # AUTH_REQ_DIGEST
+            _logger.debug("BE requested AUTH_REQ_DIGEST authentication")
+
             offset: int = 4
             algo: int = i_unpack(data, offset)[0]
             algo_names: typing.Tuple[str] = ("SHA256",)
@@ -1404,7 +1473,7 @@ class Connection:
             client_nonce: bytes = str(ms_since_epoch).encode("utf-8")
 
             _logger.debug("handle_AUTHENTICATION_REQUEST: AUTH_REQ_DIGEST")
-            _logger.debug("Algo:{}".format(algo))
+            _logger.debug("Algo: %s", algo)
 
             if self.password is None:
                 raise InterfaceError(
@@ -1412,6 +1481,7 @@ class Connection:
                 )
 
             if algo > len(algo_names):
+                _logger.debug("Unsupported algorithm %s requested. Driver supports algorithms <= %s", algo, algo_names)
                 raise InterfaceError(
                     "The server requested password-based authentication, "
                     "but requested algorithm {} is not supported.".format(algo)
@@ -1467,10 +1537,12 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("ReadyForQuery received from BE")
         # Byte1 -   Status indicator.
         self.in_transaction = data != IDLE
 
     def handle_BACKEND_KEY_DATA(self: "Connection", data: bytes, ps) -> None:
+        _logger.debug("BackendKeyData received from BE")
         self._backend_key_data = data
 
     def inspect_datetime(self: "Connection", value: Datetime):
@@ -1575,13 +1647,14 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("RowDescription received from BE")
         if cursor.ps is None:
             raise InterfaceError("Cursor is missing prepared statement")
         elif "row_desc" not in cursor.ps:
             raise InterfaceError("Prepared Statement is missing row description")
 
         count: int = h_unpack(data)[0]
-        _logger.debug("field count={}".format(count))
+        _logger.debug("field count=%s", count)
         idx = 2
         for i in range(count):
             column_label = data[idx : data.find(NULL_BYTE, idx)]
@@ -1610,6 +1683,7 @@ class Connection:
 
             cursor.ps["row_desc"].append(field)
             field["redshift_connector_fc"], field["func"] = self.redshift_types[field["type_oid"]]
+            _logger.debug("Row description for column=%s desc=%s", i, field)
 
         _logger.debug(cursor.ps["row_desc"])
 
@@ -1627,6 +1701,7 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("Connection.execute()")
 
         # get the process ID of the calling process.
         pid: int = getpid()
@@ -1663,13 +1738,16 @@ class Connection:
                 statement, make_args = cache["statement"][operation] = operation, lambda p: ()
         if has_bind_parameters:
             args = make_args(vals)
+            _logger.debug("User provided vals converted to %s args", len(args))
             # change the args to the format that the DB will identify
             # take reference from self.py_types
             params = self.make_params(args)
+            _logger.debug("args converted to %s params", len(params))
         key = operation, params
 
         try:
             ps = cache["ps"][key]
+            _logger.debug("Using cached prepared statement")
             cursor.ps = ps
         except KeyError:
             statement_nums: typing.List[int] = [0]
@@ -1696,9 +1774,11 @@ class Connection:
                 "row_desc": [],
                 "param_funcs": tuple(x[2] for x in params),  # type: ignore
             }
+            _logger.debug("Prepared Statement object for statement=%s", ps)
             cursor.ps = ps
 
             param_fcs: typing.Tuple[typing.Optional[int], ...] = tuple(x[1] for x in params)  # type: ignore
+            _logger.debug("parameter fcs=%s", param_fcs)
 
             # Byte1('P') - Identifies the message as a Parse command.
             # Int32 -   Message length, including self.
@@ -1710,6 +1790,9 @@ class Connection:
             #   Int32 - The OID of the parameter data type.
             val: typing.Union[bytes, bytearray] = bytearray(statement_name_bin)
             typing.cast(bytearray, val).extend(statement.encode(_client_encoding) + NULL_BYTE)
+            if len(params) > 32767:
+                raise DataError("Prepared statement exceeds bind parameter limit 32767. {} bind parameters were "
+                                "provided. Please retry with fewer bind parameters.".format(len(params)))
             typing.cast(bytearray, val).extend(h_pack(len(params)))
             for oid, fc, send_func in params:  # type: ignore
                 # Parse message doesn't seem to handle the -1 type_oid for NULL
@@ -1723,12 +1806,15 @@ class Connection:
             # String - The name of the item to describe.
 
             # PARSE message will notify database to create a prepared statement object
+            _logger.debug("Sending Parse message to BE")
             self._send_message(PARSE, val)
             # DESCRIBE message will specify the name of the existing prepared statement
             # the response will be a parameterDescribing message describe the parameters needed
             # and a RowDescription message describe the rows will be return(nodata message when no return rows)
+            _logger.debug("Sending Describe message to BE")
             self._send_message(DESCRIBE, STATEMENT + statement_name_bin)
             # at completion of query message, driver issue a sync message
+            _logger.debug("Sending Sync message to BE")
             self._write(SYNC_MSG)
 
             try:
@@ -1744,6 +1830,7 @@ class Connection:
             # We've got row_desc that allows us to identify what we're
             # going to get back from this statement.
             output_fc = tuple(self.redshift_types[f["type_oid"]][0] for f in ps["row_desc"])
+            _logger.debug("output_fc=%s", output_fc)
 
             ps["input_funcs"] = tuple(f["func"] for f in ps["row_desc"])
             # Byte1('B') - Identifies the Bind command.
@@ -1812,8 +1899,10 @@ class Connection:
         # send BIND message which includes name of parepared statement,
         # name of destination portal and the value of placeholders in prepared statement.
         # these parameters need to match the prepared statements
+        _logger.debug("Sending Bind message to BE")
         self._send_message(BIND, retval)
         self.send_EXECUTE(cursor)
+        _logger.debug("Sending Sync message to BE")
         self._write(SYNC_MSG)
         self._flush()
         # handle multi messages including BIND_COMPLETE, DATA_ROW, COMMAND_COMPLETE
@@ -1824,6 +1913,7 @@ class Connection:
             self.handle_messages(cursor)
 
     def _send_message(self: "Connection", code: bytes, data: bytes) -> None:
+        _logger.debug("Sending message with code %s to BE", code)
         try:
             self._write(code)
             self._write(i_pack(len(data) + 4))
@@ -1863,7 +1953,9 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("Sending Execute message to BE")
         self._write(EXECUTE_MSG)
+        _logger.debug("Sending Flush message to BE")
         self._write(FLUSH_MSG)
 
     def handle_NO_DATA(self: "Connection", msg, ps) -> None:
@@ -1888,7 +1980,7 @@ class Connection:
         -------
         None:None
         """
-        pass
+        _logger.debug("NoData message received from BE")
 
     def handle_COMMAND_COMPLETE(self: "Connection", data: bytes, cursor: Cursor) -> None:
         """
@@ -1926,8 +2018,10 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("CommandComplete message received from BE")
         values: typing.List[bytes] = data[:-1].split(b" ")
         command = values[0]
+        _logger.debug("command=%s", command)
         if command in self._commands_with_count:
             row_count: int = int(values[-1])
             if cursor._row_count == -1:
@@ -1972,6 +2066,7 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("DataRow message received from BE")
         data_idx: int = 2
         row: typing.List = []
         for desc in cursor.truncated_row_desc():
@@ -2003,7 +2098,22 @@ class Connection:
         code = self.error = None
 
         while code != READY_FOR_QUERY:
-            code, data_len = ci_unpack(self._read(5))
+            buffer = self._read(5)
+
+            if len(buffer) == 0:
+                if self._usock.timeout is not None:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+                        "raising the timeout or defaulting timeout to none."
+                    )
+                else:
+                    raise InterfaceError(
+                        "BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                        "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
+                    )
+
+            code, data_len = ci_unpack(buffer)
+            _logger.debug("Message received from BE with code %s length %s ", code, data_len)
             self.message_types[code](self._read(data_len - 4), cursor)
 
         if self.error is not None:
@@ -2024,9 +2134,23 @@ class Connection:
         """
         code = self.error = None
         # read 5 bytes of message firstly
-        code, data_len = ci_unpack(self._read(5))
+        buffer = self._read(5)
+        if len(buffer) == 0:
+            if self._usock.timeout is not None:
+                raise InterfaceError(
+                    "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+                    "raising the timeout or defaulting timeout to none."
+                )
+            else:
+                raise InterfaceError(
+                    "BrokenPipe: server socket closed. Please check that client side networking configurations such "
+                    "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
+                )
+
+        code, data_len = ci_unpack(buffer)
 
         while True:
+            _logger.debug("Message received from BE with code %s length %s ", code, data_len)
             if code == READY_FOR_QUERY:
                 # for last message
                 self.message_types[code](self._read(data_len - 4), cursor)
@@ -2068,7 +2192,9 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("Send Close message for statement %s to BE", statement_name_bin)
         self._send_message(CLOSE, STATEMENT + statement_name_bin)
+        _logger.debug("Sending Sync message to BE")
         self._write(SYNC_MSG)
         self._flush()
         self.handle_messages(self._cursor)
@@ -2104,6 +2230,7 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("NoticeResponse message received from BE")
         self.notices.append(dict((s[0:1], s[1:]) for s in data.split(NULL_BYTE)))
 
     def handle_PARAMETER_STATUS(self: "Connection", data: bytes, ps) -> None:
@@ -2133,8 +2260,10 @@ class Connection:
         -------
         None:None
         """
+        _logger.debug("ParameterStatus message received from BE")
         pos: int = data.find(NULL_BYTE)
         key, value = data[:pos], data[pos + 1 : -1]
+        _logger.debug("key=%s value=%s", key, value)
         self.parameter_statuses.append((key, value))
         if key == b"client_encoding":
             encoding = value.decode("ascii").lower()
@@ -2144,10 +2273,9 @@ class Connection:
             # warn the user and follow server
             if self._client_protocol_version != int(value):
                 _logger.debug(
-                    "Server indicated {} transfer protocol will be used rather than protocol requested by client: {}".format(
-                        ClientProtocolVersion.get_name(int(value)),
-                        ClientProtocolVersion.get_name(self._client_protocol_version),
-                    )
+                    "Server indicated %s transfer protocol will be used rather than protocol requested by client: %s",
+                    ClientProtocolVersion.get_name(int(value)),
+                    ClientProtocolVersion.get_name(self._client_protocol_version),
                 )
                 self._client_protocol_version = int(value)
                 self._enable_protocol_based_conversion_funcs()

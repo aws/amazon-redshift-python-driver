@@ -57,13 +57,16 @@ class AWSCredentialsProvider:
             try:
                 self.refresh()
             except Exception as e:
-                _logger.error("Refreshing IdP credentials failed: {}".format(str(e)))
+                exec_msg: str = "Refreshing IdP credentials failed"
+                _logger.debug(exec_msg)
                 raise InterfaceError(e)
 
         credentials: typing.Union[AWSDirectCredentialsHolder, AWSProfileCredentialsHolder] = self.cache[key]
 
         if credentials is None:
-            raise InterfaceError("Unable to load AWS credentials")
+            exec_msg = "Unable to load AWS credentials from cache"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
 
         return credentials
 

@@ -46,7 +46,7 @@ def test_get_saml_assertion_invalid_idp_tenant_should_fail(idp_tenant_value):
 
     with pytest.raises(InterfaceError) as ex:
         bacp.get_saml_assertion()
-    assert "Missing required property: idp_tenant" in str(ex.value)
+    assert "Missing required connection property: idp_tenant" in str(ex.value)
 
 
 invalid_client_id: typing.List[typing.Optional[str]] = ["", None]
@@ -59,7 +59,7 @@ def test_get_saml_assertion_invalid_client_id_should_fail(idp_tenant_value):
 
     with pytest.raises(InterfaceError) as ex:
         bacp.get_saml_assertion()
-    assert "Missing required property: client_id" in str(ex.value)
+    assert "Missing required connection property: client_id" in str(ex.value)
 
 
 invalid_idp_response_timeouts: typing.List[typing.Optional[int]] = [-1, 0, 1, 9]
@@ -72,7 +72,10 @@ def test_get_saml_assertion_invalid_idp_response_timeout_should_fail(idp_respons
 
     with pytest.raises(InterfaceError) as ex:
         bacp.get_saml_assertion()
-    assert "idp_response_timeout should be 10 seconds or greater." in str(ex.value)
+    assert (
+        "Invalid value specified for connection property: idp_response_timeout. Integer value must be 10 seconds or greater"
+        in str(ex.value)
+    )
 
 
 def test_get_saml_assertion_uses_listen_port(mocker):
@@ -161,7 +164,9 @@ def test_fetch_authorization_errors_should_fail(mocker):
     with patch("redshift_connector.plugin.BrowserAzureCredentialsProvider.run_server") as mocked_server:
         mocked_server.side_effect = Exception("bad mistake")
 
-        with pytest.raises(Exception, match="bad mistake"):
+        with pytest.raises(
+            Exception, match="An unknown exception occurred when attempting to fetch Azure authentication token"
+        ):
             bacp.fetch_authorization_token(listen_socket=MockSocket())
 
 

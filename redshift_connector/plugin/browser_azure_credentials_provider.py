@@ -34,6 +34,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
     # method to provide a listen socket for authentication
     def get_listen_socket(self: "BrowserAzureCredentialsProvider") -> socket.socket:
         s: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        _logger.debug("Attempting socket bind on localhost with any free port")
         s.bind(("127.0.0.1", 0))  # bind to any free port
         s.listen()
         self.listen_port = s.getsockname()[1]
@@ -50,24 +51,22 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
         self.idp_response_timeout = info.idp_response_timeout
 
-        _logger.debug("Idp_tenant={}".format(self.idp_tenant))
-        _logger.debug("Client_id={}".format(self.client_id))
-        _logger.debug("Idp_response_timeout={}".format(self.idp_response_timeout))
-        _logger.debug("Listen_port={}".format(self.listen_port))
-
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "BrowserAzureCredentialsProvider") -> str:
-        if self.idp_tenant == "" or self.idp_tenant is None:
-            raise InterfaceError("Missing required property: idp_tenant")
-        if self.client_id == "" or self.client_id is None:
-            raise InterfaceError("Missing required property: client_id")
+        _logger.debug("BrowserAzureCredentialsProvider.get_saml_assertion")
 
+        if self.idp_tenant == "" or self.idp_tenant is None:
+            BrowserAzureCredentialsProvider.handle_missing_required_property("idp_tenant")
+        if self.client_id == "" or self.client_id is None:
+            BrowserAzureCredentialsProvider.handle_missing_required_property("client_id")
         if self.idp_response_timeout < 10:
-            raise InterfaceError("idp_response_timeout should be 10 seconds or greater.")
+            BrowserAzureCredentialsProvider.handle_invalid_property_value(
+                "idp_response_timeout", "Integer value must be 10 seconds or greater"
+            )
 
         listen_socket: socket.socket = self.get_listen_socket()
         self.redirectUri = "http://localhost:{port}/redshift/".format(port=self.listen_port)
-        _logger.debug("Listening for connection on port {}".format(self.listen_port))
+        _logger.debug("Listening for connection using %s", self.redirectUri)
 
         try:
             token: str = self.fetch_authorization_token(listen_socket)
@@ -85,6 +84,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
     #  Open the default browser with the link asking a User to enter the credentials.
     #  Retrieve the SAML Assertion string from the response. Decode it, format, validate and return.
     def fetch_authorization_token(self: "BrowserAzureCredentialsProvider", listen_socket: socket.socket) -> str:
+        _logger.debug("BrowserAzureCredentialsProvider.fetch_authorization_token")
         alphabet: str = "abcdefghijklmnopqrstuvwxyz"
         state: str = "".join(random.sample(alphabet, 10))
         try:
@@ -96,15 +96,18 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
             return str(return_value)
         except socket.error as e:
-            _logger.error("Socket error: %s", e)
-            raise e
+            exec_msg: str = "A socket error occurred when attempting to fetch Azure authorization token"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except Exception as e:
-            _logger.error("Other Exception: %s", e)
-            raise e
+            exec_msg = "An unknown exception occurred when attempting to fetch Azure authentication token"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
 
     # Initiates the request to the IDP and gets the response body
     # Get Base 64 encoded saml assertion from the response body
     def fetch_saml_response(self: "BrowserAzureCredentialsProvider", token):
+        _logger.debug("BrowserAzureCredentialsProvider.fetch_saml_response")
         import requests
 
         url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
@@ -123,44 +126,51 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             "redirect_uri": self.redirectUri,
         }
 
-        _logger.debug("Uri: {}".format(url))
+        _logger.debug("Uri: %s", url)
 
         try:
             response = requests.post(url, data=payload, headers=headers, verify=self.do_verify_ssl_cert())
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
+            exec_msg: str = ""
             if "response" in vars():
-                _logger.debug("Fetch_saml_response https response: {}".format(response.content))  # type: ignore
+                exec_msg = "Azure authentication https response received but HTTP response code indicates error"
             else:
-                _logger.debug("Fetch_saml_response could not receive https response due to an error")
-            _logger.error("Request for authentication from Microsoft was unsuccessful. {}".format(str(e)))
-            raise InterfaceError(e)
+                exec_msg = "Azure authentication could not receive https response due to an unknown error"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except requests.exceptions.Timeout as e:
-            _logger.error("A timeout occurred when requesting authentication from Azure")
-            raise InterfaceError(e)
+            exec_msg = "Azure authentication request timed out"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except requests.exceptions.TooManyRedirects as e:
-            _logger.error(
-                "A error occurred when requesting authentication from Azure. Verify RedshiftProperties are correct"
-            )
-            raise InterfaceError(e)
+            exec_msg = "Too many redirects occurred when requesting Azure authentication"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except requests.exceptions.RequestException as e:
-            _logger.error("A unknown error occurred when requesting authentication from Azure")
-            raise InterfaceError(e)
+            exec_msg = "A unknown error occurred when requesting Azure authentication"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
 
-        _logger.debug("Azure authentication response length: {}".format(len(response.text)))
+        _logger.debug("Azure authentication response length: %s", len(response.text))
 
         try:
             saml_assertion: str = response.json()["access_token"]
         except TypeError as e:
-            _logger.error("Failed to decode saml assertion returned from Azure")
-            raise InterfaceError(e)
+            exec_msg = "Failed to decode SAML assertion returned from Azure"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except KeyError as e:
-            _logger.error("Azure access_token was not found in saml assertion")
-            raise InterfaceError(e)
+            exec_msg = "Azure access_token was not found in SAML assertion"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg) from e
         except Exception as e:
-            raise InterfaceError(e)
+            exec_msg = "An unknown error occurred when decoding SAML assertion returned from Azure"
+            raise InterfaceError(exec_msg) from e
         if saml_assertion == "":
-            raise InterfaceError("Azure access_token is empty")
+            exec_msg = "Azure access_token is empty"
+            _logger.debug(exec_msg)
+            raise InterfaceError(exec_msg)
 
         missing_padding: int = 4 - len(saml_assertion) % 4
         if missing_padding:
@@ -187,6 +197,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
     def run_server(
         self: "BrowserAzureCredentialsProvider", listen_socket: socket.socket, idp_response_timeout: int, state: str
     ) -> str:
+        _logger.debug("BrowserAzureCredentialsProvider.run_server")
         conn, addr = listen_socket.accept()
         conn.settimeout(float(idp_response_timeout))
         size: int = 102400
@@ -200,26 +211,31 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
                     received_state: str = decoded_part[state_idx + 6 : decoded_part.find("&", state_idx)]
 
                     if received_state != state:
-                        raise InterfaceError(
-                            "Incoming state {received} does not match the outgoing state {expected}".format(
-                                received=received_state, expected=state
-                            )
+                        exec_msg = "Incoming state {received} does not match the outgoing state {expected}".format(
+                            received=received_state, expected=state
                         )
+                        _logger.debug(exec_msg)
+                        raise InterfaceError(exec_msg)
 
                     code_idx: int = decoded_part.find("code=")
 
                     if code_idx < 0:
-                        raise InterfaceError("No code found")
+                        exec_msg = "No code found"
+                        _logger.debug(exec_msg)
+                        raise InterfaceError(exec_msg)
 
                     received_code: str = decoded_part[code_idx + 5 : decoded_part.find("&", code_idx)]
 
                     if received_code == "":
-                        raise InterfaceError("No valid code found")
+                        exec_msg = "No valid code found"
+                        _logger.debug(exec_msg)
+                        raise InterfaceError(exec_msg)
                     conn.send(self.close_window_http_resp())
                     return received_code
 
     # Opens the default browser with the authorization request to the IDP
     def open_browser(self: "BrowserAzureCredentialsProvider", state: str) -> None:
+        _logger.debug("BrowserAzureCredentialsProvider.open_browser")
         import webbrowser
 
         url: str = (

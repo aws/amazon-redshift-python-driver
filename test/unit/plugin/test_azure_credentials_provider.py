@@ -35,7 +35,7 @@ def test_get_saml_assertion_missing_user_name_should_fail(value):
     acp, _ = make_valid_azure_credentials_provider()
     acp.user_name = value
 
-    with pytest.raises(InterfaceError, match="Missing required property: user_name"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: user_name"):
         acp.get_saml_assertion()
 
 
@@ -44,7 +44,7 @@ def test_get_saml_assertion_missing_password_should_fail(value):
     acp, _ = make_valid_azure_credentials_provider()
     acp.password = value
 
-    with pytest.raises(InterfaceError, match="Missing required property: password"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: password"):
         acp.get_saml_assertion()
 
 
@@ -53,7 +53,7 @@ def test_get_saml_assertion_missing_idp_tenant_should_fail(value):
     acp, _ = make_valid_azure_credentials_provider()
     acp.idp_tenant = value
 
-    with pytest.raises(InterfaceError, match="Missing required property: idp_tenant"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: idp_tenant"):
         acp.get_saml_assertion()
 
 
@@ -62,7 +62,7 @@ def test_get_saml_assertion_missing_client_secret_should_fail(value):
     acp, _ = make_valid_azure_credentials_provider()
     acp.client_secret = value
 
-    with pytest.raises(InterfaceError, match="Missing required property: client_secret"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: client_secret"):
         acp.get_saml_assertion()
 
 
@@ -71,7 +71,7 @@ def test_get_saml_assertion_missing_client_id_should_fail(value):
     acp, _ = make_valid_azure_credentials_provider()
     acp.client_id = value
 
-    with pytest.raises(InterfaceError, match="Missing required property: client_id"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: client_id"):
         acp.get_saml_assertion()
 
 
@@ -153,4 +153,4 @@ def test_azure_oauth_based_authentication_response_empty_access_token_should_fai
 
     with pytest.raises(InterfaceError) as e:
         acp.azure_oauth_based_authentication()
-    assert "Azure access_token is empty" in str(e.value)
+    assert "Azure Oauth authentication response access_token is empty" in str(e.value)

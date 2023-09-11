@@ -23,7 +23,7 @@ def test_get_saml_assertion_invalid_idp_host_should_fail(value):
     acp, _ = make_valid_adfs_credentials_provider()
     acp.idp_host = value
 
-    with pytest.raises(InterfaceError, match="Missing required property: idp_host"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: idp_host"):
         acp.get_saml_assertion()
 
 
@@ -170,5 +170,5 @@ def test_form_based_authentication_empty_saml_response_should_fail(mocker):
     mock_soup.find_all.return_value = iter([])
     mocker.patch("bs4.BeautifulSoup", return_value=mock_soup)
 
-    with pytest.raises(InterfaceError, match="Failed to find Adfs access_token"):
+    with pytest.raises(InterfaceError, match="Failed to find ADFS access_token in authentication response payload"):
         acp.form_based_authentication()

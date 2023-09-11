@@ -18,7 +18,7 @@ def test_idp_host_invalid_should_fail(idp_arg):
     wrong_idp_host: str = "andrew.okta.com"
     idp_arg["idp_host"] = wrong_idp_host
 
-    with pytest.raises(redshift_connector.InterfaceError, match="Unauthorized"):
+    with pytest.raises(redshift_connector.InterfaceError, match="Failed to get SAML assertion"):
         redshift_connector.connect(**idp_arg)
 
 

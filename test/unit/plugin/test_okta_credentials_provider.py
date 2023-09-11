@@ -34,7 +34,7 @@ def test_get_saml_assertion_missing_app_id_should_fail(value):
     ocp, _ = make_valid_okta_credentials_provider()
     ocp.app_id = value
 
-    with pytest.raises(InterfaceError, match="Missing required property: app_id"):
+    with pytest.raises(InterfaceError, match="Missing required connection property: app_id"):
         ocp.get_saml_assertion()
 
 
@@ -91,7 +91,7 @@ def test_okta_authentication_no_status_in_response_should_fail(mocker):
 
     with pytest.raises(InterfaceError) as e:
         ocp.okta_authentication()
-    assert "Request for authentication retrieved malformed payload" in str(e.value)
+    assert "Request for authentication with Okta IdP failed. The status key was missing." in str(e.value)
 
 
 def test_okta_authentication_not_success_status_in_response_should_fail(mocker):
@@ -104,7 +104,10 @@ def test_okta_authentication_not_success_status_in_response_should_fail(mocker):
 
     with pytest.raises(InterfaceError) as e:
         ocp.okta_authentication()
-    assert "Request for authentication received non success response" in str(e.value)
+    assert (
+        "Request for authentication with Okta IdP failed due to a unsuccessful status in the authentication response payload"
+        in str(e.value)
+    )
 
 
 def test_okta_authentication_should_return_session_token(mocker):

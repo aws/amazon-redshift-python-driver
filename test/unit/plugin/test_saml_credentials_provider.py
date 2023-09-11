@@ -85,7 +85,7 @@ def test_refresh_get_saml_assertion_fails(mocker):
     with patch("redshift_connector.plugin.SamlCredentialsProvider.get_saml_assertion") as mocked_get_saml_assertion:
         mocked_get_saml_assertion.side_effect = Exception("bad robot")
 
-        with pytest.raises(InterfaceError, match="bad robot"):
+        with pytest.raises(InterfaceError, match="Failed to get SAML assertion"):
             scp.refresh()
 
 
@@ -94,7 +94,10 @@ def test_refresh_saml_assertion_missing_role_should_fail(mocker):
     mocked_data: str = "test"
     mocker.patch("redshift_connector.plugin.SamlCredentialsProvider.get_saml_assertion", return_value=mocked_data)
 
-    with pytest.raises(InterfaceError, match="No role found in SamlAssertion"):
+    with pytest.raises(
+        InterfaceError,
+        match="No roles were found in SAML assertion. Please verify IdP configuration provides ARNs in the SAML https://aws.amazon.com/SAML/Attributes/Role Attribute.",
+    ):
         scp.refresh()
 
 
