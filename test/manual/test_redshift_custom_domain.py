@@ -50,7 +50,6 @@ def test_iam_connect(provisioned_cname_db_kwargs, sslmode):
     provisioned_cname_db_kwargs["iam"] = True
     provisioned_cname_db_kwargs["profile"] = "default"
     provisioned_cname_db_kwargs["auto_create"] = True
-    provisioned_cname_db_kwargs["region"] = "eu-north-1"
     provisioned_cname_db_kwargs["ssl"] = True
     provisioned_cname_db_kwargs["sslmode"] = sslmode.value
     with redshift_connector.connect(**provisioned_cname_db_kwargs):

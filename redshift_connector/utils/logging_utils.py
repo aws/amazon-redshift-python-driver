@@ -84,6 +84,9 @@ def mask_secure_info_in_props(info: "RedshiftProperty") -> "RedshiftProperty":
         if parameter in logging_allow_list:
             temp.put(parameter, value)
         elif is_populated(value):
-            temp.put(parameter, "***")
+            try:
+                temp.put(parameter, "***")
+            except AttributeError:
+                pass
 
     return temp

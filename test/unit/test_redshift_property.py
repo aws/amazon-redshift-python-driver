@@ -38,6 +38,8 @@ def test_set_serverless_acct_id_from_host(host, exp_account_id):
         ("testwg1.012345678901.us-east-2.redshift-serverless.amazonaws.com", "us-east-2"),
         ("123456789012.us-south-1.redshift-serverless.amazonaws.com", "us-south-1"),
         ("testwg2.012345678901.ap-northeast-3.redshift-serverless.amazonaws.com", "ap-northeast-3"),
+        ("redshift-cluster-1.aaaaaaaaaaaa.us-east-2.redshift.amazonaws.com", "us-east-2"),
+        ("mylongredshiftclustername.aaaaaaaaaaaa.ap-northeast-1.redshift.amazonaws.com", "ap-northeast-1"),
     ],
 )
 def test_set_region_from_host(host, exp_region):

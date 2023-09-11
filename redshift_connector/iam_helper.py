@@ -119,16 +119,21 @@ class IamHelper(IdpAuthHelper):
                     "Please upgrade the installed version of boto3 to use this functionality."
                 )
 
+        # consider overridden connection parameters
         if info.is_serverless_host:
-            # consider overridden connection parameters
-            if not info.region:
-                info.set_region_from_host()
             if not info.serverless_acct_id:
                 info.set_serverless_acct_id()
             if not info.serverless_work_group:
                 info.set_serverless_work_group_from_host()
+        if not info.region:
+            info.set_region_from_host()
 
         if info.iam is True:
+
+            if info.region is None:
+                _logger.debug("Setting region via DNS lookup as region was not provided in connection parameters")
+                info.set_region_from_endpoint_lookup()
+
             if info.cluster_identifier is None and not info._is_serverless and not info.is_cname:
                 raise InterfaceError(
                     "Invalid connection property setting. cluster_identifier must be provided when IAM is enabled"

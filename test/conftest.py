@@ -98,7 +98,6 @@ def serverless_iam_db_kwargs() -> typing.Dict[str, typing.Union[str, bool]]:
         "access_key_id": conf.get("redshift-serverless", "access_key_id", fallback="mock_access_key_id"),
         "secret_access_key": conf.get("redshift-serverless", "secret_access_key", fallback="mock_secret_access_key"),
         "session_token": conf.get("redshift-serverless", "session_token", fallback="mock_session_token"),
-        "region": conf.get("redshift-serverless", "region", fallback="mock_region"),
         "host": conf.get(
             "redshift-serverless", "host", fallback="testwg1.012345678901.us-east-2.redshift-serverless.amazonaws.com"
         ),

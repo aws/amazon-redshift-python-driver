@@ -223,16 +223,55 @@ class RedshiftProperty:
 
     def set_region_from_host(self: "RedshiftProperty") -> None:
         """
-        Sets the AWS region as parsed from the Redshift serverless endpoint.
+        Sets the AWS region as parsed from the Redshift instance endpoint.
         """
         import re
 
-        for serverless_pattern in (SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, SERVERLESS_HOST_PATTERN):
-            m2 = re.fullmatch(pattern=serverless_pattern, string=self.host)
+        if self.is_serverless_host:
+            patterns: typing.Tuple[str, ...] = (SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, SERVERLESS_HOST_PATTERN)
+        else:
+            patterns = (PROVISIONED_HOST_PATTERN,)
+
+        for host_pattern in patterns:
+            m2 = re.fullmatch(pattern=host_pattern, string=self.host)
 
             if m2:
                 self.put(key="region", value=m2.group(typing.cast(int, m2.lastindex)))
+                _logger.debug("region set to %s", self.region)
                 break
+
+    def set_region_from_endpoint_lookup(self: "RedshiftProperty") -> None:
+        """
+        Sets the AWS region as determined from a DNS lookup of the Redshift instance endpoint.
+        """
+        import socket
+
+        _logger.debug("set_region_from_endpoint_lookup")
+
+        if not all((self.host, self.port)):
+            _logger.debug("host and port were unspecified, exiting set_region_from_endpoint_lookup")
+            return
+        try:
+            addr_response: typing.List[
+                typing.Tuple[
+                    socket.AddressFamily,
+                    socket.SocketKind,
+                    int,
+                    str,
+                    typing.Union[typing.Tuple[str, int], typing.Tuple[str, int, int, int]],
+                ]
+            ] = socket.getaddrinfo(host=self.host, port=self.port, family=socket.AF_INET)
+            _logger.debug("%s", addr_response)
+            host_response: typing.Tuple[str, typing.List, typing.List] = socket.gethostbyaddr(addr_response[0][4][0])
+            ec2_instance_host: str = host_response[0]
+            _logger.debug("underlying ec2 instance host %s", ec2_instance_host)
+            ec2_region: str = ec2_instance_host.split(".")[1]
+            self.put(key="region", value=ec2_region)
+        except:
+            msg: str = "Unable to automatically determine AWS region from host {} port {}. Please check host and port connection parameters are correct.".format(
+                self.host, self.port
+            )
+            _logger.debug(msg)
 
     def set_serverless_work_group_from_host(self: "RedshiftProperty") -> None:
         """
