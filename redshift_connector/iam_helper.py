@@ -336,7 +336,7 @@ class IamHelper(IdpAuthHelper):
                 )
                 raise e
             else:
-                _logger.error(
+                _logger.debug(
                     "User provided cluster_identifier. Assuming cluster is using NLB/custom domain name. Using cluster_identifier"
                 )
 
