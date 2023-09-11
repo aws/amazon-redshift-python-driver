@@ -1,15 +1,6 @@
 import configparser
 import os
 import typing
-from test import (
-    azure_browser_idp,
-    idp_arg,
-    jumpcloud_browser_idp,
-    jwt_azure_v2_idp,
-    jwt_google_idp,
-    okta_browser_idp,
-    ping_browser_idp,
-)
 
 import pytest  # type: ignore
 
@@ -27,6 +18,8 @@ BROWSER_CREDENTIAL_PROVIDERS: typing.List[str] = [
     # "jwt_google_idp",
     "ping_browser_idp",
     "redshift_native_browser_azure_oauth2_idp",
+    "redshift_browser_idc",
+    "redshift_idp_token_auth_plugin",
 ]
 
 """

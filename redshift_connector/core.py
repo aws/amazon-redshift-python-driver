@@ -431,6 +431,9 @@ class Connection:
         provider_name: typing.Optional[str] = None,
         web_identity_token: typing.Optional[str] = None,
         numeric_to_float: bool = False,
+        identity_namespace: typing.Optional[str] = None,
+        token_type: typing.Optional[str] = None,
+        idc_client_display_name: typing.Optional[str] = None,
     ):
         """
         Creates a :class:`Connection` to an Amazon Redshift cluster. For more information on establishing a connection to an Amazon Redshift cluster using `federated API access <https://aws.amazon.com/blogs/big-data/federated-api-access-to-amazon-redshift-using-an-amazon-redshift-connector-for-python/>`_ see our examples page.
@@ -475,6 +478,12 @@ class Connection:
             A web identity token used for authentication via Redshift Native IDP Integration
         numeric_to_float: bool
             Specifies if NUMERIC datatype values will be converted from ``decimal.Decimal`` to ``float``. By default NUMERIC values are received as ``decimal.Decimal``.
+        identity_namespace: Optional[str]
+            The identity namespace to be used with IdC auth plugin. Default value is None.
+        token_type: Optional[str]
+            The token type to be used for authentication using IdP Token auth plugin
+        idc_client_display_name: Optional[str]
+            The client display name to be used for user consent in IdC browser auth plugin.
         """
         self.merge_socket_read = True
 
@@ -555,8 +564,16 @@ class Connection:
                 redshift_native_auth = True
                 init_params["idp_type"] = "AzureAD"
 
-                if provider_name:
-                    init_params["provider_name"] = provider_name
+            if credentials_provider.split(".")[-1] in (
+                    "IdpTokenAuthPlugin",
+                    "BrowserIdcAuthPlugin",
+            ):
+                redshift_native_auth = True
+                self.set_idc_plugins_params(init_params, credentials_provider, identity_namespace, token_type,
+                                            idc_client_display_name)
+
+            if redshift_native_auth and provider_name:
+                init_params["provider_name"] = provider_name
 
         if not redshift_native_auth or user:
             init_params["user"] = user
@@ -1434,17 +1451,17 @@ class Connection:
             self.auth.set_server_final(data[4:].decode("utf8"))
         elif auth_code == 14:
             # Redshift Native IDP Integration
-            _logger.debug("BE requested Redshift Native IDP authentication")
-            aad_token: str = typing.cast(str, self.web_identity_token)
+            _logger.debug("BE requested Redshift Native IDP or IdC authentication")
+            nativeidp_or_idcpez_token: str = typing.cast(str, self.web_identity_token)
 
-            if not aad_token:
+            if not nativeidp_or_idcpez_token:
                 raise ConnectionAbortedError(
-                    "The server requested AAD token-based authentication, but no token was provided."
+                    "The server requested Native IdP or IdC token-based authentication, but no token was provided."
                 )
 
-            _logger.debug("Sending IdP token to BE")
+            _logger.debug("Sending IdP or IdC/PEZ token to BE")
 
-            token: bytes = aad_token.encode(encoding="utf-8")
+            token: bytes = nativeidp_or_idcpez_token.encode(encoding="utf-8")
             self._write(create_message(b"i", token))
             # self._write(NULL_BYTE)
             self._flush()
@@ -2533,3 +2550,24 @@ class Connection:
             return [self.xid(0, row[0], "") for row in curs]
         finally:
             self.autocommit = previous_autocommit_mode
+
+    def set_idc_plugins_params(self: "Connection", init_params: typing.Dict[str, typing.Optional[typing.Union[str, bytes]]],
+                               credentials_provider: typing.Optional[str] = None,
+                               identity_namespace: typing.Optional[str] = None,
+                               token_type: typing.Optional[str] = None,
+                               idc_client_display_name: typing.Optional[str] = None) -> None:
+        plugin_name = credentials_provider.split(".")[-1]
+        init_params["idp_type"] = "AwsIdc"
+
+        if identity_namespace:
+            init_params["identity_namespace"] = identity_namespace
+
+        if plugin_name == "BrowserIdcAuthPlugin":
+            init_params["token_type"] = "ACCESS_TOKEN"
+        elif token_type:
+            init_params["token_type"] = token_type
+
+        if idc_client_display_name:
+            init_params["idc_client_display_name"] = idc_client_display_name
+
+

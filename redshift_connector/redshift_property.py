@@ -60,6 +60,10 @@ class RedshiftProperty:
             self.host: str = ""
             self.iam: bool = False
             self.iam_disable_cache: bool = False
+            self.idc_client_display_name: typing.Optional[str] = None
+            self.idc_region: typing.Optional[str] = None
+            self.idc_response_timeout: int = 120
+            self.identity_namespace: typing.Optional[str] = None
             # The IdP (identity provider) host you are using to authenticate into Redshift.
             self.idp_host: typing.Optional[str] = None
             # timeout for authentication via Browser IDP
@@ -98,6 +102,7 @@ class RedshiftProperty:
             self.session_token: typing.Optional[str] = None
             # The source IP address which initiates the connection to the Amazon Redshift server.
             self.source_address: typing.Optional[str] = None
+            self.start_url: typing.Optional[str] = None
             # if SSL authentication will be used
             self.ssl: bool = True
             # This property indicates whether the IDP hosts server certificate should be verified.
@@ -108,6 +113,8 @@ class RedshiftProperty:
             self.tcp_keepalive: bool = True
             # This is the time in seconds before the connection to the server will time out.
             self.timeout: typing.Optional[int] = None
+            self.token: typing.Optional[str] = None
+            self.token_type: typing.Optional[str] = None
             # The path to the UNIX socket to access the database through
             self.unix_sock: typing.Optional[str] = None
             # The user name.

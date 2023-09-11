@@ -56,6 +56,14 @@ from .version import __version__
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 _logger: logging.Logger = logging.getLogger(__name__)
 
+IDC_PLUGINS_LIST = ("redshift_connector.plugin.BrowserIdcAuthPlugin", "BrowserIdcAuthPlugin",
+                    "redshift_connector.plugin.IdpTokenAuthPlugin", "IdpTokenAuthPlugin")
+IDC_OR_NATIVE_IDP_PLUGINS_LIST = (
+    "redshift_connector.plugin.BrowserAzureOAuth2CredentialsProvider", "BrowserAzureOAuth2CredentialsProvider",
+    "redshift_connector.plugin.BasicJwtCredentialsProvider", "BasicJwtCredentialsProvider",
+    "redshift_connector.plugin.BrowserIdcAuthPlugin", "BrowserIdcAuthPlugin",
+    "redshift_connector.plugin.IdpTokenAuthPlugin", "IdpTokenAuthPlugin")
+
 # Copyright (c) 2007-2009, Mathieu Fenniak
 # Copyright (c) The Contributors
 # All rights reserved.
@@ -143,6 +151,13 @@ def connect(
     serverless_acct_id: typing.Optional[str] = None,
     serverless_work_group: typing.Optional[str] = None,
     group_federation: typing.Optional[bool] = None,
+    start_url: typing.Optional[str] = None,
+    idc_region: typing.Optional[str] = None,
+    idc_response_timeout: typing.Optional[int] = None,
+    identity_namespace: typing.Optional[str] = None,
+    idc_client_display_name: typing.Optional[str] = None,
+    token: typing.Optional[str] = None,
+    token_type: typing.Optional[str] = None,
 ) -> Connection:
     """
     Establishes a :class:`Connection` to an Amazon Redshift cluster. This function validates user input, optionally authenticates using an identity provider plugin, then constructs a :class:`Connection` object.
@@ -246,6 +261,20 @@ def connect(
         The name of work group for serverless end point. Default value None.
     group_federation: Optional[bool]
         Use the IDP Groups in the Redshift. Default value False.
+    start_url: Optional[str]
+        The directory or start url for the AWS IdC access portal. Default value is None.
+    idc_region: Optional[str]
+        The AWS region where IdC instance is located. Default value is None.
+    idc_response_timeout: Optional[int]
+        The timeout value in seconds for the IdC browser auth. Default value is `120`.
+    identity_namespace: Optional[str]
+        The identity namespace to be used with IdC auth plugin. Default value is None.
+    idc_client_display_name: Optional[str]
+        The client display name to be used in user consent in IdC browser auth. Default value is `Amazon Redshift Python connector`.
+    token: Optional[str]
+        The access token to be used with IdC basic credentials provider plugin. Default value is None.
+    token_type: Optional[str]
+        The token type to be used for authentication using IdP token auth plugin. Default value is None.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -273,6 +302,10 @@ def connect(
     info.put("host", host)
     info.put("iam", iam)
     info.put("iam_disable_cache", iam_disable_cache)
+    info.put("idc_client_display_name", idc_client_display_name)
+    info.put("idc_region", idc_region)
+    info.put("idc_response_timeout", idc_response_timeout)
+    info.put("identity_namespace", identity_namespace)
     info.put("idp_host", idp_host)
     info.put("idp_response_timeout", idp_response_timeout)
     info.put("idp_tenant", idp_tenant)
@@ -298,11 +331,14 @@ def connect(
     info.put("serverless_work_group", serverless_work_group)
     info.put("session_token", session_token)
     info.put("source_address", source_address)
+    info.put("start_url", start_url)
     info.put("ssl", ssl)
     info.put("ssl_insecure", ssl_insecure)
     info.put("sslmode", sslmode)
     info.put("tcp_keepalive", tcp_keepalive)
     info.put("timeout", timeout)
+    info.put("token", token)
+    info.put("token_type", token_type)
     info.put("unix_sock", unix_sock)
     info.put("user_name", user)
     info.put("web_identity_token", web_identity_token)
@@ -313,8 +349,15 @@ def connect(
     _logger.debug(mask_secure_info_in_props(info).__str__())
     _logger.debug(make_divider_block())
 
-    if (info.ssl is False) and (info.iam is True):
-        raise InterfaceError("Invalid connection property setting. SSL must be enabled when using IAM")
+    _logger.debug("plugin = {} and iam={}".format(info.credentials_provider, info.iam))
+    if (info.credentials_provider in IDC_PLUGINS_LIST) and (info.iam is True):
+        raise InterfaceError("You can not use this authentication plugin with IAM enabled.")
+
+    if info.ssl is False:
+        if info.iam is True:
+            raise InterfaceError("Invalid connection property setting. SSL must be enabled when using IAM")
+        if info.credentials_provider in IDC_OR_NATIVE_IDP_PLUGINS_LIST:
+            raise InterfaceError("Authentication must use an SSL connection.")
 
     if (info.iam is False) and (info.ssl_insecure is False):
         raise InterfaceError("Invalid connection property setting. IAM must be enabled when using ssl_insecure")
@@ -362,6 +405,9 @@ def connect(
         provider_name=info.provider_name,
         web_identity_token=info.web_identity_token,
         numeric_to_float=info.numeric_to_float,
+        identity_namespace=info.identity_namespace,
+        token_type=info.token_type,
+        idc_client_display_name=info.idc_client_display_name,
     )
 
 

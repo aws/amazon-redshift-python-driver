@@ -33,6 +33,7 @@ class IdpAuthHelper:
     # Subtype of plugin
     SAML_PLUGIN: int = 1
     JWT_PLUGIN: int = 2
+    IDC_PLUGIN: int = 3
 
     @staticmethod
     def get_pkg_version(module_name: str) -> Version:
