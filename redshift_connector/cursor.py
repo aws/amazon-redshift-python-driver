@@ -281,7 +281,6 @@ class Cursor:
         delimiter: str,
         batch_size: int = 1,
     ) -> "Cursor":
-
         """runs a single bulk insert statement into the database.
         This method is native to redshift_connector.
          :param filename: str
@@ -340,7 +339,7 @@ class Cursor:
                     self.execute(insert_stmt, values_list)
 
         except Exception as e:
-            raise e
+            raise InterfaceError(e)
         finally:
             # reset paramstyle to it's original value
             self.paramstyle = orig_paramstyle

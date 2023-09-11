@@ -42,16 +42,16 @@ class DbApiParamstyle(Enum):
         return list(map(lambda p: p.value, cls))  # type: ignore
 
 
-min_int2: int = -(2 ** 15)
-max_int2: int = 2 ** 15
-min_int4: int = -(2 ** 31)
-max_int4: int = 2 ** 31
-min_int8: int = -(2 ** 63)
-max_int8: int = 2 ** 63
+min_int2: int = -(2**15)
+max_int2: int = 2**15
+min_int4: int = -(2**31)
+max_int4: int = 2**31
+min_int8: int = -(2**63)
+max_int8: int = 2**63
 EPOCH: Datetime = Datetime(2000, 1, 1)
 EPOCH_TZ: Datetime = EPOCH.replace(tzinfo=Timezone.utc)
 EPOCH_SECONDS: int = timegm(EPOCH.timetuple())
-INFINITY_MICROSECONDS: int = 2 ** 63 - 1
+INFINITY_MICROSECONDS: int = 2**63 - 1
 MINUS_INFINITY_MICROSECONDS: int = -1 * INFINITY_MICROSECONDS - 1
 
 # pg element oid -> pg array typeoid

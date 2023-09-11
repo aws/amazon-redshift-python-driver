@@ -57,7 +57,6 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "BrowserAzureCredentialsProvider") -> str:
-
         if self.idp_tenant == "" or self.idp_tenant is None:
             raise InterfaceError("Missing required property: idp_tenant")
         if self.client_id == "" or self.client_id is None:

@@ -31,7 +31,6 @@ auth_profile_name: str = "PythonManualTest"
 
 @pytest.fixture(autouse=True)
 def handle_redshift_auth_profile(request, db_kwargs: typing.Dict[str, typing.Union[str, bool, int]]) -> None:
-
     import json
 
     import boto3  # type: ignore
@@ -81,7 +80,6 @@ def handle_redshift_auth_profile(request, db_kwargs: typing.Dict[str, typing.Uni
 
 @pytest.mark.skip(reason="manual")
 def test_redshift_auth_profile_can_connect(db_kwargs):
-
     with redshift_connector.connect(
         region=db_kwargs["region"],
         access_key_id=creds["aws_access_key_id"],

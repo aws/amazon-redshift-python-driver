@@ -133,7 +133,6 @@ class IdpAuthHelper:
                         "secret_access_key, or session_token when profile is provided"
                     )
             elif info.access_key_id is not None:
-
                 if info.secret_access_key is not None:
                     pass
                 elif info.password != "":

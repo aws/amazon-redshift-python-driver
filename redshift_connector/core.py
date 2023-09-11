@@ -36,7 +36,6 @@ from redshift_connector.error import (
     ArrayContentNotHomogenousError,
     ArrayContentNotSupportedError,
     DatabaseError,
-    DataError,
     Error,
     IntegrityError,
     InterfaceError,
@@ -654,7 +653,7 @@ class Connection:
                 except ImportError:
                     raise InterfaceError("SSL required but ssl module not available in " "this python installation")
 
-            self._sock: typing.Optional[typing.BinaryIO] = self._usock.makefile(mode="rwb")
+            self._sock = self._usock.makefile(mode="rwb")
             if tcp_keepalive:
                 self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
 
@@ -739,21 +738,7 @@ class Connection:
             # Each time will read 5 bytes, the first byte, the code, inform the type of message
             # following 4 bytes inform the message's length
             # then can use this length to minus 4 to get the real data.
-            buffer = self._read(5)
-
-            if len(buffer) == 0:
-                if self._usock.timeout is not None:
-                    raise InterfaceError(
-                        "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
-                        "raising the timeout or defaulting timeout to none."
-                    )
-                else:
-                    raise InterfaceError(
-                        "BrokenPipe: server socket closed. Please check that client side networking configurations such "
-                        "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
-                    )
-
-            code, data_len = ci_unpack(buffer)
+            code, data_len = ci_unpack(self._read(5))
             self.message_types[code](self._read(data_len - 4), None)
         if self.error is not None:
             raise self.error
@@ -1289,7 +1274,7 @@ class Connection:
             pass
         finally:
             self._usock.close()
-            self._sock = None
+            self._sock = None  # type: ignore
 
     def handle_AUTHENTICATION_REQUEST(self: "Connection", data: bytes, cursor: Cursor) -> None:
         """
@@ -1725,9 +1710,6 @@ class Connection:
             #   Int32 - The OID of the parameter data type.
             val: typing.Union[bytes, bytearray] = bytearray(statement_name_bin)
             typing.cast(bytearray, val).extend(statement.encode(_client_encoding) + NULL_BYTE)
-            if len(params) > 32767:
-                raise DataError("Prepared statement exceeds bind parameter limit 32767. {} bind parameters were "
-                                "provided. Please retry with fewer bind parameters.".format(len(params)))
             typing.cast(bytearray, val).extend(h_pack(len(params)))
             for oid, fc, send_func in params:  # type: ignore
                 # Parse message doesn't seem to handle the -1 type_oid for NULL
@@ -2021,22 +2003,7 @@ class Connection:
         code = self.error = None
 
         while code != READY_FOR_QUERY:
-            buffer = self._read(5)
-
-            if len(buffer) == 0:
-                if self._usock.timeout is not None:
-                    raise InterfaceError(
-                        "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
-                        "raising the timeout or defaulting timeout to none."
-                    )
-                else:
-                    raise InterfaceError(
-                        "BrokenPipe: server socket closed. Please check that client side networking configurations such "
-                        "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
-                    )
-
-            code, data_len = ci_unpack(buffer)
-
+            code, data_len = ci_unpack(self._read(5))
             self.message_types[code](self._read(data_len - 4), cursor)
 
         if self.error is not None:
@@ -2057,20 +2024,7 @@ class Connection:
         """
         code = self.error = None
         # read 5 bytes of message firstly
-        buffer = self._read(5)
-        if len(buffer) == 0:
-            if self._usock.timeout is not None:
-                raise InterfaceError(
-                    "BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
-                    "raising the timeout or defaulting timeout to none."
-                )
-            else:
-                raise InterfaceError(
-                    "BrokenPipe: server socket closed. Please check that client side networking configurations such "
-                    "as Proxies, firewalls, VPN, etc. are not affecting your network connection."
-                )
-
-        code, data_len = ci_unpack(buffer)
+        code, data_len = ci_unpack(self._read(5))
 
         while True:
             if code == READY_FOR_QUERY:

@@ -86,4 +86,4 @@ class Interval:
 
     def total_seconds(self: "Interval") -> float:
         """Total seconds in the Interval, excluding month field."""
-        return ((self.days * 86400) * 10 ** 6 + self.microseconds) / 10 ** 6
+        return ((self.days * 86400) * 10**6 + self.microseconds) / 10**6

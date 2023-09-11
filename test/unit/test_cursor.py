@@ -6,7 +6,7 @@ from unittest.mock import Mock, PropertyMock, mock_open, patch
 
 import pytest  # type: ignore
 
-from redshift_connector import Connection, Cursor, InterfaceError, DataError
+from redshift_connector import Connection, Cursor, InterfaceError
 
 IS_SINGLE_DATABASE_METADATA_TOGGLE: typing.List[bool] = [True, False]
 
@@ -406,59 +406,3 @@ def test_insert_data_uses_batch_size(mocked_csv, batch_size, mocker):
             actual_insert_stmts_executed += 1
 
     assert actual_insert_stmts_executed == ceil(3 / batch_size)
-
-max_params = 32767
-
-@patch("builtins.open", new_callable=mock_open)
-def test_insert_data_bulk_raises_too_many_parameters(mocked_csv, mocker):
-    # mock fetchone to return "True" to ensure the table_name and column_name
-    # validation steps pass
-    mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
-
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
-
-    # mock out the connection to raise DataError.
-    mock_cursor._c = Mock()
-    mocker.patch.object(mock_cursor._c, "execute", side_effect=DataError("Prepared statement exceeds bind parameter "
-                                                                         "limit 32767."))
-    mock_cursor.paramstyle = "mocked"
-
-    indexes, names = (
-        [0],
-        ["col1"],
-    )
-
-    csv_str = "\col1\n" + "1\n" * max_params + "1"  # 32768 rows
-    mocked_csv.side_effect = [StringIO(csv_str)]
-
-    with pytest.raises(
-        DataError, match="Prepared statement exceeds bind parameter limit 32767."
-    ):
-        mock_cursor.insert_data_bulk(
-            filename="mocked_csv",
-            table_name="githubissue165",
-            parameter_indices=indexes,
-            column_names=["col1"],
-            delimiter=",",
-            batch_size=max_params + 1,
-        )
-
-
-@patch("builtins.open", new_callable=mock_open)
-def test_insert_data_raises_too_many_parameters(mocker):
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
-
-    # mock out the connection to raise DataError.
-    mock_cursor._c = Mock()
-    mock_cursor._c.execute.side_effect = DataError(
-        "Prepared statement exceeds bind " "parameter limit 32767."
-    )
-    mock_cursor.paramstyle = "mocked"
-
-    prepared_stmt = "INSERT INTO githubissue165 (col1) VALUES " + "(%s), " * max_params + "(%s);"
-    params = [1 for _ in range(max_params + 1)]
-
-    with pytest.raises(
-        DataError, match="Prepared statement exceeds bind parameter limit 32767."
-    ):
-        mock_cursor.execute(prepared_stmt, params)

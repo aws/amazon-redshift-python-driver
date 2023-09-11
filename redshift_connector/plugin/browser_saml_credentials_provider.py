@@ -40,7 +40,6 @@ class BrowserSamlCredentialsProvider(SamlCredentialsProvider):
 
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "BrowserSamlCredentialsProvider") -> str:
-
         if self.login_url == "" or self.login_url is None:
             raise InterfaceError("Missing required property: login_url")
 

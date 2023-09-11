@@ -829,7 +829,6 @@ def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(moc
 
 
 def test_set_iam_properties_use_redshift_auth_profile_calls_read_auth_profile(mocker):
-
     mocker.patch(
         "redshift_connector.idp_auth_helper.IdpAuthHelper.read_auth_profile",
         return_value=RedshiftProperty(kwargs={"": ""}),

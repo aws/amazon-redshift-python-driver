@@ -32,7 +32,6 @@ def make_valid_browser_azure_credential_provider() -> BrowserAzureCredentialsPro
 
     # browser azure specific values
     bacp.idp_tenant = "abcdefghijklmnopqrstuvwxyz"
-    bacp.client_secret = "happy"
     bacp.client_id = "123455678"
     return bacp
 

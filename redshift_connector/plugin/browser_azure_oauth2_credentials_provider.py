@@ -91,7 +91,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         self: "BrowserAzureOAuth2CredentialsProvider",
         listen_socket: socket.socket,
         idp_response_timeout: int,
-        state: int,
+        state: str,
     ):
         """
         Runs a server on localhost to listen for the IdP's response to our HTTP POST request for JWT assertion.
