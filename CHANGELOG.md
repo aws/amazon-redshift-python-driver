@@ -2,6 +2,58 @@ Changelog
 =========
 
 
+v2.0.914 (2023-09-11)
+---------------------
+- Feat: Identity Center authentication support with new plugins. [Brooke
+  White]
+- Feat: logging improvements. [Brooke White]
+- Fix(auth, cname): log at debug level when
+  describe_custom_domain_associations fails. [Brooke White]
+- Add parallelization to pytest using pytest-xdist. [Brooke White]
+- Feat(auth): automatically determine region. [Brooke White]
+- Chore: bump dev pytest version. [Brooke White]
+- Chore: lint codebase. [Brooke White]
+- Chore: update pre-commit-config. [Brooke White]
+- Test(iam, adfs): temporary disable integration tests. [Brooke White]
+- Fix(connection): unpack_from error caused by network issues (#185)
+  [Soksamnang Lim, soksamnanglim]
+
+  * fix(connection): Raise InterfaceError for network issue related to closed server side socket (#164)
+
+  * add unit test and integration test
+  * rectify unit test
+  * rectify integration test
+  * raise InterfaceError with Broken Pipe for timeout and blocking modes
+
+  * fix(connection): add empty buffer check upon connect and unit tests
+
+  * fix(connection): unpack_from caused by network issues
+  * rectify unit tests when network disabled
+
+  ---------
+- Fix(connection, cursor): raise DataError when bind parameter limit is
+  exceeded (#165) (#187) [Soksamnang Lim, soksamnanglim]
+
+  * raise DataError in Connection execute
+  * rethrow error in Cursor insert_data_bulk
+  * add integration and unit test for cursor
+  * rectify integration test
+- Fix(connection): Raise OperationalError for socket timeouts (#179)
+  [Jessie Chen]
+
+  * Raise OperationalError for socket timeouts
+
+  * add unit test and integrationt test
+
+  * rectify unit test
+
+  * rectify integration test for socket_timeout
+
+  * remove empty config.ini
+- Fix typo for package name in missing module error. (#177) [Kyle
+  Demeule]
+
+
 v2.0.913 (2023-07-12)
 ---------------------
 - Fix(auth, iam): log if boto3 version insufficient for cname. [Brooke
