@@ -2,6 +2,12 @@ Changelog
 =========
 
 
+v2.0.915 (2023-10-16)
+---------------------
+- Fix(connection): cast redshift_types as a str. [Brooke White]
+- Chore: lint codebase. [Brooke White]
+
+
 v2.0.914 (2023-09-11)
 ---------------------
 - Feat: Identity Center authentication support with new plugins. [Brooke
