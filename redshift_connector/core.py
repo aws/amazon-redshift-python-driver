@@ -849,7 +849,7 @@ class Connection:
             if self.numeric_to_float:
                 _logger.debug("Enabling numeric to float text conversion function")
                 self.redshift_types[RedshiftOID.NUMERIC] = (FC_TEXT, numeric_to_float_in)
-        _logger.debug("connection.redshift_types=%s", self.redshift_types)
+        _logger.debug("connection.redshift_types=%s", str(self.redshift_types))
 
     @property
     def _is_multi_databases_catalog_enable_in_server(self: "Connection") -> bool:
