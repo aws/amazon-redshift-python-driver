@@ -31,7 +31,7 @@ def db_table(request, con: redshift_connector.Connection) -> redshift_connector.
 
 
 @pandas_only
-def test_fetch_dataframe(db_table):
+def test_fetch_dataframe(db_table) -> None:
     import numpy as np  # type: ignore
     import pandas as pd  # type: ignore
 
@@ -60,7 +60,7 @@ def test_fetch_dataframe(db_table):
 
 @pandas_only
 @pytest.mark.parametrize("paramstyle", DbApiParamstyle.list())
-def test_write_dataframe(db_table, paramstyle):
+def test_write_dataframe(db_table, paramstyle) -> None:
     import numpy as np
     import pandas as pd
 
@@ -85,7 +85,7 @@ def test_write_dataframe(db_table, paramstyle):
 
 
 @numpy_only
-def test_fetch_numpyarray(db_table):
+def test_fetch_numpyarray(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.executemany(
             "insert into book (bookname, author‎) values (%s, %s)",

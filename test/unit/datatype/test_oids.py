@@ -18,6 +18,6 @@ def test_get_datatype_name(oid, datatype):
     assert get_datatype_name(oid) == datatype
 
 
-def test_get_datatype_name_invalid_oid_raises():
+def test_get_datatype_name_invalid_oid_raises() -> None:
     with pytest.raises(ValueError, match="not a valid RedshiftOID"):
         get_datatype_name(-9)

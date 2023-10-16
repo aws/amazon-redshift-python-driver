@@ -16,7 +16,7 @@ How to use:
 
 
 @pytest.mark.skip(reason="manual")
-def test_use_aws_credentials_default_profile():
+def test_use_aws_credentials_default_profile() -> None:
     with redshift_connector.connect(
         iam=True,
         database="my_database",

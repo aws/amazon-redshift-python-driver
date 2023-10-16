@@ -22,7 +22,7 @@ def make_valid_azure_oauth2_provider() -> typing.Tuple[BrowserAzureOAuth2Credent
     return cp, rp
 
 
-def test_add_parameter_sets_azure_oauth2_specific():
+def test_add_parameter_sets_azure_oauth2_specific() -> None:
     acp, rp = make_valid_azure_oauth2_provider()
     assert acp.idp_tenant == rp.idp_tenant
     assert acp.client_id == rp.client_id
@@ -32,7 +32,7 @@ def test_add_parameter_sets_azure_oauth2_specific():
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_check_required_parameters_raises_if_idp_tenant_missing_or_too_small(value):
+def test_check_required_parameters_raises_if_idp_tenant_missing_or_too_small(value) -> None:
     acp, _ = make_valid_azure_oauth2_provider()
     acp.idp_tenant = value
 
@@ -41,7 +41,7 @@ def test_check_required_parameters_raises_if_idp_tenant_missing_or_too_small(val
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_check_required_parameters_raises_if_client_id_missing(value):
+def test_check_required_parameters_raises_if_client_id_missing(value) -> None:
     acp, _ = make_valid_azure_oauth2_provider()
     acp.client_id = value
 
@@ -50,7 +50,7 @@ def test_check_required_parameters_raises_if_client_id_missing(value):
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_check_required_parameters_raises_if_idp_response_timeout_missing(value):
+def test_check_required_parameters_raises_if_idp_response_timeout_missing(value) -> None:
     acp, _ = make_valid_azure_oauth2_provider()
     acp.idp_response_timeout = value
 
@@ -61,7 +61,7 @@ def test_check_required_parameters_raises_if_idp_response_timeout_missing(value)
         acp.get_jwt_assertion()
 
 
-def test_get_jwt_assertion_fetches_and_extracts(mocker):
+def test_get_jwt_assertion_fetches_and_extracts(mocker) -> None:
     mock_token: str = "mock_token"
     mock_content: str = "mock_content"
     mock_jwt_assertion: str = "mock_jwt_assertion"

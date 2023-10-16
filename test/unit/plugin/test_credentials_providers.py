@@ -36,7 +36,7 @@ ALL_IDP: typing.List[str] = [
 
 
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
-def test_credential_provider_dne_should_fail(idp_arg):
+def test_credential_provider_dne_should_fail(idp_arg) -> None:
     idp_arg["credentials_provider"] = "WrongProvider"
     with pytest.raises(
         redshift_connector.InterfaceError, match="Invalid IdP specified in credential_provider connection parameter"
@@ -45,7 +45,7 @@ def test_credential_provider_dne_should_fail(idp_arg):
 
 
 @pytest.mark.parametrize("idp_arg", ALL_IDP, indirect=True)
-def test_ssl_and_iam_invalid_should_fail(idp_arg):
+def test_ssl_and_iam_invalid_should_fail(idp_arg) -> None:
     idp_arg["ssl"] = False
     idp_arg["iam"] = True
     with pytest.raises(

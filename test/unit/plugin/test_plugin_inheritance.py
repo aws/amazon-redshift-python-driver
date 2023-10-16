@@ -6,19 +6,19 @@ from redshift_connector.plugin.i_plugin import IPlugin
 from redshift_connector.plugin.idp_credentials_provider import IdpCredentialsProvider
 
 
-def test_i_native_plugin_inherits_from_i_plugin():
+def test_i_native_plugin_inherits_from_i_plugin() -> None:
     assert issubclass(INativePlugin, IPlugin)
 
 
-def test_idp_credentials_provider_inherits_from_i_plugin():
+def test_idp_credentials_provider_inherits_from_i_plugin() -> None:
     assert issubclass(IdpCredentialsProvider, IPlugin)
 
 
-def test_saml_provider_plugin_inherit_from_idp_credentials_provider():
+def test_saml_provider_plugin_inherit_from_idp_credentials_provider() -> None:
     assert issubclass(plugin.SamlCredentialsProvider, IdpCredentialsProvider)
 
 
-def test_jwt_abc_inherit_from_idp_credentials_provider():
+def test_jwt_abc_inherit_from_idp_credentials_provider() -> None:
     assert issubclass(plugin.JwtCredentialsProvider, IdpCredentialsProvider)
 
 

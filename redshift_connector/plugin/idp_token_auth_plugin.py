@@ -2,7 +2,9 @@ import logging
 import typing
 
 from redshift_connector.error import InterfaceError
-from redshift_connector.plugin.common_credentials_provider import CommonCredentialsProvider
+from redshift_connector.plugin.common_credentials_provider import (
+    CommonCredentialsProvider,
+)
 from redshift_connector.redshift_property import RedshiftProperty
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -36,9 +38,10 @@ class IdpTokenAuthPlugin(CommonCredentialsProvider):
         if not self.token_type:
             _logger.error("IdC authentication failed: token_type needs to be provided in connection params")
             raise InterfaceError(
-                "IdC authentication failed: The token type must be included in the connection parameters.")
+                "IdC authentication failed: The token type must be included in the connection parameters."
+            )
 
-    def get_cache_key(self: "IdpTokenAuthPlugin") -> str:
+    def get_cache_key(self: "IdpTokenAuthPlugin") -> str:  # type: ignore
         pass
 
     def get_auth_token(self: "IdpTokenAuthPlugin") -> str:

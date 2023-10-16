@@ -8,7 +8,7 @@ LOGGER = logging.getLogger(__name__)
 LOGGER.propagate = True
 
 
-def test_set_region_from_endpoint_lookup(db_kwargs):
+def test_set_region_from_endpoint_lookup(db_kwargs) -> None:
     rp: RedshiftProperty = RedshiftProperty()
     rp.put(key="host", value=db_kwargs["host"])
     rp.put(key="port", value=db_kwargs["port"])
@@ -22,7 +22,7 @@ def test_set_region_from_endpoint_lookup(db_kwargs):
 
 
 @pytest.mark.parametrize("host, port", [("x", 1000), ("amazon.com", -1), ("-o", 5439)])
-def test_set_region_from_endpoint_lookup_raises(host, port, caplog):
+def test_set_region_from_endpoint_lookup_raises(host, port, caplog) -> None:
     import logging
 
     rp: RedshiftProperty = RedshiftProperty()

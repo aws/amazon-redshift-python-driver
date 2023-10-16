@@ -15,7 +15,7 @@ secret_rp_values = (
 
 
 @pytest.mark.parametrize("rp_arg", secret_rp_values)
-def test_mask_secure_info_in_props_obscures_secret_value(rp_arg):
+def test_mask_secure_info_in_props_obscures_secret_value(rp_arg) -> None:
     rp: RedshiftProperty = RedshiftProperty()
     secret_value: str = "SECRET_VALUE"
     rp.put(rp_arg, secret_value)
@@ -23,5 +23,5 @@ def test_mask_secure_info_in_props_obscures_secret_value(rp_arg):
     assert result.__getattribute__(rp_arg) != secret_value
 
 
-def test_mask_secure_info_in_props_no_info():
-    assert mask_secure_info_in_props(None) is None
+def test_mask_secure_info_in_props_no_info() -> None:
+    assert mask_secure_info_in_props(None) is None  # type: ignore

@@ -47,7 +47,7 @@ def db(request, con: redshift_connector.Connection) -> redshift_connector.Connec
     return con
 
 
-def test_exceptions_as_connection_attributes(con):
+def test_exceptions_as_connection_attributes(con) -> None:
     # OPTIONAL EXTENSION
     # Test for the optional DB API 2.0 extension, where the exceptions
     # are exposed as attributes on the Connection object
@@ -68,12 +68,12 @@ def test_exceptions_as_connection_attributes(con):
     warnings.resetwarnings()
 
 
-def test_commit(con):
+def test_commit(con) -> None:
     # Commit must work, even if it doesn't do anything
     con.commit()
 
 
-def test_rollback(con):
+def test_rollback(con) -> None:
     # If rollback is defined, it should either work or throw
     # the documented exception
     if hasattr(con, "rollback"):
@@ -83,11 +83,11 @@ def test_rollback(con):
             pass
 
 
-def test_cursor(con):
+def test_cursor(con) -> None:
     con.cursor()
 
 
-def test_cursor_isolation(con):
+def test_cursor_isolation(con) -> None:
     # Make sure cursors created from the same connection have
     # the documented transaction isolation level
     cur1: redshift_connector.Cursor = con.cursor()
@@ -101,13 +101,14 @@ def test_cursor_isolation(con):
     assert booze[0][0] == "Victoria Bitter"
 
 
-def test_description(con):
+def test_description(con) -> None:
     cur: redshift_connector.Cursor = con.cursor()
     execute_ddl_1(cur)
     assert (
         cur.description is None
     ), "cursor.description should be none after executing a statement that can return no rows (such as DDL)"
     cur.execute("select name from %sbooze" % table_prefix)
+    assert cur.description is not None
     assert len(cur.description) == 1, "cursor.description describes too many columns"
     assert len(cur.description[0]) == 7, "cursor.description[x] tuples must have 7 elements"
     assert cur.description[0][0].lower() == "name", "cursor.description[x][0] must return column name"
@@ -122,7 +123,7 @@ def test_description(con):
     ), "cursor.description not being set to None when executing no-result statements (eg. DDL)"
 
 
-def test_rowcount(cursor):
+def test_rowcount(cursor) -> None:
     execute_ddl_1(cursor)
     assert cursor.rowcount == -1, "cursor.rowcount should be -1 after executing no-result statements"
     cursor.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
@@ -139,7 +140,7 @@ def test_rowcount(cursor):
     assert cursor.rowcount == -1, "cursor.rowcount not being reset to -1 after executing no-result statements"
 
 
-def test_callproc(cursor):
+def test_callproc(cursor) -> None:
     cursor.execute(
         """
 CREATE PROCEDURE echo(INOUT val text)
@@ -155,7 +156,7 @@ $proc$;
     assert cursor.fetchall() == (["hello"],)
 
 
-def test_close(con):
+def test_close(con) -> None:
     cur: redshift_connector.Cursor = con.cursor()
     con.close()
 
@@ -174,12 +175,12 @@ def test_close(con):
         con.close()
 
 
-def test_execute(con):
+def test_execute(con) -> None:
     cur: redshift_connector.Cursor = con.cursor()
     _paraminsert(cur)
 
 
-def _paraminsert(cur):
+def _paraminsert(cur) -> None:
     execute_ddl_1(cur)
     cur.execute("insert into %sbooze values ('Victoria Bitter')" % (table_prefix))
     assert cur.rowcount in (-1, 1)
@@ -208,7 +209,7 @@ def _paraminsert(cur):
     assert beers[1] == "Victoria Bitter", "cursor.fetchall retrieved incorrect data, or data inserted incorrectly"
 
 
-def test_executemany(cursor):
+def test_executemany(cursor) -> None:
     execute_ddl_1(cursor)
     largs: typing.List[typing.Tuple[str]] = [("Cooper's",), ("Boag's",)]
     margs: typing.List[typing.Dict[str, str]] = [{"beer": "Cooper's"}, {"beer": "Boag's"}]
@@ -238,7 +239,7 @@ def test_executemany(cursor):
     assert beers[1] == "Cooper's", "incorrect data retrieved"
 
 
-def test_fetchone(cursor):
+def test_fetchone(cursor) -> None:
     # cursor.fetchone should raise an Error if called before
     # executing a select-type query
     with pytest.raises(driver.Error):
@@ -262,6 +263,7 @@ def test_fetchone(cursor):
 
     cursor.execute("select name from %sbooze" % table_prefix)
     r: typing.Optional[typing.List] = cursor.fetchone()
+    assert r is not None
     assert len(r) == 1, "cursor.fetchone should have retrieved a single row"
     assert r[0] == "Victoria Bitter", "cursor.fetchone retrieved incorrect data"
     assert cursor.fetchone() is None, "cursor.fetchone should return None if no more rows available"
@@ -279,7 +281,7 @@ def _populate() -> typing.List[str]:
     return populate
 
 
-def test_fetchmany(cursor):
+def test_fetchmany(cursor) -> None:
     # cursor.fetchmany should raise an Error if called without
     # issuing a query
     with pytest.raises(driver.Error):
@@ -340,7 +342,7 @@ def test_fetchmany(cursor):
     assert cursor.rowcount in (-1, 0)
 
 
-def test_fetchall(cursor):
+def test_fetchall(cursor) -> None:
     # cursor.fetchall should raise an Error if called
     # without executing a query that may return rows (such
     # as a select)
@@ -357,10 +359,10 @@ def test_fetchall(cursor):
         cursor.fetchall()
 
     cursor.execute("select name from %sbooze" % table_prefix)
-    rows: typing.Tuple[typing.List[str], ...] = cursor.fetchall()
+    rows: typing.Union[typing.Tuple[typing.List[str], ...], typing.List[str]] = cursor.fetchall()
     assert cursor.rowcount in (-1, len(samples))
     assert len(rows) == len(samples), "cursor.fetchall did not retrieve all rows"
-    rows: typing.List[str] = [r[0] for r in rows]
+    rows = [r[0] for r in rows]
     rows.sort()
     for i in range(0, len(samples)):
         assert rows[i] == samples[i], "cursor.fetchall retrieved incorrect rows"
@@ -377,7 +379,7 @@ def test_fetchall(cursor):
     assert len(rows) == 0, "cursor.fetchall should return an empty list if a select query returns no rows"
 
 
-def test_mixedfetch(cursor):
+def test_mixedfetch(cursor) -> None:
     execute_ddl_1(cursor)
     for sql in _populate():
         cursor.execute(sql)
@@ -400,7 +402,7 @@ def test_mixedfetch(cursor):
         assert rows[i] == samples[i], "incorrect data retrieved or inserted"
 
 
-def help_nextset_setUp(cur):
+def help_nextset_setUp(cur) -> None:
     """Should create a procedure called deleteme
     that returns two result sets, first the
     number of rows in booze then "name from booze"
@@ -408,20 +410,20 @@ def help_nextset_setUp(cur):
     raise NotImplementedError("Helper not implemented")
 
 
-def help_nextset_tearDown(cur):
+def help_nextset_tearDown(cur) -> None:
     "If cleaning up is needed after nextSetTest"
     raise NotImplementedError("Helper not implemented")
 
 
-def test_nextset(cursor):
+def test_nextset(cursor) -> None:
     if not hasattr(cursor, "nextset"):
         return
 
     try:
         execute_ddl_1(cursor)
         sql: typing.List[str] = _populate()
-        for sql in _populate():
-            cursor.execute(sql)
+        for _sql in sql:
+            cursor.execute(_sql)
 
         help_nextset_setUp(cursor)
 
@@ -437,24 +439,24 @@ def test_nextset(cursor):
         help_nextset_tearDown(cursor)
 
 
-def test_arraysize(cursor):
+def test_arraysize(cursor) -> None:
     # Not much here - rest of the tests for this are in test_fetchmany
     assert hasattr(cursor, "arraysize"), "cursor.arraysize must be defined"
 
 
-def test_setinputsizes(cursor):
+def test_setinputsizes(cursor) -> None:
     cursor.setinputsizes((25,))
     _paraminsert(cursor)  # Make sure cursor still works
 
 
-def test_setoutputsize_basic(cursor):
+def test_setoutputsize_basic(cursor) -> None:
     # Basic test is to make sure setoutputsize doesn't blow up
     cursor.setoutputsize(1000)
     cursor.setoutputsize(2000, 0)
     _paraminsert(cursor)  # Make sure the cursor still works
 
 
-def test_None(cursor):
+def test_None(cursor) -> None:
     execute_ddl_1(cursor)
     cursor.execute("insert into %sbooze values (NULL)" % table_prefix)
     cursor.execute("select name from %sbooze" % table_prefix)

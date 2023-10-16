@@ -1,8 +1,9 @@
 import socket
+import typing
 
 
 class MockSocket(socket.socket):
-    mocked_data = None
+    mocked_data: typing.Optional[bytes] = None
 
     def __init__(self, family=-1, type=-1, proto=-1, fileno=None):
         pass

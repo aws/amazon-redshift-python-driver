@@ -20,7 +20,7 @@ def make_valid_saml_credentials_provider() -> typing.Tuple[SamlCredentialsProvid
     return scp, rp
 
 
-def test_get_cache_key_format_as_expected():
+def test_get_cache_key_format_as_expected() -> None:
     scp, _ = make_valid_saml_credentials_provider()
     expected_cache_key: str = "{username}{password}{idp_host}{idp_port}{duration}{preferred_role}".format(
         username=scp.user_name,
@@ -33,7 +33,7 @@ def test_get_cache_key_format_as_expected():
     assert scp.get_cache_key() == expected_cache_key
 
 
-def test_get_credentials_uses_cache_when_exists(mocker):
+def test_get_credentials_uses_cache_when_exists(mocker) -> None:
     scp, _ = make_valid_saml_credentials_provider()
     mock_credentials = MagicMock()
     mock_credentials.is_expired.return_value = False
@@ -45,7 +45,7 @@ def test_get_credentials_uses_cache_when_exists(mocker):
     assert spy.called is False
 
 
-def test_get_credentials_calls_refresh_when_cache_expired(mocker):
+def test_get_credentials_calls_refresh_when_cache_expired(mocker) -> None:
     scp, _ = make_valid_saml_credentials_provider()
     mock_credentials = MagicMock()
     mock_credentials.is_expired.return_value = True
@@ -60,7 +60,7 @@ def test_get_credentials_calls_refresh_when_cache_expired(mocker):
     assert spy.call_count == 1
 
 
-def test_get_credentials_sets_db_user_when_present(mocker):
+def test_get_credentials_sets_db_user_when_present(mocker) -> None:
     scp, _ = make_valid_saml_credentials_provider()
     mocked_db_user: str = "test_db_user"
     scp.db_user = mocked_db_user
@@ -79,7 +79,7 @@ def test_get_credentials_sets_db_user_when_present(mocker):
     assert spy.call_args[0][0] == mocked_db_user
 
 
-def test_refresh_get_saml_assertion_fails(mocker):
+def test_refresh_get_saml_assertion_fails(mocker) -> None:
     scp, _ = make_valid_saml_credentials_provider()
 
     with patch("redshift_connector.plugin.SamlCredentialsProvider.get_saml_assertion") as mocked_get_saml_assertion:
@@ -89,7 +89,7 @@ def test_refresh_get_saml_assertion_fails(mocker):
             scp.refresh()
 
 
-def test_refresh_saml_assertion_missing_role_should_fail(mocker):
+def test_refresh_saml_assertion_missing_role_should_fail(mocker) -> None:
     scp, _ = make_valid_saml_credentials_provider()
     mocked_data: str = "test"
     mocker.patch("redshift_connector.plugin.SamlCredentialsProvider.get_saml_assertion", return_value=mocked_data)
@@ -101,7 +101,7 @@ def test_refresh_saml_assertion_missing_role_should_fail(mocker):
         scp.refresh()
 
 
-def test_refresh_saml_assertion_passed_to_boto(mocker):
+def test_refresh_saml_assertion_passed_to_boto(mocker) -> None:
     scp, _ = make_valid_saml_credentials_provider()
     mocker.patch(
         "redshift_connector.plugin.SamlCredentialsProvider.get_saml_assertion",

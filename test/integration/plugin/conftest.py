@@ -7,13 +7,13 @@ import redshift_connector
 
 
 @pytest.fixture(scope="session", autouse=True)
-def startup_db_stmts():
+def startup_db_stmts() -> None:
     """
     Executes a defined set of statements to configure a fresh Amazon Redshift cluster for IdP integration tests.
     """
     groups: typing.List[str] = conf.get("cluster-setup", "groups").split(sep=",")
 
-    with redshift_connector.connect(**_get_default_connection_args()) as conn:
+    with redshift_connector.connect(**_get_default_connection_args()) as conn:  # type: ignore
         conn.autocommit = True
         with conn.cursor() as cursor:
             for grp in groups:

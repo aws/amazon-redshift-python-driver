@@ -11,7 +11,7 @@ from redshift_connector import RedshiftProperty
         ("012345678901.us-east-2.redshift-serverless.amazonaws.com", True),
     ],
 )
-def test_is_serverless_host(host, exp_is_serverless):
+def test_is_serverless_host(host, exp_is_serverless) -> None:
     info: RedshiftProperty = RedshiftProperty()
     info.host = host
     assert info.is_serverless_host == exp_is_serverless
@@ -25,7 +25,7 @@ def test_is_serverless_host(host, exp_is_serverless):
         ("012345678901.ap-northeast-3.redshift-serverless.amazonaws.com", "012345678901"),
     ],
 )
-def test_set_serverless_acct_id_from_host(host, exp_account_id):
+def test_set_serverless_acct_id_from_host(host, exp_account_id) -> None:
     info: RedshiftProperty = RedshiftProperty()
     info.host = host
     info.set_serverless_acct_id()
@@ -42,7 +42,7 @@ def test_set_serverless_acct_id_from_host(host, exp_account_id):
         ("mylongredshiftclustername.aaaaaaaaaaaa.ap-northeast-1.redshift.amazonaws.com", "ap-northeast-1"),
     ],
 )
-def test_set_region_from_host(host, exp_region):
+def test_set_region_from_host(host, exp_region) -> None:
     info: RedshiftProperty = RedshiftProperty()
     info.host = host
     info.set_region_from_host()
@@ -57,7 +57,7 @@ def test_set_region_from_host(host, exp_region):
         ("testwg2.012345678901.ap-northeast-3.redshift-serverless.amazonaws.com", "testwg2"),
     ],
 )
-def test_set_serverless_work_group_from_host(host, exp_work_group):
+def test_set_serverless_work_group_from_host(host, exp_work_group) -> None:
     info: RedshiftProperty = RedshiftProperty()
     info.host = host
     info.set_serverless_work_group_from_host()
@@ -83,7 +83,7 @@ def test_set_serverless_work_group_from_host(host, exp_work_group):
         ("redshift.myproject.prod.redshift.amazonaws.mycompany.com", False),
     ],
 )
-def test_is_provisioned_host(host, exp_is_provisioned):
+def test_is_provisioned_host(host, exp_is_provisioned) -> None:
     rp: RedshiftProperty = RedshiftProperty()
     rp.put(key="host", value=host)
 
@@ -132,7 +132,7 @@ def test_is_provisioned_host(host, exp_is_provisioned):
         ({"host": "redshift.myproject.prod.redshift.amazonaws.mycompany.com"}, True),
     ],
 )
-def test_set_is_cname_from_host(conn_params, exp_is_cname):
+def test_set_is_cname_from_host(conn_params, exp_is_cname) -> None:
     info: RedshiftProperty = RedshiftProperty()
 
     for key, value in conn_params.items():

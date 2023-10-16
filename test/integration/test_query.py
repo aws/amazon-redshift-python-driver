@@ -38,12 +38,12 @@ def db_table(request, con: redshift_connector.Connection) -> redshift_connector.
     return con
 
 
-def test_database_error(cursor):
+def test_database_error(cursor) -> None:
     with pytest.raises(redshift_connector.ProgrammingError):
         cursor.execute("INSERT INTO t99 VALUES (1, 2, 3)")
 
 
-def test_parallel_queries(db_table):
+def test_parallel_queries(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (1, 1, None))
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (2, 10, None))
@@ -59,7 +59,7 @@ def test_parallel_queries(db_table):
                     f1, f2, f3 = row
 
 
-def test_parallel_open_portals(con):
+def test_parallel_open_portals(con) -> None:
     with con.cursor() as c1, con.cursor() as c2:
         c1count, c2count = 0, 0
         q: str = "select * from generate_series(1, %s)"
@@ -78,7 +78,7 @@ def test_parallel_open_portals(con):
 # original query again.
 
 
-def test_alter(db_table):
+def test_alter(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.execute("select * from t1")
         cursor.execute("alter table t1 drop column f3")
@@ -89,7 +89,7 @@ def test_alter(db_table):
 # original query again.
 
 
-def test_create(db_table):
+def test_create(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.execute("select * from t1")
         cursor.execute("drop table t1")
@@ -97,7 +97,7 @@ def test_create(db_table):
         cursor.execute("select * from t1")
 
 
-def test_insert_returning(db_table):
+def test_insert_returning(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.execute("CREATE TABLE t2 (id int, data varchar(20))")
         row_id: int = 1
@@ -119,14 +119,14 @@ def test_insert_returning(db_table):
 
         cursor.execute("SELECT * FROM t2")
         assert 4 == cursor.redshift_rowcount
-        ids: typing.Tuple[typing.List[typing.Union[int, str], ...]] = cursor.fetchall()
+        ids: typing.Tuple[typing.List[typing.Union[int, str]], ...] = cursor.fetchall()
         assert len(ids) == 4
 
 
 # why the expected count = -1?
 # because the protocol version of redshift does not
 # support the row_count when execute 'SELECT' and 'COPY'
-def test_row_count(db_table):
+def test_row_count(db_table) -> None:
     with db_table.cursor() as cursor:
         expected_count: int = 57
         cursor.executemany(
@@ -164,7 +164,7 @@ def test_row_count(db_table):
         assert -1 == cursor.redshift_rowcount
 
 
-def test_row_count_fetch(db_table):
+def test_row_count_fetch(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (1, 1, None))
         cursor.execute("SELECT * FROM t1")
@@ -173,7 +173,7 @@ def test_row_count_fetch(db_table):
         assert 1 == cursor.redshift_rowcount
 
 
-def test_row_count_update(db_table):
+def test_row_count_update(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (1, 1, None))
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (2, 10, None))
@@ -185,11 +185,11 @@ def test_row_count_update(db_table):
         assert 2 == cursor.redshift_rowcount
 
 
-def test_int_oid(cursor):
+def test_int_oid(cursor) -> None:
     cursor.execute("SELECT typname FROM pg_type WHERE oid = %s", (100,))
 
 
-def test_unicode_query(cursor):
+def test_unicode_query(cursor) -> None:
     cursor.execute(
         "CREATE TEMPORARY TABLE \u043c\u0435\u0441\u0442\u043e "
         "(\u0438\u043c\u044f VARCHAR(50), "
@@ -197,7 +197,7 @@ def test_unicode_query(cursor):
     )
 
 
-def test_executemany(db_table):
+def test_executemany(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.executemany("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", ((1, 1, "Avast ye!"), (2, 1, None)))
 
@@ -207,7 +207,7 @@ def test_executemany(db_table):
 # Check that autocommit stays off
 # We keep track of whether we're in a transaction or not by using the
 # READY_FOR_QUERY message.
-def test_transactions(db_table):
+def test_transactions(db_table) -> None:
     with db_table.cursor() as cursor:
         cursor.execute("commit")
         cursor.execute("INSERT INTO t1 (f1, f2, f3) VALUES (%s, %s, %s)", (1, 1, "Zombie"))
@@ -220,13 +220,13 @@ def test_transactions(db_table):
         assert len(cursor.fetchall()) == 0
 
 
-def test_in(cursor):
+def test_in(cursor) -> None:
     cursor.execute("SELECT typname FROM pg_type WHERE oid = any(%s)", ([16, 23],))
     ret: typing.Tuple[typing.List[str], ...] = cursor.fetchall()
     assert ret[0][0] == "bool"
 
 
-def test_no_previous_tpc(con):
+def test_no_previous_tpc(con) -> None:
     con.tpc_begin("Stacey")
     with con.cursor() as cursor:
         cursor.execute("SELECT * FROM pg_type")
@@ -234,7 +234,7 @@ def test_no_previous_tpc(con):
 
 
 # Check that tpc_recover() doesn't start a transaction
-def test_tpc_recover(con):
+def test_tpc_recover(con) -> None:
     con.tpc_recover()
     with con.cursor() as cursor:
         con.autocommit = True
@@ -244,12 +244,12 @@ def test_tpc_recover(con):
 
 
 # An empty query should raise a ProgrammingError
-def test_empty_query(cursor):
+def test_empty_query(cursor) -> None:
     with pytest.raises(redshift_connector.ProgrammingError):
         cursor.execute("")
 
 
-def test_context_manager_class(con):
+def test_context_manager_class(con) -> None:
     assert "__enter__" in redshift_connector.core.Cursor.__dict__
     assert "__exit__" in redshift_connector.core.Cursor.__dict__
 
@@ -257,7 +257,7 @@ def test_context_manager_class(con):
         cursor.execute("select 1")
 
 
-def test_get_procedures(con):
+def test_get_procedures(con) -> None:
     with con.cursor() as cursor:
         cursor.execute(
             "CREATE OR REPLACE PROCEDURE test_sp1(f1 int, f2 varchar(20))"
@@ -277,7 +277,7 @@ def test_get_procedures(con):
         assert len(res) > 0
 
 
-def test_get_schemas(con):
+def test_get_schemas(con) -> None:
     with con.cursor() as cursor:
         cursor.execute(
             "create schema IF NOT EXISTS schema_test1 authorization {awsuser}".format(
@@ -288,7 +288,7 @@ def test_get_schemas(con):
         assert res[0][0] == "schema_test1"
 
 
-def test_get_primary_keys(con):
+def test_get_primary_keys(con) -> None:
     with con.cursor() as cursor:
         cursor.execute("CREATE TABLE table_primary_key (f1 int primary key, f3 varchar(20) null) ")
         key: typing.Tuple[typing.List[typing.Any]] = cursor.get_primary_keys(table="table_primary_key")
@@ -308,7 +308,7 @@ def test_get_primary_keys(con):
         assert key[0][3] == "f1"
 
 
-def test_get_columns(con):
+def test_get_columns(con) -> None:
     with con.cursor() as cursor:
         cursor.execute("create table book (bookname varchar, author varchar, price int)")
         columns: typing.Tuple[typing.List[str]] = cursor.get_columns(tablename_pattern="book")
@@ -328,7 +328,7 @@ def test_get_columns(con):
         assert len(columns) == 2
 
 
-def test_get_tables(con):
+def test_get_tables(con) -> None:
     with con.cursor() as cursor:
         num: int = len(cursor.get_tables(types=["TABLE"]))
         cursor.execute("create table test_exist (f1 varchar)")
@@ -350,7 +350,7 @@ def test_get_tables(con):
         assert new_num - num == 1
 
 
-def test_merge_read(con):
+def test_merge_read(con) -> None:
     with con.cursor() as cursor:
         cursor.execute("create temp table m1(c1 integer);")
         sqls: typing.List[str] = [
@@ -369,7 +369,7 @@ def test_merge_read(con):
             assert rows[0][0] == len(res)
 
 
-def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker):
+def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker) -> None:
     with con.cursor() as cursor:
         cursor.execute("drop table if exists t1")
 
@@ -385,7 +385,7 @@ def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker):
 
 
 @pytest.mark.parametrize("_input", ["NO_SCHEMA_UNIVERSAL_QUERY", "EXTERNAL_SCHEMA_QUERY", "LOCAL_SCHEMA_QUERY"])
-def test___get_table_filter_clause_throws_for_bad_type(con, _input):
+def test___get_table_filter_clause_throws_for_bad_type(con, _input) -> None:
     with con.cursor() as cursor:
         with pytest.raises(redshift_connector.InterfaceError):
             cursor.get_tables(schema_pattern=_input, types=["garbage"])

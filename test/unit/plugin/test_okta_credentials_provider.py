@@ -22,7 +22,7 @@ def make_valid_okta_credentials_provider() -> typing.Tuple[OktaCredentialsProvid
     return ocp, rp
 
 
-def test_add_parameter_sets_okta_specific():
+def test_add_parameter_sets_okta_specific() -> None:
     ocp, rp = make_valid_okta_credentials_provider()
 
     assert ocp.app_id == rp.app_id
@@ -30,7 +30,7 @@ def test_add_parameter_sets_okta_specific():
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_app_id_should_fail(value):
+def test_get_saml_assertion_missing_app_id_should_fail(value) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     ocp.app_id = value
 
@@ -38,7 +38,7 @@ def test_get_saml_assertion_missing_app_id_should_fail(value):
         ocp.get_saml_assertion()
 
 
-def test_get_saml_assertion_should_call_okta_authentication(mocker):
+def test_get_saml_assertion_should_call_okta_authentication(mocker) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     mocked_session_token: str = "my_first_session_token"
     mocker.patch(
@@ -72,7 +72,7 @@ def test_get_saml_assertion_should_call_okta_authentication(mocker):
         requests.exceptions.RequestException,
     ],
 )
-def test_okta_authentication_request_fails_should_fail(mocker, error):
+def test_okta_authentication_request_fails_should_fail(mocker, error) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
 
     with patch("requests.post") as mock_request:
@@ -81,7 +81,7 @@ def test_okta_authentication_request_fails_should_fail(mocker, error):
             ocp.okta_authentication()
 
 
-def test_okta_authentication_no_status_in_response_should_fail(mocker):
+def test_okta_authentication_no_status_in_response_should_fail(mocker) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None
@@ -94,7 +94,7 @@ def test_okta_authentication_no_status_in_response_should_fail(mocker):
     assert "Request for authentication with Okta IdP failed. The status key was missing." in str(e.value)
 
 
-def test_okta_authentication_not_success_status_in_response_should_fail(mocker):
+def test_okta_authentication_not_success_status_in_response_should_fail(mocker) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None
@@ -110,7 +110,7 @@ def test_okta_authentication_not_success_status_in_response_should_fail(mocker):
     )
 
 
-def test_okta_authentication_should_return_session_token(mocker):
+def test_okta_authentication_should_return_session_token(mocker) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None
@@ -122,7 +122,7 @@ def test_okta_authentication_should_return_session_token(mocker):
     assert ocp.okta_authentication() == mocked_session_token
 
 
-def test_okta_authentication_payload_is_correct(mocker):
+def test_okta_authentication_payload_is_correct(mocker) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None
@@ -155,7 +155,7 @@ def test_okta_authentication_payload_is_correct(mocker):
         requests.exceptions.RequestException,
     ],
 )
-def test_handle_saml_assertion_request_fails_should_fail(mocker, error):
+def test_handle_saml_assertion_request_fails_should_fail(mocker, error) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
 
     with patch("requests.get") as mock_request:
@@ -164,7 +164,7 @@ def test_handle_saml_assertion_request_fails_should_fail(mocker, error):
             ocp.handle_saml_assertion("test")
 
 
-def test_handle_saml_assertion_valid_html_response_should_success(mocker):
+def test_handle_saml_assertion_valid_html_response_should_success(mocker) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None
@@ -181,7 +181,7 @@ def test_handle_saml_assertion_valid_html_response_should_success(mocker):
     "data",
     ["<html></html>", None, "", '<html><body><input name="RelayState" type="hidden" value=""/></body></html>'],
 )
-def test_handle_saml_assertion_invalid_html_response_should_fail(mocker, data):
+def test_handle_saml_assertion_invalid_html_response_should_fail(mocker, data) -> None:
     ocp, _ = make_valid_okta_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None

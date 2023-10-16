@@ -19,4 +19,5 @@ repos:
     hooks:
       - id: mypy
         additional_dependencies: [types-setuptools, types-requests, types-python-dateutil]
+        args: [--ignore-missing-imports, --disable-error-code, "annotation-unchecked"]
         verbose: true

@@ -565,12 +565,13 @@ class Connection:
                 init_params["idp_type"] = "AzureAD"
 
             if credentials_provider.split(".")[-1] in (
-                    "IdpTokenAuthPlugin",
-                    "BrowserIdcAuthPlugin",
+                "IdpTokenAuthPlugin",
+                "BrowserIdcAuthPlugin",
             ):
                 redshift_native_auth = True
-                self.set_idc_plugins_params(init_params, credentials_provider, identity_namespace, token_type,
-                                            idc_client_display_name)
+                self.set_idc_plugins_params(
+                    init_params, credentials_provider, identity_namespace, token_type, idc_client_display_name
+                )
 
             if redshift_native_auth and provider_name:
                 init_params["provider_name"] = provider_name
@@ -1808,8 +1809,10 @@ class Connection:
             val: typing.Union[bytes, bytearray] = bytearray(statement_name_bin)
             typing.cast(bytearray, val).extend(statement.encode(_client_encoding) + NULL_BYTE)
             if len(params) > 32767:
-                raise DataError("Prepared statement exceeds bind parameter limit 32767. {} bind parameters were "
-                                "provided. Please retry with fewer bind parameters.".format(len(params)))
+                raise DataError(
+                    "Prepared statement exceeds bind parameter limit 32767. {} bind parameters were "
+                    "provided. Please retry with fewer bind parameters.".format(len(params))
+                )
             typing.cast(bytearray, val).extend(h_pack(len(params)))
             for oid, fc, send_func in params:  # type: ignore
                 # Parse message doesn't seem to handle the -1 type_oid for NULL
@@ -2551,12 +2554,15 @@ class Connection:
         finally:
             self.autocommit = previous_autocommit_mode
 
-    def set_idc_plugins_params(self: "Connection", init_params: typing.Dict[str, typing.Optional[typing.Union[str, bytes]]],
-                               credentials_provider: typing.Optional[str] = None,
-                               identity_namespace: typing.Optional[str] = None,
-                               token_type: typing.Optional[str] = None,
-                               idc_client_display_name: typing.Optional[str] = None) -> None:
-        plugin_name = credentials_provider.split(".")[-1]
+    def set_idc_plugins_params(
+        self: "Connection",
+        init_params: typing.Dict[str, typing.Optional[typing.Union[str, bytes]]],
+        credentials_provider: typing.Optional[str] = None,
+        identity_namespace: typing.Optional[str] = None,
+        token_type: typing.Optional[str] = None,
+        idc_client_display_name: typing.Optional[str] = None,
+    ) -> None:
+        plugin_name = typing.cast(str, credentials_provider).split(".")[-1]
         init_params["idp_type"] = "AwsIdc"
 
         if identity_namespace:
@@ -2569,5 +2575,3 @@ class Connection:
 
         if idc_client_display_name:
             init_params["idc_client_display_name"] = idc_client_display_name
-
-

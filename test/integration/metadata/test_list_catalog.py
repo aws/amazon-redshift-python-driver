@@ -95,7 +95,7 @@ class TestListCatalog:
     test_column_pattern: str = ""
 
     @classmethod
-    def config_class_consts(cls, enabled: bool):
+    def config_class_consts(cls, enabled: bool) -> None:
         # configures test values based on if datashare is enabled in application
         TestListCatalog.test_db = TestListCatalog.database if enabled is True else TestListCatalog.test_cross_db
 
@@ -141,7 +141,7 @@ def get_schemas_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, t
 
 @pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_schemas_test_data())
-def test_get_schemas(mocker, _input, db_kwargs):
+def test_get_schemas(mocker, _input, db_kwargs) -> None:
     database_metadata_current_db_only_val, _args = _input
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
@@ -268,7 +268,7 @@ def get_tables_test_data() -> typing.List[typing.Optional[typing.Tuple[bool, typ
 
 @pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_tables_test_data())
-def test_get_tables(mocker, _input, db_kwargs):
+def test_get_tables(mocker, _input, db_kwargs) -> None:
     database_metadata_current_db_only_val, _args = _input
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
@@ -478,7 +478,7 @@ def get_columns_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, t
 
 @pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_columns_test_data())
-def test_get_columns(mocker, _input, db_kwargs):
+def test_get_columns(mocker, _input, db_kwargs) -> None:
     database_metadata_current_db_only_val, _args = _input
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:

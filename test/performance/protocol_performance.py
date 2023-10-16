@@ -127,7 +127,7 @@ def validate_results(test_datatype: PerformanceTestDatatypes, results: typing.Tu
 
 def run_performance_test(
     test_datatype: PerformanceTestDatatypes, limit: float, test_protocol: ClientProtocolVersion, is_warmup=False
-):
+) -> None:
     with redshift_connector.connect(
         ssl=False,
         sslmode="disable",
@@ -160,7 +160,7 @@ def run_performance_test(
             execution_times[test_datatype][test_protocol][int(limit)].append(end_ms - start_ms)
 
 
-def perf_test_driver(repeat=1):
+def perf_test_driver(repeat=1) -> None:
     for test_datatype in PerformanceTestDatatypes.list():
         for test_protocol in PROTOCOLS:
             for test_num_rows in QUERY_ROW_LIMIT[test_datatype]:

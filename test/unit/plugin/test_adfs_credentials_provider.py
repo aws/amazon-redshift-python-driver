@@ -1,3 +1,4 @@
+import typing
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest  # type: ignore
@@ -7,7 +8,7 @@ from redshift_connector import InterfaceError, RedshiftProperty
 from redshift_connector.plugin import AdfsCredentialsProvider
 
 
-def make_valid_adfs_credentials_provider():
+def make_valid_adfs_credentials_provider() -> typing.Tuple[AdfsCredentialsProvider, RedshiftProperty]:
     rp: RedshiftProperty = RedshiftProperty()
     rp.user_name = "AzureDiamond"
     rp.password = "hunter2"
@@ -19,7 +20,7 @@ def make_valid_adfs_credentials_provider():
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_invalid_idp_host_should_fail(value):
+def test_get_saml_assertion_invalid_idp_host_should_fail(value) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
     acp.idp_host = value
 
@@ -28,7 +29,7 @@ def test_get_saml_assertion_invalid_idp_host_should_fail(value):
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_user_name_should_prompt_windows_integrated_auth(value, mocker):
+def test_get_saml_assertion_missing_user_name_should_prompt_windows_integrated_auth(value, mocker) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
     acp.user_name = value
 
@@ -45,7 +46,7 @@ def test_get_saml_assertion_missing_user_name_should_prompt_windows_integrated_a
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_password_should_prompt_windows_integrated_auth(value, mocker):
+def test_get_saml_assertion_missing_password_should_prompt_windows_integrated_auth(value, mocker) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
     acp.password = value
 
@@ -70,7 +71,7 @@ def test_get_saml_assertion_missing_password_should_prompt_windows_integrated_au
         requests.exceptions.RequestException,
     ],
 )
-def test_form_based_authentication_request_error_should_fail(error):
+def test_form_based_authentication_request_error_should_fail(error) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
 
     with patch("requests.get") as mock_request:
@@ -80,7 +81,7 @@ def test_form_based_authentication_request_error_should_fail(error):
             acp.form_based_authentication()
 
 
-def test_form_based_authentication_payload_is_correct(mocker):
+def test_form_based_authentication_payload_is_correct(mocker) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
     mock_auth_form = MagicMock()
     mock_auth_form.text = open("test/unit/plugin/data/mock_adfs_sign_in.html").read()  # mocked auth form
@@ -126,7 +127,7 @@ def test_form_based_authentication_payload_is_correct(mocker):
         requests.exceptions.RequestException,
     ],
 )
-def test_form_based_authentication_login_fails_should_fail(error, mocker):
+def test_form_based_authentication_login_fails_should_fail(error, mocker) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
     mock_auth_form = MagicMock()
     mock_auth_form.text = open("test/unit/plugin/data/mock_adfs_sign_in.html").read()  # mocked auth form
@@ -144,7 +145,7 @@ def test_form_based_authentication_login_fails_should_fail(error, mocker):
     assert form_request_spy.call_count == 1
 
 
-def test_form_based_authentication_saml_response_parse_fail_should_fail(mocker):
+def test_form_based_authentication_saml_response_parse_fail_should_fail(mocker) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
     mock_auth_form = MagicMock()
     mock_auth_form.text = open("test/unit/plugin/data/mock_adfs_sign_in.html").read()  # mocked auth form
@@ -159,7 +160,7 @@ def test_form_based_authentication_saml_response_parse_fail_should_fail(mocker):
             acp.form_based_authentication()
 
 
-def test_form_based_authentication_empty_saml_response_should_fail(mocker):
+def test_form_based_authentication_empty_saml_response_should_fail(mocker) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
     mock_auth_form = MagicMock()
     mock_auth_form.text = open("test/unit/plugin/data/mock_adfs_sign_in.html").read()  # mocked auth form

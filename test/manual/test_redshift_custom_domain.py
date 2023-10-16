@@ -15,7 +15,7 @@ Pre-requisites:
 
 @pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("sslmode", (SupportedSSLMode.VERIFY_CA, SupportedSSLMode.VERIFY_FULL))
-def test_native_connect(provisioned_cname_db_kwargs, sslmode):
+def test_native_connect(provisioned_cname_db_kwargs, sslmode) -> None:
     # this test requires aws default profile contains valid credentials that provide permissions for
     # redshift:GetClusterCredentials ( Only called from this test method)
     import boto3
@@ -42,7 +42,7 @@ def test_native_connect(provisioned_cname_db_kwargs, sslmode):
 
 @pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("sslmode", (SupportedSSLMode.VERIFY_CA, SupportedSSLMode.VERIFY_FULL))
-def test_iam_connect(provisioned_cname_db_kwargs, sslmode):
+def test_iam_connect(provisioned_cname_db_kwargs, sslmode) -> None:
     # this test requires aws default profile contains valid credentials that provide permissions for
     # redshift:GetClusterCredentials (called from driver)
     # redshift:DescribeClusters (called from driver)
@@ -56,13 +56,13 @@ def test_iam_connect(provisioned_cname_db_kwargs, sslmode):
         pass
 
 
-def test_idp_connect(okta_idp, provisioned_cname_db_kwargs):
+def test_idp_connect(okta_idp, provisioned_cname_db_kwargs) -> None:
     # todo
     pass
 
 
 @pytest.mark.skip(reason="manual")
-def test_nlb_connect():
+def test_nlb_connect() -> None:
     args = {
         "iam": True,
         # "access_key_id": "xxx",
@@ -74,5 +74,5 @@ def test_nlb_connect():
         "database": "dev",
         "db_user": "replace-me",
     }
-    with redshift_connector.connect(**args):
+    with redshift_connector.connect(**args):  # type: ignore
         pass

@@ -56,13 +56,22 @@ from .version import __version__
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 _logger: logging.Logger = logging.getLogger(__name__)
 
-IDC_PLUGINS_LIST = ("redshift_connector.plugin.BrowserIdcAuthPlugin", "BrowserIdcAuthPlugin",
-                    "redshift_connector.plugin.IdpTokenAuthPlugin", "IdpTokenAuthPlugin")
+IDC_PLUGINS_LIST = (
+    "redshift_connector.plugin.BrowserIdcAuthPlugin",
+    "BrowserIdcAuthPlugin",
+    "redshift_connector.plugin.IdpTokenAuthPlugin",
+    "IdpTokenAuthPlugin",
+)
 IDC_OR_NATIVE_IDP_PLUGINS_LIST = (
-    "redshift_connector.plugin.BrowserAzureOAuth2CredentialsProvider", "BrowserAzureOAuth2CredentialsProvider",
-    "redshift_connector.plugin.BasicJwtCredentialsProvider", "BasicJwtCredentialsProvider",
-    "redshift_connector.plugin.BrowserIdcAuthPlugin", "BrowserIdcAuthPlugin",
-    "redshift_connector.plugin.IdpTokenAuthPlugin", "IdpTokenAuthPlugin")
+    "redshift_connector.plugin.BrowserAzureOAuth2CredentialsProvider",
+    "BrowserAzureOAuth2CredentialsProvider",
+    "redshift_connector.plugin.BasicJwtCredentialsProvider",
+    "BasicJwtCredentialsProvider",
+    "redshift_connector.plugin.BrowserIdcAuthPlugin",
+    "BrowserIdcAuthPlugin",
+    "redshift_connector.plugin.IdpTokenAuthPlugin",
+    "IdpTokenAuthPlugin",
+)
 
 # Copyright (c) 2007-2009, Mathieu Fenniak
 # Copyright (c) The Contributors

@@ -92,7 +92,7 @@ unsupported_datatypes: typing.List[str] = [
 @pytest.mark.unsupported_datatype
 class TestUnsupportedDataTypes:
     @pytest.mark.parametrize("datatype", unsupported_datatypes)
-    def test_create_table_with_unsupported_datatype_fails(self, db_table: "Connection", datatype: str):
+    def test_create_table_with_unsupported_datatype_fails(self, db_table: "Connection", datatype: str) -> None:
         with db_table.cursor() as cursor:
             with pytest.raises(Exception) as exception:
                 cursor.execute("CREATE TEMPORARY TABLE t1 (a {})".format(datatype))
@@ -104,7 +104,7 @@ class TestUnsupportedDataTypes:
             )
 
     @pytest.mark.parametrize("datatype", ["int[]", "int[][]"])
-    def test_create_table_with_array_datatype_fails(self, db_table: "Connection", datatype: str):
+    def test_create_table_with_array_datatype_fails(self, db_table: "Connection", datatype: str) -> None:
         with db_table.cursor() as cursor:
             with pytest.raises(Exception) as exception:
                 cursor.execute("CREATE TEMPORARY TABLE t1 (a {})".format(datatype))

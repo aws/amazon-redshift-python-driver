@@ -14,15 +14,15 @@ from redshift_connector.credentials_holder import (
 
 
 @pytest.mark.parametrize("cred_holder", (AWSDirectCredentialsHolder, AWSProfileCredentialsHolder))
-def test_aws_credentials_holder_inherit_from_abc(cred_holder):
+def test_aws_credentials_holder_inherit_from_abc(cred_holder) -> None:
     assert issubclass(cred_holder, ABCAWSCredentialsHolder)
 
 
-def test_credentials_holder_inherits_from_abc():
+def test_credentials_holder_inherits_from_abc() -> None:
     assert issubclass(CredentialsHolder, ABCCredentialsHolder)
 
 
-def test_aws_direct_credentials_holder_should_have_session():
+def test_aws_direct_credentials_holder_should_have_session() -> None:
     mocked_session: MagicMock = MagicMock()
     obj: AWSDirectCredentialsHolder = AWSDirectCredentialsHolder(
         access_key_id="something",
@@ -52,7 +52,7 @@ valid_aws_direct_credential_params: typing.List[typing.Dict[str, typing.Optional
 
 
 @pytest.mark.parametrize("input", valid_aws_direct_credential_params)
-def test_aws_direct_credentials_holder_get_session_credentials(input):
+def test_aws_direct_credentials_holder_get_session_credentials(input) -> None:
     input["session"] = MagicMock()
     obj: AWSDirectCredentialsHolder = AWSDirectCredentialsHolder(**input)
 
@@ -67,7 +67,7 @@ def test_aws_direct_credentials_holder_get_session_credentials(input):
         assert ret_value["aws_session_token"] == input["session_token"]
 
 
-def test_aws_profile_credentials_holder_should_have_session():
+def test_aws_profile_credentials_holder_should_have_session() -> None:
     mocked_session: MagicMock = MagicMock()
     obj: AWSProfileCredentialsHolder = AWSProfileCredentialsHolder(profile="myprofile", session=mocked_session)
 
@@ -77,7 +77,7 @@ def test_aws_profile_credentials_holder_should_have_session():
     assert obj.get_boto_session() == mocked_session
 
 
-def test_aws_profile_credentials_holder_get_session_credentials():
+def test_aws_profile_credentials_holder_get_session_credentials() -> None:
     profile_val: str = "myprofile"
     obj: AWSProfileCredentialsHolder = AWSProfileCredentialsHolder(profile=profile_val, session=MagicMock())
 
@@ -95,7 +95,7 @@ def test_aws_profile_credentials_holder_get_session_credentials():
         datetime.timedelta(weeks=1),  # expired 1 week ago
     ],
 )
-def test_is_expired_true(expiration_delta):
+def test_is_expired_true(expiration_delta) -> None:
     credentials: typing.Dict[str, typing.Any] = {
         "AccessKeyId": "something",
         "SecretAccessKey": "secret",
@@ -117,7 +117,7 @@ def test_is_expired_true(expiration_delta):
         datetime.timedelta(weeks=1),  # expired 1 week ago
     ],
 )
-def test_is_expired_false(expiration_delta):
+def test_is_expired_false(expiration_delta) -> None:
     credentials: typing.Dict[str, typing.Any] = {
         "AccessKeyId": "something",
         "SecretAccessKey": "secret",

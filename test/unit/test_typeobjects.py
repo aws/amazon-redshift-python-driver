@@ -20,14 +20,14 @@ from redshift_connector.interval import Interval
         ({"months": 1, "days": 2, "microseconds": 3}, 1, 2, 3),
     ),
 )
-def test_interval_constructor(kwargs, exp_months, exp_days, exp_microseconds):
+def test_interval_constructor(kwargs, exp_months, exp_days, exp_microseconds) -> None:
     i = Interval(**kwargs)
     assert i.months == exp_months
     assert i.days == exp_days
     assert i.microseconds == exp_microseconds
 
 
-def test_default_constructor():
+def test_default_constructor() -> None:
     i: Interval = Interval()
     assert i.months == 0
     assert i.days == 0
@@ -45,7 +45,7 @@ def interval_range_test(parameter, in_range, out_of_range):
         Interval(**{parameter: v})
 
 
-def test_interval_days_range():
+def test_interval_days_range() -> None:
     out_of_range_days = (
         -2147483648,
         +2147483648,
@@ -57,7 +57,7 @@ def test_interval_days_range():
     interval_range_test("days", in_range_days, out_of_range_days)
 
 
-def test_interval_months_range():
+def test_interval_months_range() -> None:
     out_of_range_months = (
         -2147483648,
         +2147483648,
@@ -69,7 +69,7 @@ def test_interval_months_range():
     interval_range_test("months", in_range_months, out_of_range_months)
 
 
-def test_interval_microseconds_range():
+def test_interval_microseconds_range() -> None:
     out_of_range_microseconds = (
         -9223372036854775808,
         +9223372036854775808,
@@ -90,24 +90,24 @@ def test_interval_microseconds_range():
         ({"months": 1, "days": 2, "microseconds": 3}, 172800.000003),
     ),
 )
-def test_total_seconds(kwargs, exp_total_seconds):
+def test_total_seconds(kwargs, exp_total_seconds) -> None:
     i: Interval = Interval(**kwargs)
     assert i.total_seconds() == exp_total_seconds
 
 
-def test_set_months_raises_type_error():
+def test_set_months_raises_type_error() -> None:
     with pytest.raises(TypeError):
-        Interval(months="foobar")
+        Interval(months="foobar")  # type: ignore
 
 
-def test_set_days_raises_type_error():
+def test_set_days_raises_type_error() -> None:
     with pytest.raises(TypeError):
-        Interval(days="foobar")
+        Interval(days="foobar")  # type: ignore
 
 
-def test_set_microseconds_raises_type_error():
+def test_set_microseconds_raises_type_error() -> None:
     with pytest.raises(TypeError):
-        Interval(microseconds="foobar")
+        Interval(microseconds="foobar")  # type: ignore
 
 
 interval_equality_test_vals: typing.Tuple[
@@ -127,13 +127,13 @@ interval_equality_test_vals: typing.Tuple[
 
 
 @pytest.mark.parametrize("i1, i2, exp_eq", interval_equality_test_vals)
-def test__eq__(i1, i2, exp_eq):
+def test__eq__(i1, i2, exp_eq) -> None:
     actual_eq = i1.__eq__(i2)
     assert actual_eq == exp_eq
 
 
 @pytest.mark.parametrize("i1, i2, exp_eq", interval_equality_test_vals)
-def test__neq__(i1, i2, exp_eq):
+def test__neq__(i1, i2, exp_eq) -> None:
     exp_neq = not exp_eq
     actual_neq = i1.__neq__(i2)
     assert actual_neq == exp_neq

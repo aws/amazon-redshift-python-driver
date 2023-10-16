@@ -23,19 +23,19 @@ How to use:
 
 
 @pytest.mark.skip(reason="manual")
-def test_native_auth(serverless_native_db_kwargs):
+def test_native_auth(serverless_native_db_kwargs) -> None:
     with redshift_connector.connect(**serverless_native_db_kwargs):
         pass
 
 
 @pytest.mark.skip(reason="manual")
-def test_iam_auth(serverless_iam_db_kwargs):
+def test_iam_auth(serverless_iam_db_kwargs) -> None:
     with redshift_connector.connect(**serverless_iam_db_kwargs):
         pass
 
 
 @pytest.mark.skip(reason="manual")
-def test_idp_auth(okta_idp):
+def test_idp_auth(okta_idp) -> None:
     okta_idp["host"] = "my_redshift_serverless_endpoint"
 
     with redshift_connector.connect(**okta_idp):
@@ -43,7 +43,7 @@ def test_idp_auth(okta_idp):
 
 
 @pytest.mark.skip()
-def test_connection_without_host(serverless_iam_db_kwargs):
+def test_connection_without_host(serverless_iam_db_kwargs) -> None:
     serverless_iam_db_kwargs["is_serverless"] = True
     serverless_iam_db_kwargs["host"] = None
     serverless_iam_db_kwargs["serverless_work_group"] = "default"
@@ -53,7 +53,7 @@ def test_connection_without_host(serverless_iam_db_kwargs):
 
 
 @pytest.mark.skip()
-def test_nlb_connection(serverless_iam_db_kwargs):
+def test_nlb_connection(serverless_iam_db_kwargs) -> None:
     serverless_iam_db_kwargs["is_serverless"] = True
     serverless_iam_db_kwargs["host"] = "my_nlb_endpoint"
     serverless_iam_db_kwargs["serverless_work_group"] = "default"
@@ -63,7 +63,7 @@ def test_nlb_connection(serverless_iam_db_kwargs):
 
 
 @pytest.mark.skip()
-def test_vpc_endpoint_connection(serverless_iam_db_kwargs):
+def test_vpc_endpoint_connection(serverless_iam_db_kwargs) -> None:
     serverless_iam_db_kwargs["is_serverless"] = True
     serverless_iam_db_kwargs["host"] = "my_vpc_endpoint"
     serverless_iam_db_kwargs["serverless_work_group"] = "default"

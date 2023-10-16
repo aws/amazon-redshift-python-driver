@@ -6,7 +6,7 @@ from unittest.mock import Mock, PropertyMock, mock_open, patch
 
 import pytest  # type: ignore
 
-from redshift_connector import Connection, Cursor, InterfaceError, DataError
+from redshift_connector import Connection, Cursor, DataError, InterfaceError
 
 IS_SINGLE_DATABASE_METADATA_TOGGLE: typing.List[bool] = [True, False]
 
@@ -17,7 +17,7 @@ description_warn_response_data: typing.List[typing.Tuple[bytes, str]] = [
 
 
 @pytest.mark.parametrize("_input", description_warn_response_data)
-def test_get_description_warns_user(_input):
+def test_get_description_warns_user(_input) -> None:
     data, exp_warning_msg = _input
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.__setattr__("ps", {"row_desc": [{"type_oid": 1043, "label": data, "column_name": b"c1"}]})
@@ -32,7 +32,7 @@ fetch_df_warn_response_data: typing.List[typing.Tuple[typing.Optional[typing.Lis
 
 @pandas_only
 @pytest.mark.parametrize("_input", fetch_df_warn_response_data)
-def test_fetch_dataframe_warns_user(_input, mocker):
+def test_fetch_dataframe_warns_user(_input, mocker) -> None:
     data, exp_warning_msg = _input
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mocker.patch("redshift_connector.Cursor._getDescription", return_value=[data])
@@ -42,7 +42,7 @@ def test_fetch_dataframe_warns_user(_input, mocker):
 
 
 @pandas_only
-def test_fetch_dataframe_no_results(mocker):
+def test_fetch_dataframe_no_results(mocker) -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mocker.patch("redshift_connector.Cursor._getDescription", return_value=["test"])
     mocker.patch("redshift_connector.Cursor.__next__", side_effect=StopIteration("mocked end"))
@@ -50,7 +50,7 @@ def test_fetch_dataframe_no_results(mocker):
     assert mock_cursor.fetch_dataframe(1).size == 0
 
 
-def test_raw_connection_property_warns():
+def test_raw_connection_property_warns() -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor._c = Connection.__new__(Connection)
 
@@ -58,13 +58,13 @@ def test_raw_connection_property_warns():
         mock_cursor.connection
 
 
-def test_get_description_no_ps():
+def test_get_description_no_ps() -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = None
     assert mock_cursor._getDescription() is None
 
 
-def test_execute_no_connection_raises_interface_error():
+def test_execute_no_connection_raises_interface_error() -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor._c = None
 
@@ -83,14 +83,14 @@ get_procedure_arg_data: typing.List[typing.Tuple[typing.Optional[str], ...]] = [
 
 
 @pytest.mark.parametrize("_input", get_procedure_arg_data)
-def test_get_procedures_considers_args(_input, mocker):
+def test_get_procedures_considers_args(_input, mocker) -> None:
     catalog, schema_pattern, procedure_name_pattern = _input
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     mocker.patch("redshift_connector.Cursor.fetchall", return_value=None)
     mocker.patch("redshift_connector.Connection.is_single_database_metadata", return_value=True)
 
     mock_cursor: Cursor = Cursor.__new__(Cursor)
-    mock_connection: Cursor = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
 
     mock_cursor.paramstyle = "mocked_val"
@@ -119,11 +119,11 @@ catalog_filter_conditions_data: typing.List[typing.Tuple[typing.Optional[str], b
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 @pytest.mark.parametrize("_input", catalog_filter_conditions_data)
-def test__get_catalog_filter_conditions_considers_args(_input, is_single_database_metadata_val):
+def test__get_catalog_filter_conditions_considers_args(_input, is_single_database_metadata_val) -> None:
     catalog, api_supported_only_for_connected_database, database_col_name = _input
 
     mock_cursor: Cursor = Cursor.__new__(Cursor)
-    mock_connection: Cursor = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
 
     with patch(
@@ -158,14 +158,14 @@ get_schemas_arg_data: typing.List[typing.Tuple[typing.Optional[str], ...]] = [
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 @pytest.mark.parametrize("_input", get_schemas_arg_data)
-def test_get_schemas_considers_args(_input, is_single_database_metadata_val, mocker):
+def test_get_schemas_considers_args(_input, is_single_database_metadata_val, mocker) -> None:
     catalog, schema_pattern = _input
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     mocker.patch("redshift_connector.Cursor.fetchall", return_value=None)
 
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
-    mock_connection: Cursor = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
     spy = mocker.spy(mock_cursor, "execute")
 
@@ -186,13 +186,13 @@ def test_get_schemas_considers_args(_input, is_single_database_metadata_val, moc
 
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
-def test_get_catalogs_considers_args(is_single_database_metadata_val, mocker):
+def test_get_catalogs_considers_args(is_single_database_metadata_val, mocker) -> None:
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     mocker.patch("redshift_connector.Cursor.fetchall", return_value=None)
 
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
-    mock_connection: Cursor = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
     spy = mocker.spy(mock_cursor, "execute")
 
@@ -228,7 +228,7 @@ get_tables_arg_data: typing.List[typing.Tuple[typing.Optional[str], ...]] = [
 @pytest.mark.parametrize("schema_pattern_type", ["EXTERNAL_SCHEMA_QUERY", "LOCAL_SCHEMA_QUERY"])
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 @pytest.mark.parametrize("_input", get_tables_arg_data)
-def test_get_tables_considers_args(is_single_database_metadata_val, _input, schema_pattern_type, mocker):
+def test_get_tables_considers_args(is_single_database_metadata_val, _input, schema_pattern_type, mocker) -> None:
     catalog, schema_pattern, table_name_pattern = _input
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     # mock the return value from __schema_pattern_match as it's return value is used in get_tables()
@@ -241,7 +241,7 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
 
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
-    mock_connection: Cursor = Connection.__new__(Connection)
+    mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
     spy = mocker.spy(mock_cursor, "execute")
 
@@ -267,7 +267,7 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
 
 
 @pytest.mark.parametrize("indexes, names", [([1], []), ([], ["c1"])])
-def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker):
+def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker) -> None:
     # mock fetchone to return "True" to ensure the table_name and column_name
     # validation steps pass
     mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
@@ -343,7 +343,7 @@ insert_bulk_data = [
 
 @patch("builtins.open", new_callable=mock_open)
 @pytest.mark.parametrize("indexes,names,exp_execute_args", insert_bulk_data)
-def test_insert_data_column_stmt(mocked_csv, indexes, names, exp_execute_args, mocker):
+def test_insert_data_column_stmt(mocked_csv, indexes, names, exp_execute_args, mocker) -> None:
     # mock fetchone to return "True" to ensure the table_name and column_name
     # validation steps pass
     mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
@@ -374,7 +374,7 @@ def test_insert_data_column_stmt(mocked_csv, indexes, names, exp_execute_args, m
 
 @pytest.mark.parametrize("batch_size", [1, 2, 3, 4])
 @patch("builtins.open", new_callable=mock_open)
-def test_insert_data_uses_batch_size(mocked_csv, batch_size, mocker):
+def test_insert_data_uses_batch_size(mocked_csv, batch_size, mocker) -> None:
     # mock fetchone to return "True" to ensure the table_name and column_name
     # validation steps pass
     mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
@@ -407,10 +407,12 @@ def test_insert_data_uses_batch_size(mocked_csv, batch_size, mocker):
 
     assert actual_insert_stmts_executed == ceil(3 / batch_size)
 
+
 max_params = 32767
 
+
 @patch("builtins.open", new_callable=mock_open)
-def test_insert_data_bulk_raises_too_many_parameters(mocked_csv, mocker):
+def test_insert_data_bulk_raises_too_many_parameters(mocked_csv, mocker) -> None:
     # mock fetchone to return "True" to ensure the table_name and column_name
     # validation steps pass
     mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
@@ -419,8 +421,9 @@ def test_insert_data_bulk_raises_too_many_parameters(mocked_csv, mocker):
 
     # mock out the connection to raise DataError.
     mock_cursor._c = Mock()
-    mocker.patch.object(mock_cursor._c, "execute", side_effect=DataError("Prepared statement exceeds bind parameter "
-                                                                         "limit 32767."))
+    mocker.patch.object(
+        mock_cursor._c, "execute", side_effect=DataError("Prepared statement exceeds bind parameter " "limit 32767.")
+    )
     mock_cursor.paramstyle = "mocked"
 
     indexes, names = (
@@ -431,9 +434,7 @@ def test_insert_data_bulk_raises_too_many_parameters(mocked_csv, mocker):
     csv_str = "\col1\n" + "1\n" * max_params + "1"  # 32768 rows
     mocked_csv.side_effect = [StringIO(csv_str)]
 
-    with pytest.raises(
-        DataError, match="Prepared statement exceeds bind parameter limit 32767."
-    ):
+    with pytest.raises(DataError, match="Prepared statement exceeds bind parameter limit 32767."):
         mock_cursor.insert_data_bulk(
             filename="mocked_csv",
             table_name="githubissue165",
@@ -445,20 +446,16 @@ def test_insert_data_bulk_raises_too_many_parameters(mocked_csv, mocker):
 
 
 @patch("builtins.open", new_callable=mock_open)
-def test_insert_data_raises_too_many_parameters(mocker):
+def test_insert_data_raises_too_many_parameters(mocker) -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
 
     # mock out the connection to raise DataError.
     mock_cursor._c = Mock()
-    mock_cursor._c.execute.side_effect = DataError(
-        "Prepared statement exceeds bind " "parameter limit 32767."
-    )
+    mock_cursor._c.execute.side_effect = DataError("Prepared statement exceeds bind " "parameter limit 32767.")
     mock_cursor.paramstyle = "mocked"
 
     prepared_stmt = "INSERT INTO githubissue165 (col1) VALUES " + "(%s), " * max_params + "(%s);"
     params = [1 for _ in range(max_params + 1)]
 
-    with pytest.raises(
-        DataError, match="Prepared statement exceeds bind parameter limit 32767."
-    ):
+    with pytest.raises(DataError, match="Prepared statement exceeds bind parameter limit 32767."):
         mock_cursor.execute(prepared_stmt, params)

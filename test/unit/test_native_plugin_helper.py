@@ -6,7 +6,7 @@ from redshift_connector.iam_helper import IamHelper, IdpAuthHelper
 from redshift_connector.native_plugin_helper import NativeAuthPluginHelper
 
 
-def test_set_native_auth_plugin_properties_gets_idp_token_when_credentials_provider(mocker):
+def test_set_native_auth_plugin_properties_gets_idp_token_when_credentials_provider(mocker) -> None:
     mocked_idp_token: str = "my_idp_token"
     mocker.patch("redshift_connector.iam_helper.IdpAuthHelper.set_auth_properties", return_value=None)
     mocker.patch(

@@ -24,7 +24,7 @@ def cleanup_mock_socket() -> None:
 
 
 @pytest.mark.parametrize("http_response", http_response_datas)
-def test_run_server_parses_saml_response(http_response):
+def test_run_server_parses_saml_response(http_response) -> None:
     MockSocket.mocked_data = http_response
     with patch("socket.socket", return_value=MockSocket()):
         browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
@@ -36,7 +36,7 @@ invalid_login_url_vals: typing.List[typing.Optional[str]] = ["", None]
 
 
 @pytest.mark.parametrize("login_url", invalid_login_url_vals)
-def test_get_saml_assertion_no_login_url_should_fail(login_url):
+def test_get_saml_assertion_no_login_url_should_fail(login_url) -> None:
     browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
     browser_saml_credentials.login_url = login_url
 
@@ -45,7 +45,7 @@ def test_get_saml_assertion_no_login_url_should_fail(login_url):
     assert "Missing required connection property: login_url" in str(ex.value)
 
 
-def test_get_saml_assertion_low_idp_response_timeout_should_fail():
+def test_get_saml_assertion_low_idp_response_timeout_should_fail() -> None:
     browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
     browser_saml_credentials.login_url = "https://www.example.com"
     browser_saml_credentials.idp_response_timeout = -1
@@ -62,7 +62,7 @@ invalid_listen_port_vals: typing.List[int] = [-1, 0, 65536]
 
 
 @pytest.mark.parametrize("listen_port", invalid_listen_port_vals)
-def test_get_saml_assertion_invalid_listen_port_should_fail(listen_port):
+def test_get_saml_assertion_invalid_listen_port_should_fail(listen_port) -> None:
     browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
     browser_saml_credentials.login_url = "https://www.example.com"
     browser_saml_credentials.idp_response_timeout = 11
@@ -73,7 +73,7 @@ def test_get_saml_assertion_invalid_listen_port_should_fail(listen_port):
     assert "Invalid value specified for connection property: listen_port. Must be in range [1,65535]" in str(ex.value)
 
 
-def test_authenticate_returns_authorization_token(mocker):
+def test_authenticate_returns_authorization_token(mocker) -> None:
     browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
     mock_authorization_token: str = "my_authorization_token"
 
@@ -85,7 +85,7 @@ def test_authenticate_returns_authorization_token(mocker):
     assert browser_saml_credentials.authenticate() == mock_authorization_token
 
 
-def test_authenticate_errors_should_fail(mocker):
+def test_authenticate_errors_should_fail(mocker) -> None:
     browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
 
     mocker.patch("redshift_connector.plugin.BrowserSamlCredentialsProvider.open_browser", return_value=None)
@@ -96,7 +96,7 @@ def test_authenticate_errors_should_fail(mocker):
             browser_saml_credentials.authenticate()
 
 
-def test_open_browser_no_url_should_fail():
+def test_open_browser_no_url_should_fail() -> None:
     browser_saml_credentials: BrowserSamlCredentialsProvider = BrowserSamlCredentialsProvider()
 
     with pytest.raises(InterfaceError) as ex:

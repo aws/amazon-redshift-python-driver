@@ -22,7 +22,7 @@ def make_valid_azure_credentials_provider() -> typing.Tuple[AzureCredentialsProv
     return acp, rp
 
 
-def test_add_parameter_sets_azure_specific():
+def test_add_parameter_sets_azure_specific() -> None:
     acp, rp = make_valid_azure_credentials_provider()
 
     assert acp.idp_tenant == rp.idp_tenant
@@ -31,7 +31,7 @@ def test_add_parameter_sets_azure_specific():
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_user_name_should_fail(value):
+def test_get_saml_assertion_missing_user_name_should_fail(value) -> None:
     acp, _ = make_valid_azure_credentials_provider()
     acp.user_name = value
 
@@ -40,7 +40,7 @@ def test_get_saml_assertion_missing_user_name_should_fail(value):
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_password_should_fail(value):
+def test_get_saml_assertion_missing_password_should_fail(value) -> None:
     acp, _ = make_valid_azure_credentials_provider()
     acp.password = value
 
@@ -49,7 +49,7 @@ def test_get_saml_assertion_missing_password_should_fail(value):
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_idp_tenant_should_fail(value):
+def test_get_saml_assertion_missing_idp_tenant_should_fail(value) -> None:
     acp, _ = make_valid_azure_credentials_provider()
     acp.idp_tenant = value
 
@@ -58,7 +58,7 @@ def test_get_saml_assertion_missing_idp_tenant_should_fail(value):
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_client_secret_should_fail(value):
+def test_get_saml_assertion_missing_client_secret_should_fail(value) -> None:
     acp, _ = make_valid_azure_credentials_provider()
     acp.client_secret = value
 
@@ -67,7 +67,7 @@ def test_get_saml_assertion_missing_client_secret_should_fail(value):
 
 
 @pytest.mark.parametrize("value", [None, ""])
-def test_get_saml_assertion_missing_client_id_should_fail(value):
+def test_get_saml_assertion_missing_client_id_should_fail(value) -> None:
     acp, _ = make_valid_azure_credentials_provider()
     acp.client_id = value
 
@@ -75,7 +75,7 @@ def test_get_saml_assertion_missing_client_id_should_fail(value):
         acp.get_saml_assertion()
 
 
-def test_get_saml_assertion_should_call_azure_oauth_based_authentication(mocker):
+def test_get_saml_assertion_should_call_azure_oauth_based_authentication(mocker) -> None:
     acp, _ = make_valid_azure_credentials_provider()
     mocked_saml_response: str = "my_first_saml_response"
     mocker.patch(
@@ -89,7 +89,7 @@ def test_get_saml_assertion_should_call_azure_oauth_based_authentication(mocker)
     assert spy.call_count == 1
 
 
-def test_azure_oauth_based_authentication_payload_is_correct(mocker):
+def test_azure_oauth_based_authentication_payload_is_correct(mocker) -> None:
     acp, rp = make_valid_azure_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None
@@ -121,7 +121,7 @@ def test_azure_oauth_based_authentication_payload_is_correct(mocker):
         requests.exceptions.RequestException,
     ],
 )
-def test_azure_oauth_based_authentication_request_fails_should_fail(mocker, error):
+def test_azure_oauth_based_authentication_request_fails_should_fail(mocker, error) -> None:
     acp, _ = make_valid_azure_credentials_provider()
 
     with patch("requests.post") as mock_request:
@@ -130,7 +130,7 @@ def test_azure_oauth_based_authentication_request_fails_should_fail(mocker, erro
             acp.azure_oauth_based_authentication()
 
 
-def test_azure_oauth_based_authentication_response_missing_access_token_should_fail(mocker):
+def test_azure_oauth_based_authentication_response_missing_access_token_should_fail(mocker) -> None:
     acp, rp = make_valid_azure_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None
@@ -143,7 +143,7 @@ def test_azure_oauth_based_authentication_response_missing_access_token_should_f
     assert "access_token" in str(e.value)
 
 
-def test_azure_oauth_based_authentication_response_empty_access_token_should_fail(mocker):
+def test_azure_oauth_based_authentication_response_empty_access_token_should_fail(mocker) -> None:
     acp, rp = make_valid_azure_credentials_provider()
     MockRequest: MagicMock = MagicMock()
     MockRequest.raise_for_status.return_value = None

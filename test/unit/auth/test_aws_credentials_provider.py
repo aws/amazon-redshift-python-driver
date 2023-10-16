@@ -1,3 +1,4 @@
+import typing
 from unittest.mock import MagicMock, patch
 
 import pytest  # type: ignore
@@ -37,7 +38,7 @@ def _make_aws_credentials_obj_with_credentials() -> AWSCredentialsProvider:
     return cred_provider
 
 
-def test_create_aws_credentials_provider_with_profile():
+def test_create_aws_credentials_provider_with_profile() -> None:
     cred_provider: AWSCredentialsProvider = _make_aws_credentials_obj_with_profile()
     assert cred_provider.profile == "myProfile"
     assert cred_provider.access_key_id is None
@@ -45,7 +46,7 @@ def test_create_aws_credentials_provider_with_profile():
     assert cred_provider.session_token is None
 
 
-def test_create_aws_credentials_provider_with_credentials():
+def test_create_aws_credentials_provider_with_credentials() -> None:
     cred_provider: AWSCredentialsProvider = _make_aws_credentials_obj_with_credentials()
     assert cred_provider.profile is None
     assert cred_provider.access_key_id == "my_access"
@@ -53,17 +54,17 @@ def test_create_aws_credentials_provider_with_credentials():
     assert cred_provider.session_token == "my_session"
 
 
-def test_get_cache_key_with_profile():
+def test_get_cache_key_with_profile() -> None:
     cred_provider: AWSCredentialsProvider = _make_aws_credentials_obj_with_profile()
     assert cred_provider.get_cache_key() == hash(cred_provider.profile)
 
 
-def test_get_cache_key_with_credentials():
+def test_get_cache_key_with_credentials() -> None:
     cred_provider: AWSCredentialsProvider = _make_aws_credentials_obj_with_credentials()
     assert cred_provider.get_cache_key() == hash("my_access")
 
 
-def test_get_credentials_checks_cache_first(mocker):
+def test_get_credentials_checks_cache_first(mocker) -> None:
     mocked_credential_holder = MagicMock()
 
     def mock_set_cache(cp: AWSCredentialsProvider, key: str = "tomato") -> None:
@@ -73,7 +74,7 @@ def test_get_credentials_checks_cache_first(mocker):
     mocker.patch("redshift_connector.auth.AWSCredentialsProvider.get_cache_key", return_value="tomato")
 
     with patch("redshift_connector.auth.AWSCredentialsProvider.refresh") as mocked_refresh:
-        mocked_refresh.side_effect = mock_set_cache(cred_provider)
+        mocked_refresh.side_effect = mock_set_cache(cred_provider)  # type: ignore
         get_cache_key_spy = mocker.spy(cred_provider, "get_cache_key")
 
         assert cred_provider.get_credentials() == mocked_credential_holder
@@ -82,7 +83,7 @@ def test_get_credentials_checks_cache_first(mocker):
         assert get_cache_key_spy.call_count == 1
 
 
-def test_get_credentials_refresh_error_is_raised(mocker):
+def test_get_credentials_refresh_error_is_raised(mocker) -> None:
     cred_provider: AWSCredentialsProvider = AWSCredentialsProvider()
     mocker.patch("redshift_connector.auth.AWSCredentialsProvider.get_cache_key", return_value="tomato")
     expected_exception = "Refreshing IdP credentials failed"
@@ -94,7 +95,7 @@ def test_get_credentials_refresh_error_is_raised(mocker):
             cred_provider.get_credentials()
 
 
-def test_refresh_uses_profile_if_present(mocker):
+def test_refresh_uses_profile_if_present(mocker) -> None:
     cred_provider: AWSCredentialsProvider = _make_aws_credentials_obj_with_profile()
     mocked_boto_session: MagicMock = MagicMock()
 
@@ -103,10 +104,10 @@ def test_refresh_uses_profile_if_present(mocker):
 
         assert hash("myProfile") in cred_provider.cache
         assert isinstance(cred_provider.cache[hash("myProfile")], AWSProfileCredentialsHolder)
-        assert cred_provider.cache[hash("myProfile")].profile == "myProfile"
+        assert typing.cast(AWSProfileCredentialsHolder, cred_provider.cache[hash("myProfile")]).profile == "myProfile"
 
 
-def test_refresh_uses_credentials_if_present(mocker):
+def test_refresh_uses_credentials_if_present(mocker) -> None:
     cred_provider: AWSCredentialsProvider = _make_aws_credentials_obj_with_credentials()
     mocked_boto_session: MagicMock = MagicMock()
 
@@ -115,6 +116,14 @@ def test_refresh_uses_credentials_if_present(mocker):
 
         assert hash("my_access") in cred_provider.cache
         assert isinstance(cred_provider.cache[hash("my_access")], AWSDirectCredentialsHolder)
-        assert cred_provider.cache[hash("my_access")].access_key_id == "my_access"
-        assert cred_provider.cache[hash("my_access")].secret_access_key == "my_secret"
-        assert cred_provider.cache[hash("my_access")].session_token == "my_session"
+        assert (
+            typing.cast(AWSDirectCredentialsHolder, cred_provider.cache[hash("my_access")]).access_key_id == "my_access"
+        )
+        assert (
+            typing.cast(AWSDirectCredentialsHolder, cred_provider.cache[hash("my_access")]).secret_access_key
+            == "my_secret"
+        )
+        assert (
+            typing.cast(AWSDirectCredentialsHolder, cred_provider.cache[hash("my_access")]).session_token
+            == "my_session"
+        )

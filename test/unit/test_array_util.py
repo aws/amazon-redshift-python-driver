@@ -30,7 +30,7 @@ walk_array_data: typing.List = [
 
 
 @pytest.mark.parametrize("_input", walk_array_data)
-def test_walk_array(_input):
+def test_walk_array(_input) -> None:
     in_val, exp_vals = _input
     x: typing.Generator = array_util.walk_array(in_val)
     idx: int = 0
@@ -50,7 +50,7 @@ array_flatten_data: typing.List = [
 
 
 @pytest.mark.parametrize("_input", array_flatten_data)
-def test_array_flatten(_input):
+def test_array_flatten(_input) -> None:
     in_val, exp_val = _input
     assert 1 == 1
     assert list(array_util.array_flatten(in_val)) == exp_val
@@ -65,7 +65,7 @@ array_find_first_element_data: typing.List = [
 
 
 @pytest.mark.parametrize("_input", array_find_first_element_data)
-def test_array_find_first_element(_input):
+def test_array_find_first_element(_input) -> None:
     in_val, exp_val = _input
     assert array_util.array_find_first_element(in_val) == exp_val
 
@@ -78,6 +78,6 @@ array_has_null_data: typing.List = [
 
 
 @pytest.mark.parametrize("_input", array_has_null_data)
-def test_array_has_null(_input):
+def test_array_has_null(_input) -> None:
     in_val, exp_val = _input
     assert array_util.array_has_null(in_val) is exp_val

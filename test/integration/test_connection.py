@@ -4,6 +4,7 @@ import os
 import random
 import string
 import sys
+import typing
 
 import pytest  # type: ignore
 
@@ -46,7 +47,7 @@ if "java" in sys.platform:
 
 
 @pytest.fixture
-def trust_all_certificates(request):
+def trust_all_certificates(request) -> None:
     """Decorator function that will make it so the context of the decorated
     method will run with our TrustManager that accepts all certificates"""
     # Only do this if running under Jython
@@ -64,14 +65,14 @@ def trust_all_certificates(request):
     request.addfinalizer(fin)
 
 
-def test_socket_missing(db_kwargs):
+def test_socket_missing(db_kwargs) -> None:
     db_kwargs["unix_sock"] = "/file-does-not-exist"
 
     with pytest.raises(redshift_connector.InterfaceError):
         redshift_connector.connect(**db_kwargs)
 
 
-def test_database_missing(db_kwargs):
+def test_database_missing(db_kwargs) -> None:
     db_kwargs["database"] = "missing-db"
     with pytest.raises(redshift_connector.ProgrammingError):
         redshift_connector.connect(**db_kwargs)
@@ -81,7 +82,7 @@ def test_database_missing(db_kwargs):
 # redshift_connector_md5
 
 
-def test_md5(db_kwargs):
+def test_md5(db_kwargs) -> None:
     db_kwargs["database"] = "redshift_connector_md5"
 
     # Should only raise an exception saying db doesn't exist
@@ -90,7 +91,7 @@ def test_md5(db_kwargs):
 
 
 @pytest.mark.parametrize("algorithm", ("sha256",))
-def test_auth_req_digest(db_kwargs, algorithm):
+def test_auth_req_digest(db_kwargs, algorithm) -> None:
     test_user: str = "{}_dbuser".format(algorithm)
     test_password: str = "My_{}_PaSsWoRdŽ".format(algorithm)
     with redshift_connector.connect(**db_kwargs) as conn:
@@ -114,7 +115,7 @@ def test_auth_req_digest(db_kwargs, algorithm):
 
 
 @pytest.mark.usefixtures("trust_all_certificates")
-def test_ssl(db_kwargs):
+def test_ssl(db_kwargs) -> None:
     db_kwargs["ssl"] = True
     db_kwargs["sslmode"] = "verify-ca"
     with redshift_connector.connect(**db_kwargs):
@@ -126,7 +127,7 @@ def test_ssl(db_kwargs):
 
 # This requires a line in pg_hba.conf that requires 'password' for the
 # database redshift_connector_password
-def test_password(db_kwargs):
+def test_password(db_kwargs) -> None:
     db_kwargs["database"] = "redshift_connector_password"
 
     # Should only raise an exception saying db doesn't exist
@@ -134,7 +135,7 @@ def test_password(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
-def test_unicode_database_name(db_kwargs):
+def test_unicode_database_name(db_kwargs) -> None:
     db_kwargs["database"] = "redshift_connector_sn\uFF6Fw"
 
     # Should only raise an exception saying db doesn't exist
@@ -142,7 +143,7 @@ def test_unicode_database_name(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
-def test_bytes_database_name(db_kwargs):
+def test_bytes_database_name(db_kwargs) -> None:
     """Should only raise an exception saying db doesn't exist"""
 
     db_kwargs["database"] = bytes("redshift_connector_sn\uFF6Fw", "utf8")
@@ -150,7 +151,7 @@ def test_bytes_database_name(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
-def test_bytes_password(con, db_kwargs):
+def test_bytes_password(con, db_kwargs) -> None:
     # Create user
     username: str = "boltzman"
     password: str = "C1cccccha\uFF6Fs"
@@ -169,11 +170,11 @@ def test_bytes_password(con, db_kwargs):
         con.commit()
 
 
-def test_broken_pipe(con, db_kwargs):
+def test_broken_pipe(con, db_kwargs) -> None:
     with redshift_connector.connect(**db_kwargs) as db1:
         with db1.cursor() as cur1, con.cursor() as cur2:
             cur1.execute("select pg_backend_pid()")
-            pid1 = cur1.fetchone()[0]
+            pid1 = typing.cast(typing.List[int], cur1.fetchone())[0]
 
             cur2.execute("select pg_terminate_backend(%s)", (pid1,))
             with pytest.raises(
@@ -183,14 +184,15 @@ def test_broken_pipe(con, db_kwargs):
             ):
                 cur1.execute("select 1")
 
+
 # case 2: same connector configuration, but should throw an error since the timeout is set,
-def test_broken_pipe_timeout(con, db_kwargs):
+def test_broken_pipe_timeout(con, db_kwargs) -> None:
     db_kwargs["timeout"] = 60
     with redshift_connector.connect(**db_kwargs) as db1:
         with db1.cursor() as cur1, con.cursor() as cur2:
             print(db1._usock.timeout)
             cur1.execute("select pg_backend_pid()")
-            pid1 = cur1.fetchone()[0]
+            pid1 = typing.cast(typing.List[int], cur1.fetchone())[0]
 
             cur2.execute("select pg_terminate_backend(%s)", (pid1,))
             with pytest.raises(
@@ -201,7 +203,8 @@ def test_broken_pipe_timeout(con, db_kwargs):
             ):
                 cur1.execute("select 1")
 
-def test_application_name_integer(db_kwargs):
+
+def test_application_name_integer(db_kwargs) -> None:
     db_kwargs["application_name"] = 1
     with pytest.raises(
         redshift_connector.InterfaceError, match="The parameter application_name can't be of type <class 'int'>."
@@ -209,7 +212,7 @@ def test_application_name_integer(db_kwargs):
         redshift_connector.connect(**db_kwargs)
 
 
-def test_application_name_bytearray(db_kwargs):
+def test_application_name_bytearray(db_kwargs) -> None:
     db_kwargs["application_name"] = bytearray(b"Philby")
     redshift_connector.connect(**db_kwargs)
 
@@ -218,7 +221,7 @@ def test_application_name_bytearray(db_kwargs):
 # database scram-sha-256
 
 
-def test_scram_sha_256(db_kwargs):
+def test_scram_sha_256(db_kwargs) -> None:
     db_kwargs["database"] = "redshift_connector_scram_sha_256"
 
     # Should only raise an exception saying db doesn't exist
@@ -227,7 +230,7 @@ def test_scram_sha_256(db_kwargs):
 
 
 @pytest.mark.parametrize("_input", ClientProtocolVersion.list()[:-1])
-def test_client_protocol_version_is_used(db_kwargs, _input):
+def test_client_protocol_version_is_used(db_kwargs, _input) -> None:
     db_kwargs["client_protocol_version"] = _input
 
     with redshift_connector.connect(**db_kwargs) as conn:
@@ -247,7 +250,7 @@ def test_client_protocol_version_is_used(db_kwargs, _input):
 #     )
 
 
-def test_client_protocol_version_too_large_is_lowered(db_kwargs, mocker):
+def test_client_protocol_version_too_large_is_lowered(db_kwargs, mocker) -> None:
     db_kwargs["client_protocol_version"] = max(ClientProtocolVersion.list()) + 1
     del db_kwargs["region"]
     del db_kwargs["cluster_identifier"]
@@ -259,7 +262,7 @@ def test_client_protocol_version_too_large_is_lowered(db_kwargs, mocker):
     assert spy.call_count >= 2  # initial call, additional call when server responds with a lower version
 
 
-def test_stl_connection_log_contains_driver_version(db_kwargs):
+def test_stl_connection_log_contains_driver_version(db_kwargs) -> None:
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
             # verify stl_connection_log contains driver version as expected
@@ -273,7 +276,7 @@ def test_stl_connection_log_contains_driver_version(db_kwargs):
             assert res[0] == 1
 
 
-def test_stl_connection_log_contains_os_version(db_kwargs):
+def test_stl_connection_log_contains_os_version(db_kwargs) -> None:
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
             # verify stl_connection_log contains driver version as expected
@@ -287,7 +290,7 @@ def test_stl_connection_log_contains_os_version(db_kwargs):
             assert res[0] == 1
 
 
-def test_stl_connection_log_contains_application_name(db_kwargs):
+def test_stl_connection_log_contains_application_name(db_kwargs) -> None:
     # make some connection so this unique application name is logged
     mock_application_name: str = "".join(random.choice(string.ascii_letters) for x in range(10))
     db_kwargs["application_name"] = mock_application_name
@@ -306,7 +309,7 @@ def test_stl_connection_log_contains_application_name(db_kwargs):
 
 
 @pytest.mark.parametrize("sql", ["select 1", "grant role sys:monitor to awsuser"])
-def test_execute_skip_parse_bind_params_when_dne(mocker, db_kwargs, sql):
+def test_execute_skip_parse_bind_params_when_dne(mocker, db_kwargs, sql) -> None:
     convert_paramstyle_spy = mocker.spy(redshift_connector.core, "convert_paramstyle")
 
     with redshift_connector.connect(**db_kwargs) as conn:
@@ -318,7 +321,7 @@ def test_execute_skip_parse_bind_params_when_dne(mocker, db_kwargs, sql):
     "sql, args",
     [("select %s", "hello world"), ("select %s, %s", ("hello", "world")), ("select %s, %s", [1, "hello world"])],
 )
-def test_execute_do_parsing_bind_params_when_exist(mocker, db_kwargs, sql, args):
+def test_execute_do_parsing_bind_params_when_exist(mocker, db_kwargs, sql, args) -> None:
     convert_paramstyle_spy = mocker.spy(redshift_connector.core, "convert_paramstyle")
 
     with redshift_connector.connect(**db_kwargs) as conn:
@@ -326,7 +329,7 @@ def test_execute_do_parsing_bind_params_when_exist(mocker, db_kwargs, sql, args)
     assert convert_paramstyle_spy.called
 
 
-def test_socket_timeout(db_kwargs):
+def test_socket_timeout(db_kwargs) -> None:
     db_kwargs["timeout"] = 0
 
     with pytest.raises(redshift_connector.InterfaceError):

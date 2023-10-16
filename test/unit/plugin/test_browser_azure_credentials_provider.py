@@ -40,7 +40,7 @@ invalid_idp_tenants: typing.List[typing.Optional[str]] = ["", None]
 
 
 @pytest.mark.parametrize("idp_tenant_value", invalid_idp_tenants)
-def test_get_saml_assertion_invalid_idp_tenant_should_fail(idp_tenant_value):
+def test_get_saml_assertion_invalid_idp_tenant_should_fail(idp_tenant_value) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     bacp.idp_tenant = idp_tenant_value
 
@@ -53,7 +53,7 @@ invalid_client_id: typing.List[typing.Optional[str]] = ["", None]
 
 
 @pytest.mark.parametrize("idp_tenant_value", invalid_client_id)
-def test_get_saml_assertion_invalid_client_id_should_fail(idp_tenant_value):
+def test_get_saml_assertion_invalid_client_id_should_fail(idp_tenant_value) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     bacp.client_id = idp_tenant_value
 
@@ -66,7 +66,7 @@ invalid_idp_response_timeouts: typing.List[typing.Optional[int]] = [-1, 0, 1, 9]
 
 
 @pytest.mark.parametrize("idp_response_timeout_value", invalid_idp_response_timeouts)
-def test_get_saml_assertion_invalid_idp_response_timeout_should_fail(idp_response_timeout_value):
+def test_get_saml_assertion_invalid_idp_response_timeout_should_fail(idp_response_timeout_value) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     bacp.idp_response_timeout = idp_response_timeout_value
 
@@ -78,7 +78,7 @@ def test_get_saml_assertion_invalid_idp_response_timeout_should_fail(idp_respons
     )
 
 
-def test_get_saml_assertion_uses_listen_port(mocker):
+def test_get_saml_assertion_uses_listen_port(mocker) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     mocked_token: str = "test_token"
     mocked_saml_assertion: str = "test_saml_assertion"
@@ -122,7 +122,7 @@ def test_get_saml_assertion_uses_listen_port(mocker):
     assert wrap_and_encode_spy.call_args[0][0] == mocked_saml_assertion
 
 
-def test_get_listen_socket_chooses_free_socket():
+def test_get_listen_socket_chooses_free_socket() -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     ports: typing.Set[int] = set()
     sockets: typing.List["socket.socket"] = []
@@ -145,7 +145,7 @@ def test_get_listen_socket_chooses_free_socket():
         s.close()
 
 
-def test_fetch_authorization_token_returns_authorization_token(mocker):
+def test_fetch_authorization_token_returns_authorization_token(mocker) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     mock_authorization_token: str = "my_authorization_token"
 
@@ -157,7 +157,7 @@ def test_fetch_authorization_token_returns_authorization_token(mocker):
     assert bacp.fetch_authorization_token(listen_socket=MockSocket()) == mock_authorization_token
 
 
-def test_fetch_authorization_errors_should_fail(mocker):
+def test_fetch_authorization_errors_should_fail(mocker) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
 
     mocker.patch("redshift_connector.plugin.BrowserAzureCredentialsProvider.open_browser", return_value=None)
@@ -170,7 +170,7 @@ def test_fetch_authorization_errors_should_fail(mocker):
             bacp.fetch_authorization_token(listen_socket=MockSocket())
 
 
-def test_run_server():
+def test_run_server() -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     MockSocket.mocked_data = browser_azure_data.valid_response
 
@@ -178,7 +178,7 @@ def test_run_server():
     assert result == browser_azure_data.code
 
 
-def test_run_server_calls_get_success_response_http_msg(mocker):
+def test_run_server_calls_get_success_response_http_msg(mocker) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     MockSocket.mocked_data = browser_azure_data.valid_response
     listen_socket: MockSocket = MockSocket()
@@ -202,7 +202,7 @@ invalid_datas = [
 
 
 @pytest.mark.parametrize("data", invalid_datas)
-def test_run_server_invalid_data(data):
+def test_run_server_invalid_data(data) -> None:
     data, expected_exception = data
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     MockSocket.mocked_data = data
@@ -222,7 +222,7 @@ request_errors: typing.List[typing.Callable] = [
 
 @patch("requests.post")
 @pytest.mark.parametrize("error", request_errors)
-def test_fetch_saml_response_error_should_fail(mocked_post, error):
+def test_fetch_saml_response_error_should_fail(mocked_post, error) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     mocked_post.side_effect = error
 
@@ -231,7 +231,7 @@ def test_fetch_saml_response_error_should_fail(mocked_post, error):
 
 
 @patch("requests.post")
-def test_fetch_saml_response(mocked_post):
+def test_fetch_saml_response(mocked_post) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
 
     def mock_get_resp() -> requests.Response:
@@ -258,7 +258,7 @@ malformed_json_responses: typing.List[typing.Tuple[typing.Optional[typing.Dict],
 
 @patch("requests.post")
 @pytest.mark.parametrize("datas", malformed_json_responses)
-def test_fetch_saml_response_malformed_should_fail(mocked_post, datas):
+def test_fetch_saml_response_malformed_should_fail(mocked_post, datas) -> None:
     data, expected_error = datas
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
 
@@ -280,7 +280,7 @@ def test_fetch_saml_response_malformed_should_fail(mocked_post, datas):
     assert expected_error in str(ex.value)
 
 
-def test_open_browser(mocker):
+def test_open_browser(mocker) -> None:
     bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
     expected_url: str = (
         "https://login.microsoftonline.com/{tenant}"

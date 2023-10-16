@@ -132,7 +132,7 @@ test_error_responses_data: typing.List[typing.Tuple[bytes, typing.Dict, typing.T
 
 
 @pytest.mark.parametrize("_input", test_error_responses_data)
-def test_handle_error_response(_input):
+def test_handle_error_response(_input) -> None:
     server_msg, expected_decoded_msg, expected_error = _input
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.handle_ERROR_RESPONSE(server_msg, None)
@@ -140,7 +140,7 @@ def test_handle_error_response(_input):
     assert str(expected_decoded_msg) in str(mock_connection.error)
 
 
-def test_handle_copy_done():
+def test_handle_copy_done() -> None:
     mock_connection = Connection.__new__(Connection)
     assert hasattr(mock_connection, "_copy_done") is False
     mock_connection.handle_COPY_DONE(None, None)
@@ -170,7 +170,7 @@ test_inspect_int_vals: typing.List[typing.Tuple[int, typing.Tuple[int, int, typi
 
 
 @pytest.mark.parametrize("_input", test_inspect_int_vals)
-def test_inspect_int(_input):
+def test_inspect_int(_input) -> None:
     input_val, expected_type = _input
     mock_connection = Connection.__new__(Connection)
     mock_connection.py_types = PY_TYPES
@@ -206,11 +206,11 @@ test_row_description_extended_metadata = [
 
 @pytest.mark.parametrize("_input", test_row_description_extended_metadata)
 @pytest.mark.parametrize("protocol", [ClientProtocolVersion.EXTENDED_RESULT_METADATA])
-def test_handle_row_description_extended_metadata(_input, protocol):
+def test_handle_row_description_extended_metadata(_input, protocol) -> None:
     data, exp_result = _input
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = protocol
-    mock_connection.redshift_types = dict(REDSHIFT_TYPES)
+    mock_connection.redshift_types = dict(REDSHIFT_TYPES)  # type: ignore
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 
@@ -242,11 +242,11 @@ test_row_description_base: typing.List[typing.Tuple[bytes, typing.List[typing.Di
 
 
 @pytest.mark.parametrize("_input", test_row_description_base)
-def test_handle_row_description_base(_input):
+def test_handle_row_description_base(_input) -> None:
     data, exp_result = _input
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._client_protocol_version = ClientProtocolVersion.BASE_SERVER.value
-    mock_connection.redshift_types = dict(REDSHIFT_TYPES)
+    mock_connection.redshift_types = dict(REDSHIFT_TYPES)  # type: ignore
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {"row_desc": []}
 
@@ -258,7 +258,7 @@ def test_handle_row_description_base(_input):
     assert "func" in mock_cursor.ps["row_desc"][0]
 
 
-def test_handle_row_description_missing_ps_raises():
+def test_handle_row_description_missing_ps_raises() -> None:
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = None
@@ -267,7 +267,7 @@ def test_handle_row_description_missing_ps_raises():
         mock_connection.handle_ROW_DESCRIPTION(b"\x00", mock_cursor)
 
 
-def test_handle_row_description_missing_row_desc_raises():
+def test_handle_row_description_missing_row_desc_raises() -> None:
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.ps = {}
@@ -285,10 +285,10 @@ test_is_multidatabases_catalog_enable_in_server_data: typing.List[typing.Tuple[t
 
 
 @pytest.mark.parametrize("_input", test_is_multidatabases_catalog_enable_in_server_data)
-def test_is_multidatabases_catalog_enable_in_server(_input):
+def test_is_multidatabases_catalog_enable_in_server(_input) -> None:
     param_status, exp_val = _input
     mock_connection: Connection = Connection.__new__(Connection)
-    mock_connection.parameter_statuses: deque = deque()
+    mock_connection.parameter_statuses = deque()
 
     if param_status is not None:
         mock_connection.parameter_statuses.append((b"datashare_enabled", param_status.encode()))
@@ -307,11 +307,11 @@ test_is_single_database_metadata_data: typing.List[typing.Tuple[typing.Optional[
 
 
 @pytest.mark.parametrize("_input", test_is_single_database_metadata_data)
-def test_is_single_database_metadata(_input):
+def test_is_single_database_metadata(_input) -> None:
     param_status, database_metadata_current_db_only_val, exp_val = _input
 
     mock_connection: Connection = Connection.__new__(Connection)
-    mock_connection.parameter_statuses: deque = deque()
+    mock_connection.parameter_statuses = deque()
     mock_connection._database_metadata_current_db_only = database_metadata_current_db_only_val
 
     if param_status is not None:
@@ -320,32 +320,31 @@ def test_is_single_database_metadata(_input):
     assert mock_connection.is_single_database_metadata == exp_val
 
 
-def test_client_os_version_is_present():
+def test_client_os_version_is_present() -> None:
     mock_connection: Connection = Connection.__new__(Connection)
     assert mock_connection.client_os_version is not None
     assert isinstance(mock_connection.client_os_version, str)
 
 
-def test_client_os_version_is_not_present():
+def test_client_os_version_is_not_present() -> None:
     mock_connection: Connection = Connection.__new__(Connection)
 
     with patch("platform.platform", side_effect=Exception("not for you")):
         assert mock_connection.client_os_version == "unknown"
 
 
-def test_socket_timeout_error():
+def test_socket_timeout_error() -> None:
     with mock.patch("socket.socket.connect") as mock_socket:
         mock_socket.side_effect = socket.timeout
         with pytest.raises(OperationalError):
             Connection(user="mock_user", password="mock_password", host="localhost", port=8080, database="mocked")
 
 
-
 def mock_read(*args, **kwargs):
     return b""
 
 
-def test_handle_messages_broken_pipe_blocking():
+def test_handle_messages_broken_pipe_blocking() -> None:
     # mock the connection and mock the read attribute
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._read = mock_read
@@ -359,14 +358,14 @@ def test_handle_messages_broken_pipe_blocking():
     mock_cursor.ps = None
 
     with pytest.raises(
-            InterfaceError,
-            match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
-                  "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
+        InterfaceError,
+        match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
+        "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
     ):
         mock_connection.handle_messages(mock_cursor)
 
 
-def test_handle_messages_broken_pipe_timeout():
+def test_handle_messages_broken_pipe_timeout() -> None:
     # mock the connection and mock the read attribute
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._read = mock_read
@@ -380,14 +379,14 @@ def test_handle_messages_broken_pipe_timeout():
     mock_cursor.ps = None
 
     with pytest.raises(
-            InterfaceError,
-            match="BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
-                  "raising the timeout or defaulting timeout to none.",
+        InterfaceError,
+        match="BrokenPipe: server socket closed. We noticed a timeout is set for this connection. Consider "
+        "raising the timeout or defaulting timeout to none.",
     ):
         mock_connection.handle_messages(mock_cursor)
 
 
-def test_handle_messages_merge_socket_read_broken_pipe_blocking():
+def test_handle_messages_merge_socket_read_broken_pipe_blocking() -> None:
     # mock the connection and mock the read attribute
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._read = mock_read
@@ -401,14 +400,14 @@ def test_handle_messages_merge_socket_read_broken_pipe_blocking():
     mock_cursor.ps = None
 
     with pytest.raises(
-            InterfaceError,
-            match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
-                  "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
+        InterfaceError,
+        match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
+        "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
     ):
         mock_connection.handle_messages_merge_socket_read(mock_cursor)
 
 
-def test_handle_messages_merge_socket_read_broken_pipe_timeout():
+def test_handle_messages_merge_socket_read_broken_pipe_timeout() -> None:
     # mock the connection and mock the read attribute
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection._read = mock_read
@@ -429,13 +428,13 @@ def test_handle_messages_merge_socket_read_broken_pipe_timeout():
         mock_connection.handle_messages_merge_socket_read(mock_cursor)
 
 
-def test_broken_pipe_on_connect(db_kwargs):
+def test_broken_pipe_on_connect(db_kwargs) -> None:
     db_kwargs["ssl"] = False
 
     with mock.patch("socket.getaddrinfo") as mock_getaddrinfo:
-        addr_tuple = [(0, 1, 2, "", ('3.226.18.73', 5439)), (2, 1, 6, '', ('3.226.18.73', 5439))]
+        addr_tuple = [(0, 1, 2, "", ("3.226.18.73", 5439)), (2, 1, 6, "", ("3.226.18.73", 5439))]
         mock_getaddrinfo.return_value = addr_tuple
-        with mock.patch('socket.socket.connect') as mock_usock:
+        with mock.patch("socket.socket.connect") as mock_usock:
             mock_usock.side_effect = lambda *args, **kwargs: None
             with mock.patch("socket.socket.makefile") as mock_sock:
                 mock_file = mock_sock.return_value
@@ -443,21 +442,21 @@ def test_broken_pipe_on_connect(db_kwargs):
                 with pytest.raises(
                     InterfaceError,
                     match="BrokenPipe: server socket closed. Please check that client side networking configurations such "
-                          "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
+                    "as Proxies, firewalls, VPN, etc. are not affecting your network connection.",
                 ):
                     db_kwargs.pop("region")
                     db_kwargs.pop("cluster_identifier")
                     Connection(**db_kwargs)
 
-def test_broken_pipe_timeout_on_connect(db_kwargs):
+
+def test_broken_pipe_timeout_on_connect(db_kwargs) -> None:
     db_kwargs["ssl"] = False
     db_kwargs["timeout"] = 60
 
-
     with mock.patch("socket.getaddrinfo") as mock_getaddrinfo:
-        addr_tuple =[(0, 1, 2, "", ('3.226.18.73', 5439)), (2, 1, 6, '', ('3.226.18.73', 5439))]
-        mock_getaddrinfo.return_value= addr_tuple
-        with mock.patch('socket.socket.connect') as mock_usock:
+        addr_tuple = [(0, 1, 2, "", ("3.226.18.73", 5439)), (2, 1, 6, "", ("3.226.18.73", 5439))]
+        mock_getaddrinfo.return_value = addr_tuple
+        with mock.patch("socket.socket.connect") as mock_usock:
             mock_usock.side_effect = lambda *args, **kwargs: None
 
             with mock.patch("socket.socket.makefile") as mock_sock:

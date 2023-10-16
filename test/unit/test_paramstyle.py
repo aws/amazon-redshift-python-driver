@@ -23,13 +23,13 @@ from redshift_connector.core import convert_paramstyle as convert
         ),
     ],
 )
-def test_qmark(in_statement, out_statement, args):
+def test_qmark(in_statement, out_statement, args) -> None:
     new_query, make_args = convert(DbApiParamstyle.QMARK.value, in_statement)
     assert new_query == out_statement
     assert make_args(args) == args
 
 
-def test_numeric():
+def test_numeric() -> None:
     new_query, make_args = convert(
         DbApiParamstyle.NUMERIC.value, "SELECT sum(x)::decimal(5, 2) :2, :1, * FROM t WHERE a=:3"
     )
@@ -38,14 +38,14 @@ def test_numeric():
     assert make_args((1, 2, 3)) == (1, 2, 3)
 
 
-def test_numeric_default_parameter():
+def test_numeric_default_parameter() -> None:
     new_query, make_args = convert(DbApiParamstyle.NUMERIC.value, "make_interval(days := 10)")
 
     assert new_query == "make_interval(days := 10)"
     assert make_args((1, 2, 3)) == (1, 2, 3)
 
 
-def test_named():
+def test_named() -> None:
     new_query, make_args = convert(
         DbApiParamstyle.NAMED.value, "SELECT sum(x)::decimal(5, 2) :f_2, :f1 FROM t WHERE a=:f_2"
     )
@@ -54,7 +54,7 @@ def test_named():
     assert make_args({"f_2": 1, "f1": 2}) == (1, 2)
 
 
-def test_format():
+def test_format() -> None:
     new_query, make_args = convert(
         DbApiParamstyle.FORMAT.value,
         "SELECT %s, %s, \"f1_%%\", E'txt_%%' FROM t WHERE a=%s AND b='75%%' AND c = '%' -- Comment with %",
@@ -66,7 +66,7 @@ def test_format():
     assert make_args((1, 2, 3)) == (1, 2, 3)
 
 
-def test_format_multiline():
+def test_format_multiline() -> None:
     new_query, make_args = convert(DbApiParamstyle.FORMAT.value, "SELECT -- Comment\n%s FROM t")
     assert new_query == "SELECT -- Comment\n$1 FROM t"
 
@@ -107,7 +107,7 @@ def test_format_multiline():
         r"""COMMENT ON TABLE test_schema.comment_test """ r"""IS 'the test % '' " \ table comment'""",
     ),
 )
-def test_multiline_single_parameter(paramstyle, statement):
+def test_multiline_single_parameter(paramstyle, statement) -> None:
     in_statement = statement
     format_char = None
     expected = statement.format("$1")
@@ -128,7 +128,7 @@ def test_multiline_single_parameter(paramstyle, statement):
     assert new_query == expected
 
 
-def test_py_format():
+def test_py_format() -> None:
     new_query, make_args = convert(
         DbApiParamstyle.PYFORMAT.value,
         "SELECT %(f2)s, %(f1)s, \"f1_%%\", E'txt_%%' " "FROM t WHERE a=%(f2)s AND b='75%%'",

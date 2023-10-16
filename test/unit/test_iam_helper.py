@@ -62,7 +62,7 @@ def make_basic_redshift_property(**kwargs) -> RedshiftProperty:
 
 
 @pytest.mark.usefixtures("mock_set_iam_credentials")
-def test_set_iam_properties_fails_when_non_str_credential_provider():
+def test_set_iam_properties_fails_when_non_str_credential_provider() -> None:
     keywords: typing.Dict[str, typing.Union[int, bool]] = {
         "credentials_provider": 1,
         "iam": True,
@@ -86,7 +86,7 @@ ssl_mode_descriptions: typing.List[typing.Tuple[typing.Optional[str], str]] = [
 
 @pytest.mark.usefixtures("mock_set_iam_credentials")
 @pytest.mark.parametrize("ssl_param", ssl_mode_descriptions)
-def test_set_iam_properties_enforce_min_ssl_mode(ssl_param):
+def test_set_iam_properties_enforce_min_ssl_mode(ssl_param) -> None:
     test_input, expected_mode = ssl_param
     keywords: typing.Dict[str, typing.Union[str, bool]] = {
         "sslmode": test_input,
@@ -107,8 +107,8 @@ client_protocol_version_values: typing.List[int] = ClientProtocolVersion.list()
 
 
 @pytest.mark.parametrize("_input", client_protocol_version_values)
-def test_set_iam_properties_enforce_client_protocol_version(_input):
-    keywords: typing.Dict[str, int] = {
+def test_set_iam_properties_enforce_client_protocol_version(_input) -> None:
+    keywords: typing.Dict[str, typing.Union[str, int]] = {
         "client_protocol_version": _input,
         "host": "redshift-cluster-1.aaaaaaaaaaaa.us-east-1.redshift.amazonaws.com",
     }
@@ -234,7 +234,7 @@ multi_req_params: typing.List[typing.Tuple[typing.Dict, str]] = [
 
 @pytest.mark.usefixtures("mock_set_iam_credentials")
 @pytest.mark.parametrize("joint_params", multi_req_params)
-def test_set_iam_properties_enforce_setting_compatibility(mocker, joint_params):
+def test_set_iam_properties_enforce_setting_compatibility(mocker, joint_params) -> None:
     test_input, expected_exception_msg = joint_params
 
     with pytest.raises(InterfaceError) as excinfo:
@@ -253,9 +253,9 @@ valid_credential_providers: typing.List[typing.Tuple[str, typing.Any]] = [
 ]
 
 
-def test_set_iam_properties_raises_exception_when_info_is_none():
+def test_set_iam_properties_raises_exception_when_info_is_none() -> None:
     with pytest.raises(InterfaceError) as excinfo:
-        IamHelper.set_auth_properties(None)
+        IamHelper.set_auth_properties(None)  # type: ignore
     assert "Invalid connection property setting. info must be specified" in str(excinfo.value)
 
 
@@ -266,7 +266,7 @@ def mock_add_parameter():
 @pytest.mark.usefixtures("mock_all_provider_get_credentials")
 @pytest.mark.usefixtures("mock_set_cluster_credentials")
 @pytest.mark.parametrize("provider", valid_credential_providers)
-def test_set_iam_properties_provider_assigned(mocker, provider):
+def test_set_iam_properties_provider_assigned(mocker, provider) -> None:
     test_input, expectedProvider = provider
     mocker.patch("redshift_connector.plugin.{}.get_credentials".format(test_input))
     rp: RedshiftProperty = make_redshift_property()
@@ -297,7 +297,7 @@ valid_aws_credential_args: typing.List[typing.Dict[str, str]] = [
 
 
 @pytest.mark.parametrize("test_input", valid_aws_credential_args)
-def test_set_iam_properties_via_aws_credentials(mocker, test_input):
+def test_set_iam_properties_via_aws_credentials(mocker, test_input) -> None:
     # spy = mocker.spy("redshift_connector", "set_iam_credentials")
     rp: RedshiftProperty = make_basic_redshift_property(
         **{**test_input, **{"ssl": True, "iam": True, "cluster_identifier": "blah"}}
@@ -319,7 +319,7 @@ def test_set_iam_properties_via_aws_credentials(mocker, test_input):
             assert rp.session_token == aws_cred_val
 
 
-def test_set_iam_credentials_via_aws_credentials(mocker):
+def test_set_iam_credentials_via_aws_credentials(mocker) -> None:
     redshift_property: RedshiftProperty = RedshiftProperty()
     redshift_property.profile = "profile_val"
     redshift_property.access_key_id = "access_val"
@@ -337,7 +337,9 @@ def test_set_iam_credentials_via_aws_credentials(mocker):
 
 
 @mock.patch("boto3.client")
-def test_set_iam_credentials_for_serverless_uses_redshift_serverless_client(mock_boto_client, serverless_iam_db_kwargs):
+def test_set_iam_credentials_for_serverless_uses_redshift_serverless_client(
+    mock_boto_client, serverless_iam_db_kwargs
+) -> None:
     rp: RedshiftProperty = RedshiftProperty()
 
     for k, v in serverless_iam_db_kwargs.items():
@@ -366,7 +368,7 @@ def test_set_iam_credentials_for_serverless_uses_redshift_serverless_client(mock
 )
 def test_set_iam_credentials_for_serverless_calls_get_credentials(
     mock_boto_client, serverless_host, mocker, serverless_iam_db_kwargs
-):
+) -> None:
     rp: RedshiftProperty = RedshiftProperty()
 
     for k, v in serverless_iam_db_kwargs.items():
@@ -401,7 +403,7 @@ def test_set_iam_credentials_for_serverless_calls_get_credentials(
     assert "password" in [c[0][0] for c in spy.call_args_list]
 
 
-def test_serverless_properties_used_when_is_serverless_true(mocker):
+def test_serverless_properties_used_when_is_serverless_true(mocker) -> None:
     rp: RedshiftProperty = RedshiftProperty()
     rp.host = "test-endpoint-xxxx.123456789123.us-east-2.redshift-serverless.amazonaws.com"
     rp.is_serverless = True
@@ -420,7 +422,7 @@ def test_serverless_properties_used_when_is_serverless_true(mocker):
     assert result.serverless_acct_id == rp.serverless_acct_id
 
 
-def test_internal_is_serverless_prop_true_for_nlb_host():
+def test_internal_is_serverless_prop_true_for_nlb_host() -> None:
     rp: RedshiftProperty = RedshiftProperty()
     rp.is_serverless = True
 
@@ -434,7 +436,7 @@ def test_internal_is_serverless_prop_true_for_nlb_host():
         "012345678901.us-east-2.redshift-serverless.amazonaws.com",
     ),
 )
-def test_internal_is_serverless_prop_true_for_serverless_host(serverless_host):
+def test_internal_is_serverless_prop_true_for_serverless_host(serverless_host) -> None:
     rp: RedshiftProperty = RedshiftProperty()
     rp.host = serverless_host
     rp.serverless_work_group = "something"
@@ -443,7 +445,7 @@ def test_internal_is_serverless_prop_true_for_serverless_host(serverless_host):
     assert rp._is_serverless is True
 
 
-def test_dynamically_loading_credential_holder(mocker):
+def test_dynamically_loading_credential_holder(mocker) -> None:
     external_class_name: str = "test.unit.MockCredentialsProvider"
     mocker.patch("{}.get_credentials".format(external_class_name))
     mocker.patch("redshift_connector.iam_helper.IamHelper.set_cluster_credentials", return_value=None)
@@ -459,7 +461,7 @@ def test_dynamically_loading_credential_holder(mocker):
     assert isinstance(spy.call_args[0][0], MockCredentialsProvider) is True
 
 
-def test_get_credentials_cache_key():
+def test_get_credentials_cache_key() -> None:
     rp: RedshiftProperty = RedshiftProperty()
     rp.db_user = "2"
     rp.db_name = "1"
@@ -467,19 +469,19 @@ def test_get_credentials_cache_key():
     rp.cluster_identifier = "6"
     rp.auto_create = False
 
-    res_cache_key: str = IamHelper.get_credentials_cache_key(rp, None)
+    res_cache_key: str = IamHelper.get_credentials_cache_key(rp, None)  # type: ignore
     assert res_cache_key is not None
     assert res_cache_key == "2;1;3,4,5;6;False;900"
 
 
-def test_get_credentials_cache_key_no_db_groups():
+def test_get_credentials_cache_key_no_db_groups() -> None:
     rp: RedshiftProperty = RedshiftProperty()
     rp.db_user = "2"
     rp.db_name = "1"
     rp.cluster_identifier = "6"
     rp.auto_create = False
 
-    res_cache_key: str = IamHelper.get_credentials_cache_key(rp, None)
+    res_cache_key: str = IamHelper.get_credentials_cache_key(rp, None)  # type: ignore
     assert res_cache_key is not None
     assert res_cache_key == "2;1;6;False;900"
 
@@ -488,7 +490,7 @@ def test_get_credentials_cache_key_no_db_groups():
 @mock.patch("boto3.client")
 def test_set_cluster_credentials_uses_custom_domain_name_if_custom_domain_name_cluster(
     mock_boto_client, mock_get_cluster_credentials
-):
+) -> None:
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
     mock_cred_provider.get_credentials.return_value = mock_cred_holder
@@ -520,7 +522,7 @@ def test_set_cluster_credentials_uses_custom_domain_name_if_custom_domain_name_c
 
 @mock.patch("boto3.client.get_cluster_credentials")
 @mock.patch("boto3.client")
-def test_set_cluster_credentials_caches_credentials(mock_boto_client, mock_get_cluster_credentials):
+def test_set_cluster_credentials_caches_credentials(mock_boto_client, mock_get_cluster_credentials) -> None:
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
     mock_cred_provider.get_credentials.return_value = mock_cred_holder
@@ -550,7 +552,7 @@ def test_set_cluster_credentials_caches_credentials(mock_boto_client, mock_get_c
 
 @mock.patch("boto3.client.get_cluster_credentials")
 @mock.patch("boto3.client")
-def test_set_cluster_credentials_honors_iam_disable_cache(mock_boto_client, mock_get_cluster_credentials):
+def test_set_cluster_credentials_honors_iam_disable_cache(mock_boto_client, mock_get_cluster_credentials) -> None:
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
     mock_cred_provider.get_credentials.return_value = mock_cred_holder
@@ -580,7 +582,7 @@ def test_set_cluster_credentials_honors_iam_disable_cache(mock_boto_client, mock
 
 @mock.patch("boto3.client.get_cluster_credentials")
 @mock.patch("boto3.client")
-def test_set_cluster_credentials_ignores_cache_when_disabled(mock_boto_client, mock_get_cluster_credentials):
+def test_set_cluster_credentials_ignores_cache_when_disabled(mock_boto_client, mock_get_cluster_credentials) -> None:
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
     mock_cred_provider.get_credentials.return_value = mock_cred_holder
@@ -621,7 +623,7 @@ def test_set_cluster_credentials_ignores_cache_when_disabled(mock_boto_client, m
 
 @mock.patch("boto3.client.get_cluster_credentials")
 @mock.patch("boto3.client")
-def test_set_cluster_credentials_uses_cache_if_possible(mock_boto_client, mock_get_cluster_credentials):
+def test_set_cluster_credentials_uses_cache_if_possible(mock_boto_client, mock_get_cluster_credentials) -> None:
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
     mock_cred_provider.get_credentials.return_value = mock_cred_holder
@@ -660,7 +662,7 @@ def test_set_cluster_credentials_uses_cache_if_possible(mock_boto_client, mock_g
 
 @mock.patch("boto3.client.get_cluster_credentials")
 @mock.patch("boto3.client")
-def test_set_cluster_credentials_refreshes_stale_credentials(mock_boto_client, mock_get_cluster_credentials):
+def test_set_cluster_credentials_refreshes_stale_credentials(mock_boto_client, mock_get_cluster_credentials) -> None:
     mock_cred_provider = MagicMock()
     mock_cred_holder = MagicMock()
     mock_cred_provider.get_credentials.return_value = mock_cred_holder
@@ -697,13 +699,13 @@ def test_set_cluster_credentials_refreshes_stale_credentials(mock_boto_client, m
     )
 
 
-def test_get_authentication_type_for_iam_with_profile():
+def test_get_authentication_type_for_iam_with_profile() -> None:
     provider = AWSCredentialsProvider()
     provider.profile = "test"
     assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.PROFILE
 
 
-def test_get_authentication_type_for_iam_with_key_session():
+def test_get_authentication_type_for_iam_with_key_session() -> None:
     provider = AWSCredentialsProvider()
     provider.access_key_id = "test_key"
     provider.session_token = "test_token"
@@ -711,14 +713,14 @@ def test_get_authentication_type_for_iam_with_key_session():
     assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION
 
 
-def test_get_authentication_type_for_iam_with_key():
+def test_get_authentication_type_for_iam_with_key() -> None:
     provider = AWSCredentialsProvider()
     provider.access_key_id = "test_key"
     provider.secret_access_key = "test_secret_key"
     assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.IAM_KEYS
 
 
-def test_get_authentication_type_for_iam_with_plugin():
+def test_get_authentication_type_for_iam_with_plugin() -> None:
     provider = BrowserSamlCredentialsProvider()
     assert IamHelper.get_authentication_type(provider) == IamHelper.IAMAuthenticationType.PLUGIN
 
@@ -793,7 +795,7 @@ def test_get_authentication_type_for_iam_with_plugin():
         ),
     ),
 )
-def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, provider, exp_result):
+def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, provider, exp_result) -> None:
     info = RedshiftProperty()
     for param in conn_params.items():
         info.put(param[0], param[1])
@@ -812,7 +814,9 @@ def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, prov
         ("1.17.100", {"iam": True, "ssl": True, "auth_profile": "SomeTestProfile", "cluster_identifier": "my_cluster"}),
     ),
 )
-def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(mocker, boto3_version, connection_args):
+def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(
+    mocker, boto3_version, connection_args
+) -> None:
     from packaging.version import Version
 
     mock_boto3_dist_obj = Version(boto3_version)
@@ -828,7 +832,7 @@ def test_set_iam_properties_raises_exception_when_insufficient_boto3_version(moc
     assert "required for authentication" in str(excinfo.value)
 
 
-def test_set_iam_properties_use_redshift_auth_profile_calls_read_auth_profile(mocker):
+def test_set_iam_properties_use_redshift_auth_profile_calls_read_auth_profile(mocker) -> None:
     mocker.patch(
         "redshift_connector.idp_auth_helper.IdpAuthHelper.read_auth_profile",
         return_value=RedshiftProperty(kwargs={"": ""}),
@@ -867,7 +871,7 @@ def test_set_iam_properties_use_redshift_auth_profile_calls_read_auth_profile(mo
     assert spy.call_args[1]["info"].endpoint_url == exp_call_arg["endpoint_url"]
 
 
-def test_set_iam_properties_redshift_auth_profile_does_override(mocker):
+def test_set_iam_properties_redshift_auth_profile_does_override(mocker) -> None:
     mock_contents: typing.Dict[str, str] = {
         "password": "overridePassword",
     }
@@ -930,7 +934,7 @@ def test_read_auth_profile_raises_exception_if_profile_dne(mocker):
         IamHelper.read_auth_profile(**req_params)
 
 
-def test_read_auth_profile_loads_json_payload(mocker):
+def test_read_auth_profile_loads_json_payload(mocker) -> None:
     import json
 
     req_params: typing.Dict = {
@@ -956,7 +960,7 @@ def test_read_auth_profile_loads_json_payload(mocker):
     assert result.cluster_identifier == mock_payload["cluster_identifier"]
 
 
-def test_read_auth_profile_invalid_json_payload_raises_exception(mocker):
+def test_read_auth_profile_invalid_json_payload_raises_exception(mocker) -> None:
     import json
 
     req_params: typing.Dict = {
@@ -981,7 +985,7 @@ def test_read_auth_profile_invalid_json_payload_raises_exception(mocker):
         IamHelper.read_auth_profile(**req_params)
 
 
-def test_set_iam_properties_calls_set_auth_props(mocker):
+def test_set_iam_properties_calls_set_auth_props(mocker) -> None:
     mocker.patch("redshift_connector.iam_helper.IdpAuthHelper.set_auth_properties", return_value=None)
     spy = mocker.spy(IdpAuthHelper, "set_auth_properties")
     mock_rp: MagicMock = MagicMock()
@@ -995,7 +999,7 @@ def test_set_iam_properties_calls_set_auth_props(mocker):
     assert spy.call_args[0][0] == mock_rp
 
 
-def test_set_cluster_identifier_calls_describe_custom_domain_associations(mocker):
+def test_set_cluster_identifier_calls_describe_custom_domain_associations(mocker) -> None:
     custom_domain_name: str = "my.custom.domain.com"
     rp: RedshiftProperty = RedshiftProperty()
     rp.put("host", custom_domain_name)
@@ -1012,7 +1016,7 @@ def test_set_cluster_identifier_calls_describe_custom_domain_associations(mocker
     assert spy.call_args[1]["CustomDomainName"] == custom_domain_name
 
 
-def test_set_cluster_identifier_sets_cluster_identifier(mocker):
+def test_set_cluster_identifier_sets_cluster_identifier(mocker) -> None:
     exp_cluster_identifier: str = "my-cname-test"
     custom_domain_name: str = "my.custom.domain.com"
     rp: RedshiftProperty = RedshiftProperty()
