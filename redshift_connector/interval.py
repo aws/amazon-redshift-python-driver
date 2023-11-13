@@ -1,4 +1,6 @@
+import typing
 from redshift_connector.config import max_int4, max_int8, min_int4, min_int8
+from datetime import timedelta as Timedelta
 
 
 class Interval:
@@ -44,7 +46,7 @@ class Interval:
     def _setMicroseconds(self: "Interval", value: int) -> None:
         if not isinstance(value, int):
             raise TypeError("microseconds must be an integer type")
-        elif not (min_int8 < value < max_int8):
+        elif not (min_int8 <= value < max_int8):
             raise OverflowError("microseconds must be representable as a 64-bit integer")
         else:
             self._microseconds = value
@@ -52,7 +54,7 @@ class Interval:
     def _setDays(self: "Interval", value: int) -> None:
         if not isinstance(value, int):
             raise TypeError("days must be an integer type")
-        elif not (min_int4 < value < max_int4):
+        elif not (min_int4 <= value < max_int4):
             raise OverflowError("days must be representable as a 32-bit integer")
         else:
             self._days = value
@@ -60,7 +62,7 @@ class Interval:
     def _setMonths(self: "Interval", value: int) -> None:
         if not isinstance(value, int):
             raise TypeError("months must be an integer type")
-        elif not (min_int4 < value < max_int4):
+        elif not (min_int4 <= value < max_int4):
             raise OverflowError("months must be representable as a 32-bit integer")
         else:
             self._months = value
@@ -87,3 +89,98 @@ class Interval:
     def total_seconds(self: "Interval") -> float:
         """Total seconds in the Interval, excluding month field."""
         return ((self.days * 86400) * 10**6 + self.microseconds) / 10**6
+
+class IntervalYearToMonth(Interval):
+    """An Interval Year To Month represents a measurement of time of the order
+    of a few months and years. Note the difference with Interval which can
+    represent any length of time. Since this class only represents an interval
+    of the order of months, we just use the :attr:`months`, the other inherited
+    attributes must be set to 0 at all times.
+
+    Note that 1year = 12months.
+    """
+    def __init__(self: "IntervalYearToMonth",
+                 months: int = 0,
+                 year_month: typing.Tuple[int, int] = None) -> None:
+        if year_month is not None:
+            year, month = year_month
+            self.months = year * 12 + month
+        else:
+            self.months = months
+
+    def _setMicroseconds(self: "IntervalYearToMonth", value: int) -> None:
+        raise ValueError("microseconds cannot be set for an Interval Year To Month object")
+
+    def _setDays(self: "IntervalYearToMonth", value: int) -> None:
+        raise ValueError("days cannot be set for an Interval Year To Month object")
+
+    def _setMonths(self: "IntervalYearToMonth", value: int) -> None:
+        return super(IntervalYearToMonth, self)._setMonths(value)
+
+    # microseconds = property(lambda self: self._microseconds, _setMicroseconds)
+    # days = property(lambda self: self._days, _setDays)
+    months = property(lambda self: self._months, _setMonths)
+
+    def getYearMonth(self: "IntervalDayToSecond") -> typing.Tuple[int, int]:
+        years = int(self.months / 12)
+        months = self.months - 12 * years
+        return (years, months)
+
+    def __repr__(self: "IntervalYearToMonth") -> str:
+        return "<IntervalYearToMonth %s months>" % (self.months)
+
+    def __eq__(self: "IntervalYearToMonth", other: object) -> bool:
+        return (
+            other is not None
+            and isinstance(other, IntervalYearToMonth)
+            and self.months == other.months
+        )
+
+    def __neq__(self: "IntervalYearToMonth", other: "IntervalYearToMonth") -> bool:
+        return not self.__eq__(other)
+
+class IntervalDayToSecond(Interval):
+    """An Interval Day To Second represents a measurement of time of the order
+    of a few microseconds. Note the difference with Interval which can
+    represent any length of time. Since this class only represents an interval
+    of the order of microsecodns, we just use the :attr:`microseconds`, the other
+    inherited attributes must be set to 0 at all times.
+
+    Note that 1day = 24 * 3600 * 1000000 microseconds.
+    """
+    def __init__(self: "IntervalDayToSecond",
+                 microseconds: int = 0,
+                 timedelta: Timedelta = None) -> None:
+        if timedelta is not None:
+            self.microseconds = int(timedelta.total_seconds() * (10**6))
+        else:
+            self.microseconds = microseconds
+
+    def _setMicroseconds(self: "IntervalDayToSecond", value: int) -> None:
+        return super(IntervalDayToSecond, self)._setMicroseconds(value)
+
+    def _setDays(self: "IntervalDayToSecond", value: int) -> None:
+        raise ValueError("days cannot be set for an Interval Day To Second object")
+
+    def _setMonths(self: "IntervalDayToSecond", value: int) -> None:
+        raise ValueError("months cannot be set for an Interval Day To Second object")
+
+    microseconds = property(lambda self: self._microseconds, _setMicroseconds)
+    # days = property(lambda self: self._days, _setDays)
+    # months = property(lambda self: self._months, _setMonths)
+
+    def __repr__(self: "IntervalDayToSecond") -> str:
+        return "<IntervalDayToSecond %s microseconds>" % (self.microseconds)
+
+    def __eq__(self: "IntervalDayToSecond", other: object) -> bool:
+        return (
+            other is not None
+            and isinstance(other, IntervalDayToSecond)
+            and self.microseconds == other.microseconds
+        )
+
+    def __neq__(self: "IntervalDayToSecond", other: "IntervalDayToSecond") -> bool:
+        return not self.__eq__(other)
+
+    def getTimedelta(self: "IntervalDayToSecond") -> Timedelta:
+        return Timedelta(microseconds=self.microseconds)

@@ -4,6 +4,7 @@ import os
 import typing
 from datetime import datetime as Datetime
 from datetime import timezone
+from redshift_connector.interval import IntervalYearToMonth, IntervalDayToSecond
 from math import isclose
 from test.integration.datatype._generate_test_datatype_tables import (  # type: ignore
     DATATYPES_WITH_MS,
@@ -87,10 +88,12 @@ for datatype in redshift_test_data:
 def test_redshift_specific_recv_support(db_kwargs, _input, client_protocol) -> None:
     db_kwargs["client_protocol_version"] = client_protocol
     datatype, data = _input
-    test_val, exp_val = data
+    test_val, exp_val = data[:2]
 
     with redshift_connector.connect(**db_kwargs) as con:
         with con.cursor() as cursor:
+            if datatype in ["intervaly2m", "intervald2s"]:
+                test_val = "'{}'::{}".format(test_val, datatype)
             cursor.execute("select {}".format(test_val))
             results: typing.Tuple = cursor.fetchall()
             assert len(results) == 1
@@ -116,6 +119,56 @@ def test_redshift_varbyte_insert(db_kwargs, _input, client_protocol) -> None:
             assert len(results) == 1
             assert len(results[0]) == 2
             assert results[0][1] == bytes(data, encoding="utf-8").hex()
+
+@pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
+@pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name,
+                                      RedshiftDatatypes.intervald2s.name])
+def test_redshift_interval_insert(db_kwargs, datatype, client_protocol) -> None:
+    db_kwargs["client_protocol_version"] = client_protocol
+    data = redshift_test_data[datatype]
+    redshift_type = IntervalYearToMonth if (datatype == "intervaly2m") else IntervalDayToSecond
+
+    with redshift_connector.connect(**db_kwargs) as con:
+        with con.cursor() as cursor:
+            cursor.execute("create table t_interval(id text, v1 {})".format(datatype))
+            for row in data:
+                cursor.execute("insert into t_interval values ('{}', '{}')".format(row[-1], row[0]))
+            cursor.execute("select id, v1 from t_interval")
+            results: typing.Tuple = cursor.fetchall()
+            assert len(results) == len(data)
+            print(results)
+            for idx, result in enumerate(results):
+                print(result[1], data[idx][1])
+                assert(isinstance(result[1], redshift_type))
+                assert(result[1] == data[idx][1])
+            cursor.execute("drop table t_interval")
+
+@pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
+@pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name,
+                                      RedshiftDatatypes.intervald2s.name])
+def test_redshift_interval_prep_stmt(db_kwargs, datatype, client_protocol) -> None:
+    db_kwargs["client_protocol_version"] = client_protocol
+    data = redshift_test_data[datatype]
+    redshift_type = IntervalYearToMonth if (datatype == "intervaly2m") else IntervalDayToSecond
+
+    with redshift_connector.connect(**db_kwargs) as con:
+        with con.cursor() as cursor:
+            cursor.execute("create table t_interval_ps(id text, v1 {})".format(datatype))
+            cursor.paramstyle = "pyformat"
+            cursor.executemany("insert into t_interval_ps(id, v1) values (%(id_val)s, %(v1_val)s)",
+                               ({"id_val": row[-1], "v1_val": row[1]} for row in data[:2]))
+            cursor.paramstyle = "qmark"
+            cursor.executemany("insert into t_interval_ps values (?, ?)",
+                               ([row[-1], row[1]] for row in data[2:]))
+            cursor.execute("select id, v1 from t_interval_ps")
+            results: typing.Tuple = cursor.fetchall()
+            assert len(results) == len(data)
+            print(results)
+            for idx, result in enumerate(results):
+                print(result[1], data[idx][1])
+                assert(isinstance(result[1], redshift_type))
+                assert(result[1] == data[idx][1])
+            cursor.execute("drop table t_interval_ps")
 
 
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())

@@ -47,11 +47,11 @@ def interval_range_test(parameter, in_range, out_of_range):
 
 def test_interval_days_range() -> None:
     out_of_range_days = (
-        -2147483648,
+        -2147483649,
         +2147483648,
     )
     in_range_days = (
-        -2147483647,
+        -2147483648,
         +2147483647,
     )
     interval_range_test("days", in_range_days, out_of_range_days)
@@ -59,11 +59,11 @@ def test_interval_days_range() -> None:
 
 def test_interval_months_range() -> None:
     out_of_range_months = (
-        -2147483648,
+        -2147483649,
         +2147483648,
     )
     in_range_months = (
-        -2147483647,
+        -2147483648,
         +2147483647,
     )
     interval_range_test("months", in_range_months, out_of_range_months)
@@ -71,11 +71,11 @@ def test_interval_months_range() -> None:
 
 def test_interval_microseconds_range() -> None:
     out_of_range_microseconds = (
-        -9223372036854775808,
+        -9223372036854775809,
         +9223372036854775808,
     )
     in_range_microseconds = (
-        -9223372036854775807,
+        -9223372036854775808,
         +9223372036854775807,
     )
     interval_range_test("microseconds", in_range_microseconds, out_of_range_microseconds)

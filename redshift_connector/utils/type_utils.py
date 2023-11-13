@@ -22,7 +22,7 @@ from redshift_connector.config import (
     _client_encoding,
     timegm,
 )
-from redshift_connector.interval import Interval
+from redshift_connector.interval import Interval, IntervalYearToMonth, IntervalDayToSecond
 from redshift_connector.pg_types import (
     PGEnum,
     PGJson,
@@ -205,6 +205,16 @@ def interval_send_integer(v: typing.Union[Timedelta, Interval]) -> bytes:
 
     return typing.cast(bytes, qhh_pack(microseconds, 0, months))
 
+def intervaly2m_send_integer(v: IntervalYearToMonth) -> bytes:
+    months = v.months  # type: ignore
+
+    return typing.cast(bytes, i_pack(months))
+
+def intervald2s_send_integer(v: IntervalDayToSecond) -> bytes:
+    microseconds = v.microseconds  # type: ignore
+
+    return typing.cast(bytes, q_pack(microseconds))
+
 
 glbls: typing.Dict[str, type] = {"Decimal": Decimal}
 trans_tab = dict(zip(map(ord, "{}"), "[]"))
@@ -274,6 +284,13 @@ def interval_recv_integer(data: bytes, offset: int, length: int) -> typing.Union
     else:
         return Timedelta(days, seconds, micros)
 
+def intervaly2m_recv_integer(data: bytes, offset: int, length: int) -> IntervalYearToMonth:
+    months,  = typing.cast(typing.Tuple[int], i_unpack(data, offset))
+    return IntervalYearToMonth(months)
+
+def intervald2s_recv_integer(data: bytes, offset: int, length: int) -> IntervalDayToSecond:
+    microseconds, = typing.cast(typing.Tuple[int], q_unpack(data, offset))
+    return IntervalDayToSecond(microseconds)
 
 def timetz_recv_binary(data: bytes, offset: int, length: int) -> time:
     return time_recv_binary(data, offset, length).replace(tzinfo=Timezone.utc)
@@ -609,6 +626,8 @@ redshift_types: typing.DefaultDict[int, typing.Tuple[int, typing.Callable]] = de
         RedshiftOID.TIMESTAMPTZ: (FC_BINARY, timestamptz_recv_integer),  # timestamptz
         RedshiftOID.TIMETZ: (FC_BINARY, timetz_recv_binary),  # timetz
         RedshiftOID.INTERVAL: (FC_BINARY, interval_recv_integer),
+        RedshiftOID.INTERVALY2M: (FC_BINARY, intervaly2m_recv_integer),
+        RedshiftOID.INTERVALD2S: (FC_BINARY, intervald2s_recv_integer),
         # 1231: (FC_TEXT, array_in),  # NUMERIC[]
         # 1263: (FC_BINARY, array_recv),  # cstring[]
         RedshiftOID.NUMERIC: (FC_BINARY, numeric_in_binary),  # NUMERIC
@@ -672,6 +691,8 @@ py_types: typing.Dict[typing.Union[type, int], typing.Tuple[int, int, typing.Cal
     # PGJsonb: (3802, FC_TEXT, text_out),
     Timedelta: (RedshiftOID.INTERVAL, FC_BINARY, interval_send_integer),  # interval
     Interval: (RedshiftOID.INTERVAL, FC_BINARY, interval_send_integer),
+    IntervalYearToMonth: (RedshiftOID.INTERVALY2M, FC_BINARY, intervaly2m_send_integer),
+    IntervalDayToSecond: (RedshiftOID.INTERVALD2S, FC_BINARY, intervald2s_send_integer),
     Decimal: (RedshiftOID.NUMERIC, FC_TEXT, numeric_out),  # Decimal
     PGTsvector: (3614, FC_TEXT, text_out),
     # UUID: (2950, FC_BINARY, uuid_send),  # uuid

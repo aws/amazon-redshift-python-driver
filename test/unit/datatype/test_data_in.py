@@ -7,7 +7,7 @@ from math import isclose
 import pytest  # type: ignore
 
 import redshift_connector
-from redshift_connector.interval import Interval
+from redshift_connector.interval import Interval, IntervalYearToMonth, IntervalDayToSecond
 from redshift_connector.utils import type_utils
 
 
@@ -38,6 +38,8 @@ class Datatypes(Enum):
     text_array_binary: typing.Callable = type_utils.array_recv_binary
     geometry: typing.Callable = type_utils.text_recv
     interval: typing.Callable = type_utils.interval_recv_integer
+    intervaly2m: typing.Callable = type_utils.intervaly2m_recv_integer
+    intervald2s: typing.Callable = type_utils.intervald2s_recv_integer
 
 
 test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {
@@ -341,6 +343,18 @@ test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {
         ),
         (b"\x00\x01\x00\x00\x00\x0c\x00\x00\x00d\x954\xe0\x00\x00\x00\x00\x00", 6, 12, timedelta(days=5)),
     ],
+    Datatypes.intervaly2m: [
+        (b"\x01\x0e\x00\x00\x00*", 2, 4, IntervalYearToMonth(months=42)),
+        (b"\x01\x0e\x00\x00\x00*", 2, 4, IntervalYearToMonth(year_month=(3, 6))),
+        (b"\x00\x00\x00\x02", 0, 4, IntervalYearToMonth(months=2)),
+        (b"\x00\x00\x00\x02", 0, 4, IntervalYearToMonth(year_month=(1, -10)))
+    ],
+    Datatypes.intervald2s: [
+        (b"\x00\x00\x0c\x00\x00\x00\x00\x02\xdf\xda\xe8\x00", 4, 8, IntervalDayToSecond(microseconds=12345600000)),
+        (b"\x00\x00\x0c\x00\x00\x00\x00\x02\xdf\xda\xe8\x00", 4, 8, IntervalDayToSecond(timedelta=timedelta(hours=3, minutes=25, seconds=45.6))),
+        (b"\x00\x00\x00\x00\x00\x00\x00\x02", 0, 8, IntervalDayToSecond(microseconds=2)),
+        (b"\x00\x00\x00\x00\x00\x00\x00\x02", 0, 8, IntervalDayToSecond(timedelta=timedelta(microseconds=2)))
+    ]
 }
 
 
