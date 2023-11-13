@@ -2,6 +2,23 @@ Changelog
 =========
 
 
+v2.0.916 (2023-11-13)
+---------------------
+- Feat(auth): Added support for Custom Cluster Names (CNAME) for Amazon
+  Redshift Serverless. [Brooke White]
+- Feat(datatype): Added support for IntervalY2M and IntervalD2S. [Brooke
+  White]
+- Docs(paramstyle): expanded descriptions for setting paramstyle on
+  module and cursor level. added more examples of how to set paramstyle.
+  [Brooke White]
+- Feat(auth, iam): allowed use of getClusterCredentials V2 API when IdP
+  Plugin authentication is used and group_federation=True. Previously an
+  unsupported error was thrown. [Brooke White]
+- Fix(connection, logging): cast redshift_types as a str to resolve
+  exceptions seen when using redshift-connector with logbook. [Brooke
+  White]
+
+
 v2.0.915 (2023-10-16)
 ---------------------
 - Fix(connection): cast redshift_types as a str. [Brooke White]
