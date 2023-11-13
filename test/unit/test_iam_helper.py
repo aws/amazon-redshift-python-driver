@@ -781,12 +781,12 @@ def test_get_authentication_type_for_iam_with_plugin() -> None:
         (
             {"group_federation": True, "credentials_provider": "BrowserSamlCredentialsProvider"},
             IamHelper.IAMAuthenticationType.PLUGIN,
-            "Authentication with plugin is not supported for group federation",
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
         ),
         (
             {"is_serverless": True, "group_federation": True, "credentials_provider": "BrowserSamlCredentialsProvider"},
             IamHelper.IAMAuthenticationType.PLUGIN,
-            "Authentication with plugin is not supported for group federation",
+            IamHelper.GetClusterCredentialsAPIType.IAM_V2,
         ),
         (
             {"is_serverless": True, "group_federation": True, "is_cname": True},

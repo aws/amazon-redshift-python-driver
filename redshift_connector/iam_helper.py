@@ -59,6 +59,7 @@ class IamHelper(IdpAuthHelper):
                     IamHelper.IAMAuthenticationType.PROFILE,
                     IamHelper.IAMAuthenticationType.IAM_KEYS,
                     IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION,
+                    IamHelper.IAMAuthenticationType.PLUGIN,
                 )
             ) and IdpAuthHelper.get_pkg_version("boto3") >= Version("1.24.5")
 
@@ -72,6 +73,11 @@ class IamHelper(IdpAuthHelper):
         Returns an enum representing the Python SDK method to use for getting temporary IAM credentials.
         """
         _logger.debug("Determining which Redshift API to use for retrieving temporary Redshift instance credentials")
+        FAILED_TO_USE_V2_API_ERROR_MSG: str = (
+            "Environment does not meet requirements to use {} API. "
+            "This could be due to the connection properties provided or the version of boto3 in use. "
+            "Please try updating the boto3 version or consider setting group_federation connection parameter to False."
+        )
 
         if not info._is_serverless:
             _logger.debug("Redshift provisioned")
@@ -82,7 +88,7 @@ class IamHelper(IdpAuthHelper):
                 _logger.debug("Provisioned cluster GetClusterCredentialsAPIType.IAM_V2")
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V2
             else:
-                raise InterfaceError("Authentication with plugin is not supported for group federation")
+                raise InterfaceError(FAILED_TO_USE_V2_API_ERROR_MSG.format("GetClusterCredentials V2 API"))
         elif not info.group_federation:
             _logger.debug("Serverless cluster GetClusterCredentialsAPIType.SERVERLESS_V1")
             return IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1
@@ -93,7 +99,7 @@ class IamHelper(IdpAuthHelper):
                 _logger.debug("Serverless cluster GetClusterCredentialsAPIType.IAM_V2")
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V2
         else:
-            raise InterfaceError("Authentication with plugin is not supported for group federation")
+            raise InterfaceError(FAILED_TO_USE_V2_API_ERROR_MSG.format("GetClusterCredentials V2 API"))
 
     @staticmethod
     def set_iam_properties(info: RedshiftProperty) -> RedshiftProperty:

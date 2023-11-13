@@ -207,3 +207,11 @@ def uses_db_groups_nominal(idp_arg, db_groups):
 
     with redshift_connector.connect(**idp_arg):
         pass
+
+
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
+def test_connect_with_group_federation(idp_arg):
+    idp_arg["group_federation"] = True
+
+    with redshift_connector.connect(**idp_arg):
+        pass
