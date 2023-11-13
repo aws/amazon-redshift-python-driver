@@ -520,6 +520,68 @@ def test_set_cluster_credentials_uses_custom_domain_name_if_custom_domain_name_c
     )
 
 
+@mock.patch("boto3.client.get_credentials")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_uses_custom_domain_name_if_custom_domain_name_serverless(
+    mock_boto_client, mock_get_cluster_credentials
+):
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_provider.get_cache_key.return_value = "mocked"
+    mock_cred_holder.has_associated_session = False
+
+    rp: RedshiftProperty = make_redshift_property()
+    rp.put("cluster_identifier", None)
+    rp.put("host", "mycustom.domain.name")
+    rp.put("is_serverless", True)
+    rp.put("is_cname", True)
+
+    IamHelper.credentials_cache.clear()
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+
+    assert mock_boto_client.called is True
+    mock_boto_client.assert_has_calls(
+        [
+            call().get_credentials(
+                customDomainName=rp.host,
+                dbName=rp.db_name,
+            )
+        ]
+    )
+
+
+@mock.patch("boto3.client.get_credentials")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_uses_workgroup_if_nlb_serverless(mock_boto_client, mock_get_cluster_credentials):
+    mock_cred_provider = MagicMock()
+    mock_cred_holder = MagicMock()
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+    mock_cred_provider.get_cache_key.return_value = "mocked"
+    mock_cred_holder.has_associated_session = False
+
+    rp: RedshiftProperty = make_redshift_property()
+    rp.put("cluster_identifier", None)
+    rp.put("host", "mycustom.domain.name")
+    rp.put("is_serverless", True)
+    rp.put("serverless_work_group", "xyz")
+    rp.put("serverless_acct_id", "012345678901")
+    IamHelper.credentials_cache.clear()
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+
+    assert mock_boto_client.called is True
+    mock_boto_client.assert_has_calls(
+        [
+            call().get_credentials(
+                workgroupName=rp.serverless_work_group,
+                dbName=rp.db_name,
+            )
+        ]
+    )
+
+
 @mock.patch("boto3.client.get_cluster_credentials")
 @mock.patch("boto3.client")
 def test_set_cluster_credentials_caches_credentials(mock_boto_client, mock_get_cluster_credentials) -> None:

@@ -223,7 +223,7 @@ class IamHelper(IdpAuthHelper):
         if not isinstance(provider, INativePlugin):
             # If the Redshift instance has been identified as using a custom domain name, the hostname must
             # be determined using the redshift client from boto3 API
-            if info.is_cname is True:
+            if info.is_cname is True and not info.is_serverless:
                 IamHelper.set_cluster_identifier(provider, info)
 
             # Redshift database credentials  will be determined using the redshift client from boto3 API
@@ -442,9 +442,18 @@ class IamHelper(IdpAuthHelper):
             if get_creds_api_version == IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1:
                 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-serverless/client/get_credentials.html#
                 get_cred_args: typing.Dict[str, str] = {"dbName": info.db_name}
+                # if a connection parameter for serverless workgroup is provided it will
+                # be preferred over providing the CustomDomainName. The reason for this
+                # is backwards compatibility with the following cases:
+                # 0/ Serverless with NLB
+                # 1/ Serverless with Custom Domain Name
+                # Providing the CustomDomainName parameter to getCredentials will lead to
+                # failure if the custom domain name is not registered with Redshift. Hence,
+                # the ordering of these conditions is important.
                 if info.serverless_work_group:
                     get_cred_args["workgroupName"] = info.serverless_work_group
-
+                elif info.is_cname:
+                    get_cred_args["customDomainName"] = info.host
                 _logger.debug("Calling get_credentials with parameters %s", get_cred_args)
                 cred = typing.cast(
                     typing.Dict[str, typing.Union[str, datetime.datetime]],

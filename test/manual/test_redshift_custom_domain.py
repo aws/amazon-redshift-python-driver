@@ -76,3 +76,47 @@ def test_nlb_connect() -> None:
     }
     with redshift_connector.connect(**args):  # type: ignore
         pass
+
+
+@pytest.mark.skip(reason="manual")
+@pytest.mark.parametrize("sslmode", (SupportedSSLMode.VERIFY_CA, SupportedSSLMode.VERIFY_FULL))
+def test_serverless_iam_cname_connect(sslmode, serverless_cname_db_kwargs):
+    serverless_cname_db_kwargs["iam"] = True
+    serverless_cname_db_kwargs["profile"] = "default"
+    serverless_cname_db_kwargs["auto_create"] = True
+    serverless_cname_db_kwargs["ssl"] = True
+    serverless_cname_db_kwargs["sslmode"] = sslmode.value
+
+    with redshift_connector.connect(**serverless_cname_db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select current_user")
+            print(cursor.fetchone())
+
+
+@pytest.mark.skip(reason="manual")
+@pytest.mark.parametrize("sslmode", (SupportedSSLMode.VERIFY_CA, SupportedSSLMode.VERIFY_FULL))
+def test_serverless_cname_connect(sslmode, serverless_cname_db_kwargs):
+    # this test requires aws default profile contains valid credentials that provide permissions for
+    # redshift-serverless:GetCredentials ( Only called from this test method)
+    import boto3
+
+    profile = "default"
+    client = boto3.client(
+        service_name="redshift-serverless",
+        region_name="us-east-1",
+    )
+    # fetch cluster credentials and pass them as driver connect parameters
+    response = client.get_credentials(
+        customDomainName=serverless_cname_db_kwargs["host"], dbName=serverless_cname_db_kwargs["database"]
+    )
+
+    serverless_cname_db_kwargs["sslmode"] = sslmode.value
+    serverless_cname_db_kwargs["ssl"] = True
+    serverless_cname_db_kwargs["user"] = response["dbUser"]
+    serverless_cname_db_kwargs["password"] = response["dbPassword"]
+    serverless_cname_db_kwargs["profile"] = profile
+
+    with redshift_connector.connect(**serverless_cname_db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("select current_user")
+            print(cursor.fetchone())

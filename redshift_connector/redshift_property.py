@@ -280,6 +280,10 @@ class RedshiftProperty:
             ec2_instance_host: str = host_response[0]
             _logger.debug("underlying ec2 instance host %s", ec2_instance_host)
             ec2_region: str = ec2_instance_host.split(".")[1]
+
+            # https://docs.aws.amazon.com/vpc/latest/userguide/vpc-dns.html#vpc-dns-hostnames
+            if ec2_region == "compute-1":
+                ec2_region = "us-east-1"
             self.put(key="region", value=ec2_region)
         except:
             msg: str = "Unable to automatically determine AWS region from host {} port {}. Please check host and port connection parameters are correct.".format(
