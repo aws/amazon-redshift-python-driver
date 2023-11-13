@@ -109,34 +109,61 @@ Enabling autocommit
     conn.autocommit = False
 
 
-Configuring cursor paramstyle
+Configuring paramstyle
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-The paramstyle for a cursor can be modified via ``cursor.paramstyle``. The default paramstyle used is ``format``. Valid values for ``paramstyle`` include ``qmark, numeric, named, format, pyformat``.
+Paramstyle can be set on both a module and cursor level. When paramstyle is set on a module level e.g. ``redshift_connector.paramstyle = 'qmark'``, the user specified paramstyle is used for all subsequent cursors unless set on the cursor.
+When paramstyle is set on the cursor e.g. ```cursor.paramstyle = 'qmark'`` the user specified paramstyle is only used for that cursor object.
+
+.. code-block:: python
+
+    # setting paramstyle to qmark on a module level
+    redshift_connector.paramstyle = 'qmark'
+
+
+    with redshift_connector.connect() as conn1:
+        with conn1.cursor() as cursor1: # this cursor will use qmark paramstyle as it's been set on the module level
+            pass
+
+        with conn1.cursor() as cursor2:
+            # setting paramstyle to numeric on the cursor level only this cursor will use numeric paramstyle
+            cursor.paramstyle = 'numeric'
+
+        with conn1.cursor() as cursor3: # this cursor will use qmark paramstyle as it's been set on the module level
+            pass
+
+     with redshift_connector.connect() as conn2:
+        with conn2.cursor() as cursor1: # this cursor will use qmark paramstyle as it's been set on the module level
+            pass
+
+
+The module level default paramstyle used is ``format``. Valid values for ``paramstyle`` include ``qmark, numeric, named, format, pyformat``. The below example shows how to use various paramstyles after the paramstyle is set on the cursor.
+
+When paramstyle is set to ``named`` or ``pyformat``, parameters must be passed as a Python dictionary to the ``execute()`` method. Other paramstyles require parameters to be passed as a Python tuple or list.
 
 .. code-block:: python
 
     # qmark
-    redshift_connector.paramstyle = 'qmark'
+    cursor.paramstyle = 'qmark'
     sql = 'insert into foo(bar, jar) VALUES(?, ?)'
     cursor.execute(sql, (1, "hello world"))
 
     # numeric
-    redshift_connector.paramstyle = 'numeric'
+    cursor.paramstyle = 'numeric'
     sql = 'insert into foo(bar, jar) VALUES(:1, :2)'
     cursor.execute(sql, (1, "hello world"))
 
     # named
-    redshift_connector.paramstyle = 'named'
+    cursor.paramstyle = 'named'
     sql = 'insert into foo(bar, jar) VALUES(:p1, :p2)'
     cursor.execute(sql, {"p1":1, "p2":"hello world"})
 
     # format
-    redshift_connector.paramstyle = 'format'
+    cursor.paramstyle = 'format'
     sql = 'insert into foo(bar, jar) VALUES(%s, %s)'
     cursor.execute(sql, (1, "hello world"))
 
     # pyformat
-    redshift_connector.paramstyle = 'pyformat'
+    cursor.paramstyle = 'pyformat'
     sql = 'insert into foo(bar, jar) VALUES(%(bar)s, %(jar)s)'
     cursor.execute(sql, {"bar": 1, "jar": "hello world"})
 
