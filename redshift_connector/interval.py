@@ -1,6 +1,7 @@
 import typing
-from redshift_connector.config import max_int4, max_int8, min_int4, min_int8
 from datetime import timedelta as Timedelta
+
+from redshift_connector.config import max_int4, max_int8, min_int4, min_int8
 
 
 class Interval:
@@ -90,6 +91,7 @@ class Interval:
         """Total seconds in the Interval, excluding month field."""
         return ((self.days * 86400) * 10**6 + self.microseconds) / 10**6
 
+
 class IntervalYearToMonth(Interval):
     """An Interval Year To Month represents a measurement of time of the order
     of a few months and years. Note the difference with Interval which can
@@ -99,9 +101,10 @@ class IntervalYearToMonth(Interval):
 
     Note that 1year = 12months.
     """
-    def __init__(self: "IntervalYearToMonth",
-                 months: int = 0,
-                 year_month: typing.Tuple[int, int] = None) -> None:
+
+    def __init__(
+        self: "IntervalYearToMonth", months: int = 0, year_month: typing.Optional[typing.Tuple[int, int]] = None
+    ) -> None:
         if year_month is not None:
             year, month = year_month
             self.months = year * 12 + month
@@ -121,7 +124,7 @@ class IntervalYearToMonth(Interval):
     # days = property(lambda self: self._days, _setDays)
     months = property(lambda self: self._months, _setMonths)
 
-    def getYearMonth(self: "IntervalDayToSecond") -> typing.Tuple[int, int]:
+    def getYearMonth(self: "IntervalYearToMonth") -> typing.Tuple[int, int]:
         years = int(self.months / 12)
         months = self.months - 12 * years
         return (years, months)
@@ -130,14 +133,11 @@ class IntervalYearToMonth(Interval):
         return "<IntervalYearToMonth %s months>" % (self.months)
 
     def __eq__(self: "IntervalYearToMonth", other: object) -> bool:
-        return (
-            other is not None
-            and isinstance(other, IntervalYearToMonth)
-            and self.months == other.months
-        )
+        return other is not None and isinstance(other, IntervalYearToMonth) and self.months == other.months
 
-    def __neq__(self: "IntervalYearToMonth", other: "IntervalYearToMonth") -> bool:
+    def __neq__(self: "IntervalYearToMonth", other: "Interval") -> bool:
         return not self.__eq__(other)
+
 
 class IntervalDayToSecond(Interval):
     """An Interval Day To Second represents a measurement of time of the order
@@ -148,9 +148,10 @@ class IntervalDayToSecond(Interval):
 
     Note that 1day = 24 * 3600 * 1000000 microseconds.
     """
-    def __init__(self: "IntervalDayToSecond",
-                 microseconds: int = 0,
-                 timedelta: Timedelta = None) -> None:
+
+    def __init__(
+        self: "IntervalDayToSecond", microseconds: int = 0, timedelta: typing.Optional[Timedelta] = None
+    ) -> None:
         if timedelta is not None:
             self.microseconds = int(timedelta.total_seconds() * (10**6))
         else:
@@ -173,13 +174,9 @@ class IntervalDayToSecond(Interval):
         return "<IntervalDayToSecond %s microseconds>" % (self.microseconds)
 
     def __eq__(self: "IntervalDayToSecond", other: object) -> bool:
-        return (
-            other is not None
-            and isinstance(other, IntervalDayToSecond)
-            and self.microseconds == other.microseconds
-        )
+        return other is not None and isinstance(other, IntervalDayToSecond) and self.microseconds == other.microseconds
 
-    def __neq__(self: "IntervalDayToSecond", other: "IntervalDayToSecond") -> bool:
+    def __neq__(self: "IntervalDayToSecond", other: "Interval") -> bool:
         return not self.__eq__(other)
 
     def getTimedelta(self: "IntervalDayToSecond") -> Timedelta:

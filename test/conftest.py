@@ -130,6 +130,7 @@ def serverless_cname_db_kwargs() -> typing.Dict[str, typing.Union[str, bool]]:
 
     return db_connect
 
+
 @pytest.fixture(scope="class")
 def ds_consumer_db_kwargs() -> typing.Dict[str, str]:
     db_connect = {

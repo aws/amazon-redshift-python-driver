@@ -4,7 +4,6 @@ import os
 import typing
 from datetime import datetime as Datetime
 from datetime import timezone
-from redshift_connector.interval import IntervalYearToMonth, IntervalDayToSecond
 from math import isclose
 from test.integration.datatype._generate_test_datatype_tables import (  # type: ignore
     DATATYPES_WITH_MS,
@@ -22,6 +21,7 @@ import pytest  # type: ignore
 
 import redshift_connector
 from redshift_connector.config import ClientProtocolVersion
+from redshift_connector.interval import IntervalDayToSecond, IntervalYearToMonth
 
 conf = configparser.ConfigParser()
 root_path = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
@@ -120,9 +120,9 @@ def test_redshift_varbyte_insert(db_kwargs, _input, client_protocol) -> None:
             assert len(results[0]) == 2
             assert results[0][1] == bytes(data, encoding="utf-8").hex()
 
+
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
-@pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name,
-                                      RedshiftDatatypes.intervald2s.name])
+@pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name, RedshiftDatatypes.intervald2s.name])
 def test_redshift_interval_insert(db_kwargs, datatype, client_protocol) -> None:
     db_kwargs["client_protocol_version"] = client_protocol
     data = redshift_test_data[datatype]
@@ -139,13 +139,13 @@ def test_redshift_interval_insert(db_kwargs, datatype, client_protocol) -> None:
             print(results)
             for idx, result in enumerate(results):
                 print(result[1], data[idx][1])
-                assert(isinstance(result[1], redshift_type))
-                assert(result[1] == data[idx][1])
+                assert isinstance(result[1], redshift_type)
+                assert result[1] == data[idx][1]
             cursor.execute("drop table t_interval")
 
+
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
-@pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name,
-                                      RedshiftDatatypes.intervald2s.name])
+@pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name, RedshiftDatatypes.intervald2s.name])
 def test_redshift_interval_prep_stmt(db_kwargs, datatype, client_protocol) -> None:
     db_kwargs["client_protocol_version"] = client_protocol
     data = redshift_test_data[datatype]
@@ -155,19 +155,20 @@ def test_redshift_interval_prep_stmt(db_kwargs, datatype, client_protocol) -> No
         with con.cursor() as cursor:
             cursor.execute("create table t_interval_ps(id text, v1 {})".format(datatype))
             cursor.paramstyle = "pyformat"
-            cursor.executemany("insert into t_interval_ps(id, v1) values (%(id_val)s, %(v1_val)s)",
-                               ({"id_val": row[-1], "v1_val": row[1]} for row in data[:2]))
+            cursor.executemany(
+                "insert into t_interval_ps(id, v1) values (%(id_val)s, %(v1_val)s)",
+                ({"id_val": row[-1], "v1_val": row[1]} for row in data[:2]),
+            )
             cursor.paramstyle = "qmark"
-            cursor.executemany("insert into t_interval_ps values (?, ?)",
-                               ([row[-1], row[1]] for row in data[2:]))
+            cursor.executemany("insert into t_interval_ps values (?, ?)", ([row[-1], row[1]] for row in data[2:]))
             cursor.execute("select id, v1 from t_interval_ps")
             results: typing.Tuple = cursor.fetchall()
             assert len(results) == len(data)
             print(results)
             for idx, result in enumerate(results):
                 print(result[1], data[idx][1])
-                assert(isinstance(result[1], redshift_type))
-                assert(result[1] == data[idx][1])
+                assert isinstance(result[1], redshift_type)
+                assert result[1] == data[idx][1]
             cursor.execute("drop table t_interval_ps")
 
 

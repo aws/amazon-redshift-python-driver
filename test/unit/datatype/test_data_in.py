@@ -7,7 +7,11 @@ from math import isclose
 import pytest  # type: ignore
 
 import redshift_connector
-from redshift_connector.interval import Interval, IntervalYearToMonth, IntervalDayToSecond
+from redshift_connector.interval import (
+    Interval,
+    IntervalDayToSecond,
+    IntervalYearToMonth,
+)
 from redshift_connector.utils import type_utils
 
 
@@ -347,14 +351,19 @@ test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {
         (b"\x01\x0e\x00\x00\x00*", 2, 4, IntervalYearToMonth(months=42)),
         (b"\x01\x0e\x00\x00\x00*", 2, 4, IntervalYearToMonth(year_month=(3, 6))),
         (b"\x00\x00\x00\x02", 0, 4, IntervalYearToMonth(months=2)),
-        (b"\x00\x00\x00\x02", 0, 4, IntervalYearToMonth(year_month=(1, -10)))
+        (b"\x00\x00\x00\x02", 0, 4, IntervalYearToMonth(year_month=(1, -10))),
     ],
     Datatypes.intervald2s: [
         (b"\x00\x00\x0c\x00\x00\x00\x00\x02\xdf\xda\xe8\x00", 4, 8, IntervalDayToSecond(microseconds=12345600000)),
-        (b"\x00\x00\x0c\x00\x00\x00\x00\x02\xdf\xda\xe8\x00", 4, 8, IntervalDayToSecond(timedelta=timedelta(hours=3, minutes=25, seconds=45.6))),
+        (
+            b"\x00\x00\x0c\x00\x00\x00\x00\x02\xdf\xda\xe8\x00",
+            4,
+            8,
+            IntervalDayToSecond(timedelta=timedelta(hours=3, minutes=25, seconds=45.6)),
+        ),
         (b"\x00\x00\x00\x00\x00\x00\x00\x02", 0, 8, IntervalDayToSecond(microseconds=2)),
-        (b"\x00\x00\x00\x00\x00\x00\x00\x02", 0, 8, IntervalDayToSecond(timedelta=timedelta(microseconds=2)))
-    ]
+        (b"\x00\x00\x00\x00\x00\x00\x00\x02", 0, 8, IntervalDayToSecond(timedelta=timedelta(microseconds=2))),
+    ],
 }
 
 
