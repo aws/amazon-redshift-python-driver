@@ -12,6 +12,7 @@ from test import (
     okta_browser_idp,
     okta_idp,
     ping_browser_idp,
+    redshift_idp_token_auth_plugin,
 )
 
 import pytest  # type: ignore
@@ -24,6 +25,7 @@ conf.read(root_path + "/config.ini")
 
 
 NON_BROWSER_IDP: typing.List[str] = ["okta_idp", "azure_idp", "adfs_idp"]
+NON_BROWSER_IDC: typing.List[str] = ["redshift_idp_token_auth_plugin"]
 
 ALL_IDP: typing.List[str] = [
     "okta_browser_idp",
@@ -59,5 +61,15 @@ def test_ssl_and_iam_invalid_should_fail(idp_arg) -> None:
     with pytest.raises(
         redshift_connector.InterfaceError,
         match="Invalid IdP specified in credential_provider connection parameter",
+    ):
+        redshift_connector.connect(**idp_arg)
+
+
+@pytest.mark.parametrize("idp_arg", NON_BROWSER_IDC, indirect=True)
+def test_using_iam_should_fail(idp_arg) -> None:
+    idp_arg["iam"] = True
+    with pytest.raises(
+        redshift_connector.InterfaceError,
+        match="You can not use this authentication plugin with IAM enabled.",
     ):
         redshift_connector.connect(**idp_arg)

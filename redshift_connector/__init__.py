@@ -57,8 +57,6 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 _logger: logging.Logger = logging.getLogger(__name__)
 
 IDC_PLUGINS_LIST = (
-    "redshift_connector.plugin.BrowserIdcAuthPlugin",
-    "BrowserIdcAuthPlugin",
     "redshift_connector.plugin.IdpTokenAuthPlugin",
     "IdpTokenAuthPlugin",
 )
@@ -67,8 +65,6 @@ IDC_OR_NATIVE_IDP_PLUGINS_LIST = (
     "BrowserAzureOAuth2CredentialsProvider",
     "redshift_connector.plugin.BasicJwtCredentialsProvider",
     "BasicJwtCredentialsProvider",
-    "redshift_connector.plugin.BrowserIdcAuthPlugin",
-    "BrowserIdcAuthPlugin",
     "redshift_connector.plugin.IdpTokenAuthPlugin",
     "IdpTokenAuthPlugin",
 )
@@ -160,11 +156,7 @@ def connect(
     serverless_acct_id: typing.Optional[str] = None,
     serverless_work_group: typing.Optional[str] = None,
     group_federation: typing.Optional[bool] = None,
-    start_url: typing.Optional[str] = None,
-    idc_region: typing.Optional[str] = None,
-    idc_response_timeout: typing.Optional[int] = None,
     identity_namespace: typing.Optional[str] = None,
-    idc_client_display_name: typing.Optional[str] = None,
     token: typing.Optional[str] = None,
     token_type: typing.Optional[str] = None,
 ) -> Connection:
@@ -270,16 +262,8 @@ def connect(
         The name of work group for serverless end point. Default value None.
     group_federation: Optional[bool]
         Use the IDP Groups in the Redshift. Default value False.
-    start_url: Optional[str]
-        The directory or start url for the AWS IdC access portal. Default value is None.
-    idc_region: Optional[str]
-        The AWS region where IdC instance is located. Default value is None.
-    idc_response_timeout: Optional[int]
-        The timeout value in seconds for the IdC browser auth. Default value is `120`.
     identity_namespace: Optional[str]
         The identity namespace to be used with IdC auth plugin. Default value is None.
-    idc_client_display_name: Optional[str]
-        The client display name to be used in user consent in IdC browser auth. Default value is `Amazon Redshift Python connector`.
     token: Optional[str]
         The access token to be used with IdC basic credentials provider plugin. Default value is None.
     token_type: Optional[str]
@@ -311,9 +295,6 @@ def connect(
     info.put("host", host)
     info.put("iam", iam)
     info.put("iam_disable_cache", iam_disable_cache)
-    info.put("idc_client_display_name", idc_client_display_name)
-    info.put("idc_region", idc_region)
-    info.put("idc_response_timeout", idc_response_timeout)
     info.put("identity_namespace", identity_namespace)
     info.put("idp_host", idp_host)
     info.put("idp_response_timeout", idp_response_timeout)
@@ -340,7 +321,6 @@ def connect(
     info.put("serverless_work_group", serverless_work_group)
     info.put("session_token", session_token)
     info.put("source_address", source_address)
-    info.put("start_url", start_url)
     info.put("ssl", ssl)
     info.put("ssl_insecure", ssl_insecure)
     info.put("sslmode", sslmode)
@@ -416,7 +396,6 @@ def connect(
         numeric_to_float=info.numeric_to_float,
         identity_namespace=info.identity_namespace,
         token_type=info.token_type,
-        idc_client_display_name=info.idc_client_display_name,
     )
 
 
