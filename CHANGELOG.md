@@ -2,6 +2,14 @@ Changelog
 =========
 
 
+v2.0.917 (2023-11-20)
+---------------------
+- Chore: lint codebase. [Brooke White]
+- Feat: Adds ability to connect to datashare databases for clusters and
+  serverless workgroups running the PREVIEW_2023 track. [Brooke White]
+- Chore: Removed BrowserIdcAuthPlugin. [Brooke White]
+
+
 v2.0.916 (2023-11-13)
 ---------------------
 - Feat(auth): Added support for Custom Cluster Names (CNAME) for Amazon
