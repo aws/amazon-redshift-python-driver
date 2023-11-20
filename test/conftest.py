@@ -130,6 +130,30 @@ def serverless_cname_db_kwargs() -> typing.Dict[str, typing.Union[str, bool]]:
 
     return db_connect
 
+@pytest.fixture(scope="class")
+def ds_consumer_db_kwargs() -> typing.Dict[str, str]:
+    db_connect = {
+        "database": conf.get("redshift-ds-consumer", "database", fallback="mock_database"),
+        "host": conf.get("redshift-ds-consumer", "host", fallback="cname.mytest.com"),
+        "user": conf.get("redshift-ds-consumer", "user", fallback="mock_user"),
+        "password": conf.get("redshift-ds-consumer", "password", fallback="mock_password"),
+        "extra": conf.get("redshift-ds-consumer", "extra", fallback="mock_extra"),
+    }
+
+    return db_connect
+
+
+@pytest.fixture(scope="class")
+def ds_producer_db_kwargs() -> typing.Dict[str, str]:
+    db_connect = {
+        "database": conf.get("redshift-ds-producer", "database", fallback="mock_database"),
+        "host": conf.get("redshift-ds-producer", "host", fallback="cname.mytest.com"),
+        "user": conf.get("redshift-ds-producer", "user", fallback="mock_user"),
+        "password": conf.get("redshift-ds-producer", "password", fallback="mock_password"),
+    }
+
+    return db_connect
+
 
 @pytest.fixture(scope="class")
 def okta_idp() -> typing.Dict[str, typing.Union[str, bool, int]]:

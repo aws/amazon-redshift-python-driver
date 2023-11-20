@@ -854,8 +854,43 @@ class Connection:
             return False
 
     @property
+    def _is_cross_datasharing_enable_in_server(self: "Connection") -> bool:
+        """
+        Returns True if cross datasharing is enabled in the server. Returns False if disabled or not received.
+        :return:
+        :rtype:
+        """
+        cross_datasharing_enable_in_server: bool = False
+
+        for parameter in self.parameter_statuses:
+            if parameter[0] == b"external_database":
+                if parameter[1] == b"on":
+                    cross_datasharing_enable_in_server = True
+                elif parameter[1] == b"off":
+                    cross_datasharing_enable_in_server = False
+                else:
+                    raise InterfaceError(
+                        "Protocol error. Session setup failed. Invalid value of external_database parameter. Only on/off are valid values"
+                    )
+                break
+        return cross_datasharing_enable_in_server
+
+    @property
     def is_single_database_metadata(self):
-        return self._database_metadata_current_db_only or not self._is_multi_databases_catalog_enable_in_server
+        """
+        Returns True if single database metadata enabled using ``database_metadata_current_db_only`` connection
+        parameter or if server has neither multi-database catalog nor cross datashare enabled.
+        Returns False if ``database_metadata_current_db_only`` connection parameter is disabled or if server
+        has neither multi-database catalog nor cross datashare enabled.
+        :return:
+        :rtype:
+        """
+        # for cross datasharing we always return False
+        if self._is_cross_datasharing_enable_in_server:
+            return False
+
+        else:
+            return self._database_metadata_current_db_only or not self._is_multi_databases_catalog_enable_in_server
 
     def handle_ERROR_RESPONSE(self: "Connection", data, ps):
         """

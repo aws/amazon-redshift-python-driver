@@ -542,7 +542,7 @@ class Cursor:
         if len(split_table_name) > 2:
             return False
 
-        q: str = "select 1 from information_schema.tables where table_name = ?"
+        q: str = "select 1 from pg_catalog.svv_all_tables where table_name = ?"
 
         temp = self.paramstyle
         self.paramstyle = DbApiParamstyle.QMARK.value

@@ -296,26 +296,76 @@ def test_is_multidatabases_catalog_enable_in_server(_input) -> None:
     assert mock_connection._is_multi_databases_catalog_enable_in_server == exp_val
 
 
-test_is_single_database_metadata_data: typing.List[typing.Tuple[typing.Optional[str], bool, bool]] = [
-    ("on", True, True),
-    ("on", False, False),
-    ("off", True, True),
-    ("off", False, True),
-    (None, True, True),
-    (None, False, True),
+test_is_cross_datasharing_enable_in_server_data: typing.List[typing.Tuple[typing.Optional[str], bool]] = [
+    ("on", True),
+    ("off", False),
+    (None, False),
+]
+
+
+@pytest.mark.parametrize("_input", test_is_cross_datasharing_enable_in_server_data)
+def test_is_cross_datasharing_enable_in_server(_input):
+    param_status, exp_val = _input
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses: deque = deque()
+
+    if param_status is not None:
+        mock_connection.parameter_statuses.append((b"external_database", param_status.encode()))
+
+    assert mock_connection._is_cross_datasharing_enable_in_server == exp_val
+
+
+def test_is_cross_datasharing_enable_in_server_raises_on_invalid():
+    param_status = "garbage"
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses: deque = deque()
+
+    if param_status is not None:
+        mock_connection.parameter_statuses.append((b"external_database", param_status.encode()))
+
+    with pytest.raises(
+        InterfaceError,
+        match="Protocol error. Session setup failed. Invalid value of external_database parameter. Only on/off are valid values",
+    ):
+        mock_connection._is_cross_datasharing_enable_in_server
+
+
+test_is_single_database_metadata_data: typing.List[
+    typing.Tuple[typing.Optional[str], typing.Optional[str], bool, bool]
+] = [
+    ("on", "on", True, False),
+    ("on", "on", False, False),
+    ("on", None, True, True),
+    ("on", None, False, False),
+    (None, "on", True, False),
+    (None, "on", False, False),
+    ("off", "on", True, False),
+    ("off", "on", False, False),
+    ("on", "off", True, True),
+    ("on", "off", False, False),
+    ("off", "off", False, True),
+    ("off", "off", True, True),
+    ("off", None, False, True),
+    ("off", None, True, True),
+    (None, "off", False, True),
+    (None, "off", True, True),
+    (None, None, True, True),
+    (None, None, False, True),
 ]
 
 
 @pytest.mark.parametrize("_input", test_is_single_database_metadata_data)
-def test_is_single_database_metadata(_input) -> None:
-    param_status, database_metadata_current_db_only_val, exp_val = _input
+def test_is_single_database_metadata(_input):
+    datashare_enabled, dsw_enabled, database_metadata_current_db_only_val, exp_val = _input
 
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses = deque()
     mock_connection._database_metadata_current_db_only = database_metadata_current_db_only_val
 
-    if param_status is not None:
-        mock_connection.parameter_statuses.append((b"datashare_enabled", param_status.encode()))
+    if datashare_enabled is not None:
+        mock_connection.parameter_statuses.append((b"datashare_enabled", datashare_enabled.encode()))
+    if dsw_enabled is not None:
+        mock_connection.parameter_statuses.append((b"external_database", dsw_enabled.encode()))
 
     assert mock_connection.is_single_database_metadata == exp_val
 
