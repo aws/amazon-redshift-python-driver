@@ -549,7 +549,7 @@ class Cursor:
 
         try:
             if len(split_table_name) == 2:
-                q += " and table_schema = ?"
+                q += " and schema_name = ?"
                 self.execute(q, (split_table_name[1], split_table_name[0]))
             else:
                 self.execute(q, (split_table_name[0],))
