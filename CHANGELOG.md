@@ -2,6 +2,25 @@ Changelog
 =========
 
 
+v2.0.918 (2023-12-14)
+---------------------
+- Refactor(Connection): explicitly use TLS client protocol for
+  underlying connection socket. previously TLS protocol was used by
+  default. resolves deprecation warnings in Python 3.11. [Brooke White]
+- Fix(Cursor, write_dataframe): Convert pandas dataframe holding bind
+  parameters to Python list before query execution. Ensures Python
+  datatypes are sent to Redshift server rather than NumPy datatypes.
+  [Brooke White]
+- Test(Cursor, insert_data_bulk): table_name with and without schema.
+  [Brooke White]
+- Fix(Cursor, __has_valid_columns): replace table_schema by schema_name.
+  resolves unknown column error seen in insert_data_bulk. [Brooke White]
+- Fix(Cursor, __is_valid_table): replace table_schema by schema_name
+  (#199) [Maximiliano Urrutia]
+
+  SVV_ALL_TABLES does not have table_schema column
+
+
 v2.0.917 (2023-11-20)
 ---------------------
 - Chore: lint codebase. [Brooke White]
