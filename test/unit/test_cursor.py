@@ -459,3 +459,46 @@ def test_insert_data_raises_too_many_parameters(mocker) -> None:
 
     with pytest.raises(DataError, match="Prepared statement exceeds bind parameter limit 32767."):
         mock_cursor.execute(prepared_stmt, params)
+
+
+@pandas_only
+def test_write_dataframe_handles_npdtyes(mocker):
+    import numpy as np
+    import pandas as pd
+
+    mocker.patch("redshift_connector.Cursor.execute", return_value=None)
+    mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_cursor._c = mock_connection
+
+    mock_cursor.paramstyle = "mocked_val"
+    for datatype, data in (
+        ("int8_col", np.array([1], dtype=np.int8)),
+        ("int16_col", np.array([1], dtype=np.int16)),
+        ("int32_col", np.array([1], dtype=np.int32)),
+        ("int64_col", np.array([1], dtype=np.int64)),
+        ("uint8_col", np.array([1], dtype=np.uint8)),
+        ("uint16_col", np.array([1], dtype=np.uint16)),
+        ("uint32_col", np.array([1], dtype=np.uint32)),
+        ("uint64_col", np.array([1], dtype=np.uint64)),
+        ("float16_col", np.array([1.0], dtype=np.float16)),
+        ("float32_col", np.array([1.0], dtype=np.float32)),
+        ("float64_col", np.array([1.0], dtype=np.float64)),
+        ("complex64_col", np.array([1 + 1j], dtype=np.complex64)),
+        ("complex128_col", np.array([1 + 1j], dtype=np.complex128)),
+        ("bool_col", np.array([True], dtype=np.bool_)),
+        ("string_col", np.array(["hello"], dtype="U")),
+        ("object_col", np.array([{"key", "value"}], dtype=object)),
+    ):
+        spy = mocker.spy(mock_cursor, "execute")
+        dataframe = pd.DataFrame(data)
+        mock_cursor.write_dataframe(df=dataframe, table=datatype)
+
+        assert spy.called
+        assert spy.call_count == 2  # once for __is_valid_table, once for write_dataframe
+        assert not isinstance(spy.mock_calls[1].args[1], np.ndarray)
+        assert isinstance(spy.mock_calls[1].args[1], list)
+        assert len(spy.mock_calls[1].args[1]) == 1
+        # bind parameter list should not contain numpy objects
+        assert not isinstance(spy.mock_calls[1].args[1][0], np.generic)

@@ -584,7 +584,7 @@ class Cursor:
         if not self.__is_valid_table(table):
             raise InterfaceError("Invalid table name passed to write_dataframe: {}".format(table))
         sanitized_table_name: str = self.__sanitize_str(table)
-        arrays: "numpy.ndarray" = df.values
+        arrays: list = df.values.tolist()
         placeholder: str = ", ".join(["%s"] * len(arrays[0]))
         sql: str = "insert into {table} values ({placeholder})".format(
             table=sanitized_table_name, placeholder=placeholder
