@@ -1,3 +1,4 @@
+from csv import reader
 from io import StringIO
 from unittest.mock import mock_open, patch
 
@@ -42,12 +43,6 @@ def test_get_description_multiple_column_names(db_kwargs, col_names) -> None:
 
 @patch("builtins.open", new_callable=mock_open)
 def test_insert_data_invalid_column_raises(mocked_csv, db_kwargs) -> None:
-    indexes, names, exp_execute_args = (
-        [0],
-        ["col1"],
-        ("INSERT INTO githubissue161 (col1) VALUES (%s), (%s), (%s);", ["1", "2", "-1"]),
-    )
-
     mocked_csv.side_effect = [StringIO("""\col1,col2,col3\n1,3,foo\n2,5,bar\n-1,7,baz""")]
 
     with redshift_connector.connect(**db_kwargs) as conn:
@@ -61,11 +56,54 @@ def test_insert_data_invalid_column_raises(mocked_csv, db_kwargs) -> None:
                 cursor.insert_data_bulk(
                     filename="mocked_csv",
                     table_name="githubissue161",
-                    parameter_indices=indexes,
+                    parameter_indices=[0],
                     column_names=["IncorrectColumnName"],
                     delimiter=",",
                     batch_size=3,
                 )
+
+
+@patch("builtins.open", new_callable=mock_open)
+def test_insert_data_invalid_schema_raises(mocked_csv, db_kwargs) -> None:
+    mocked_csv.side_effect = [StringIO("""\col1,col2,col3\n1,3,foo\n2,5,bar\n-1,7,baz""")]
+
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("create table public.githubissue161 (id int)")
+
+            with pytest.raises(
+                InterfaceError,
+                match="Invalid table name passed to insert_data_bulk: githubissue198.githubissue161",
+            ):
+                cursor.insert_data_bulk(
+                    filename="mocked_csv",
+                    table_name="githubissue198.githubissue161",
+                    parameter_indices=[0],
+                    column_names=["id"],
+                    delimiter=",",
+                    batch_size=3,
+                )
+
+
+def test_insert_data_valid_schema_does_not_raise(db_kwargs) -> None:
+    with redshift_connector.connect(**db_kwargs) as conn:
+        with conn.cursor() as cursor:
+            cursor.execute("create table public.githubissue198 (id int)")
+            with patch(
+                "builtins.open", mock_open(read_data="\col1,col2,col3\n1,3,foo\n2,5,bar\n-1,7,baz")
+            ) as mock_file:
+                cursor.insert_data_bulk(
+                    filename="mocked_csv",
+                    table_name="public.githubissue198",
+                    parameter_indices=[0],
+                    column_names=["id"],
+                    delimiter=",",
+                    batch_size=2,
+                )
+            cursor.execute("select * from public.githubissue198 order by id asc")
+            res = cursor.fetchall()
+            assert len(res) == 3
+            assert res == ([-1], [1], [2])
 
 
 # max binding parameters for a prepared statement
