@@ -353,9 +353,9 @@ class Cursor:
 
     def __has_valid_columns(self: "Cursor", table: str, columns: typing.List[str]) -> bool:
         split_table_name: typing.List[str] = table.split(".")
-        q: str = "select 1 from information_schema.columns where table_name = ? and column_name = ?"
+        q: str = "select 1 from pg_catalog.svv_all_columns where table_name = ? and column_name = ?"
         if len(split_table_name) == 2:
-            q += " and table_schema = ?"
+            q += " and schema_name = ?"
             param_list = [[split_table_name[1], c, split_table_name[0]] for c in columns]
         else:
             param_list = [[split_table_name[0], c] for c in columns]
