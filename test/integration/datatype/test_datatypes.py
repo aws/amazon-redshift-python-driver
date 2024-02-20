@@ -121,6 +121,7 @@ def test_redshift_varbyte_insert(db_kwargs, _input, client_protocol) -> None:
             assert results[0][1] == bytes(data, encoding="utf-8").hex()
 
 
+@pytest.mark.skip(reason="awaiting-server-support")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name, RedshiftDatatypes.intervald2s.name])
 def test_redshift_interval_insert(db_kwargs, datatype, client_protocol) -> None:
@@ -144,6 +145,7 @@ def test_redshift_interval_insert(db_kwargs, datatype, client_protocol) -> None:
             cursor.execute("drop table t_interval")
 
 
+@pytest.mark.skip(reason="awaiting-server-support")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name, RedshiftDatatypes.intervald2s.name])
 def test_redshift_interval_prep_stmt(db_kwargs, datatype, client_protocol) -> None:

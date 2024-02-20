@@ -169,18 +169,19 @@ redshift_test_data: typing.Dict[
             "ffffffffffffff",
         )
     ],
-    RedshiftDatatypes.intervaly2m.name: [
-        ("37 months", IntervalYearToMonth(37), "y2m_postgres_format"),
-        ("1-1", IntervalYearToMonth(13), "y2m_sql_standard_format"),
-        ("-178956970-8", IntervalYearToMonth(-(2**31)), "y2m_min_value"),
-        ("178956970-7", IntervalYearToMonth(2**31 - 1), "y2m_max_value"),
-    ],
-    RedshiftDatatypes.intervald2s.name: [
-        ("10 days 48 hours", IntervalDayToSecond(12 * 86400 * 1000000), "d2s_postgres_format"),
-        ("10 23:59:59.999999", IntervalDayToSecond(11 * 86400 * 1000000 - 1), "d2s_sql_standard_format"),
-        ("-106751991 -04:00:54.775808", IntervalDayToSecond(-(2**63)), "d2s_min_value"),
-        ("106751991 04:00:54.775807", IntervalDayToSecond(2**63 - 1), "d2s_max_value"),
-    ]
+    # TODO: re-enable when server supports
+    # RedshiftDatatypes.intervaly2m.name: [
+    #     ("37 months", IntervalYearToMonth(37), "y2m_postgres_format"),
+    #     ("1-1", IntervalYearToMonth(13), "y2m_sql_standard_format"),
+    #     ("-178956970-8", IntervalYearToMonth(-(2**31)), "y2m_min_value"),
+    #     ("178956970-7", IntervalYearToMonth(2**31 - 1), "y2m_max_value"),
+    # ],
+    # RedshiftDatatypes.intervald2s.name: [
+    #     ("10 days 48 hours", IntervalDayToSecond(12 * 86400 * 1000000), "d2s_postgres_format"),
+    #     ("10 23:59:59.999999", IntervalDayToSecond(11 * 86400 * 1000000 - 1), "d2s_sql_standard_format"),
+    #     ("-106751991 -04:00:54.775808", IntervalDayToSecond(-(2**63)), "d2s_min_value"),
+    #     ("106751991 04:00:54.775807", IntervalDayToSecond(2**63 - 1), "d2s_max_value"),
+    # ]
     # TODO: re-enable
     # RedshiftDatatypes.geography.name: (
     #     (

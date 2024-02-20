@@ -159,7 +159,7 @@ def test_insert_data_bulk_raises_too_many_params(mocked_csv, db_kwargs) -> None:
 
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            cursor.execute("create temporary table githubissue165 (col1 int)")
+            cursor.execute("create table githubissue165 (col1 int)")
             with pytest.raises(
                 DataError,
                 match="Prepared statement exceeds bind parameter limit 32767.",
@@ -181,7 +181,7 @@ def test_insert_data_bulk_raises_no_exception_32766(mocked_csv_32766, db_kwargs)
 
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            cursor.execute("create temporary table githubissue165 (col1 int)")
+            cursor.execute("create table githubissue165 (col1 int)")
             try:
                 cursor.insert_data_bulk(
                     filename="mocked_csv_32766",
@@ -202,7 +202,7 @@ def test_insert_data_bulk_raises_no_exception_32767(mocked_csv_32767, db_kwargs)
 
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            cursor.execute("create temporary table githubissue165 (col1 int)")
+            cursor.execute("create table githubissue165 (col1 int)")
             try:
                 cursor.insert_data_bulk(
                     filename="mocked_csv_32767",
