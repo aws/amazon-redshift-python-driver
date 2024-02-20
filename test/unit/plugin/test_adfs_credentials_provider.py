@@ -19,6 +19,20 @@ def make_valid_adfs_credentials_provider() -> typing.Tuple[AdfsCredentialsProvid
     return acp, rp
 
 
+def test_default_login_to_rp_is_expected() -> None:
+    acp, _ = make_valid_adfs_credentials_provider()
+    assert acp.login_to_rp == RedshiftProperty().login_to_rp
+
+
+def test_can_set_login_to_rp() -> None:
+    test_rp: str = "my_very_first_rp"
+    acp, rp = make_valid_adfs_credentials_provider()
+    assert acp.login_to_rp == RedshiftProperty().login_to_rp
+    rp.login_to_rp = test_rp
+    acp.add_parameter(rp)
+    assert acp.login_to_rp == test_rp
+
+
 @pytest.mark.parametrize("value", [None, ""])
 def test_get_saml_assertion_invalid_idp_host_should_fail(value) -> None:
     acp, _ = make_valid_adfs_credentials_provider()
@@ -79,6 +93,38 @@ def test_form_based_authentication_request_error_should_fail(error) -> None:
 
         with pytest.raises(InterfaceError) as e:
             acp.form_based_authentication()
+
+
+def test_form_based_authentication_uses_user_set_login_to_rp(mocker) -> None:
+    test_rp: str = "my_very_first_rp"
+    acp, rp = make_valid_adfs_credentials_provider()
+    assert acp.login_to_rp == RedshiftProperty().login_to_rp
+    rp.login_to_rp = test_rp
+    acp.add_parameter(rp)
+
+    mock_saml_response = MagicMock()
+    mock_saml_response.text = open(
+        "test/unit/plugin/data/mock_adfs_saml_response.html"
+    ).read()  # mocked HTML response with SAMLResponse
+
+    mock_auth_form = MagicMock()
+    mock_auth_form.text = open("test/unit/plugin/data/mock_adfs_sign_in.html").read()  # mocked auth form
+
+    mocker.patch("requests.get", return_value=mock_auth_form)
+    mocker.patch("requests.post", return_value=mock_saml_response)
+
+    form_request_spy = mocker.spy(requests, "get")
+    auth_request_spy = mocker.spy(requests, "post")
+
+    assert acp.form_based_authentication() is not None
+
+    assert form_request_spy.called
+    assert form_request_spy.call_count == 1
+    assert form_request_spy.call_args[0][0] == (
+        "https://{host}:{port}/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp={rp}".format(
+            host=acp.idp_host, port=str(acp.idpPort), rp=test_rp
+        )
+    )
 
 
 def test_form_based_authentication_payload_is_correct(mocker) -> None:

@@ -70,6 +70,8 @@ class RedshiftProperty:
             # The port used by an IdP (identity provider).
             self.idpPort: int = 443
             self.listen_port: int = 7890
+            # property for specifying loginToRp used by AdfsCredentialsProvider
+            self.login_to_rp: str = "urn:amazon:webservices"
             self.login_url: typing.Optional[str] = None
             # max number of prepared statements
             self.max_prepared_statements: int = 1000

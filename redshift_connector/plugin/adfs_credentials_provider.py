@@ -7,6 +7,9 @@ from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsP
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+if typing.TYPE_CHECKING:
+    from redshift_connector import RedshiftProperty
+
 
 class AdfsCredentialsProvider(SamlCredentialsProvider):
     """
@@ -14,6 +17,15 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
     Services, See `AWS Big Data Blog <https://aws.amazon.com/blogs/big-data/federate-access-to-your-amazon-redshift-cluster-with-active-directory-federation-services-ad-fs-part-1/>`_
     for setup instructions.
     """
+
+    def __init__(self: "AdfsCredentialsProvider") -> None:
+        super().__init__()
+        self.login_to_rp: typing.Optional[str]
+
+    def add_parameter(self: "AdfsCredentialsProvider", info: "RedshiftProperty") -> None:
+        super().add_parameter(info)
+        # The value of parameter login_to_rp
+        self.login_to_rp = info.login_to_rp
 
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "AdfsCredentialsProvider") -> typing.Optional[str]:
@@ -35,8 +47,8 @@ class AdfsCredentialsProvider(SamlCredentialsProvider):
         import bs4  # type: ignore
         import requests
 
-        url: str = "https://{host}:{port}/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices".format(
-            host=self.idp_host, port=str(self.idpPort)
+        url: str = "https://{host}:{port}/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp={loginToRp}".format(
+            host=self.idp_host, port=str(self.idpPort), loginToRp=self.login_to_rp
         )
         _logger.debug("Uri: %s", url)
         self.validate_url(url)
