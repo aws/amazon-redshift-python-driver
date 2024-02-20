@@ -6,7 +6,7 @@ import pytest  # type: ignore
 
 import redshift_connector
 
-# Pre-reqs
+# Pre-reqs for testing datasharing
 # These tests require the following:
 # - A single Redshift instance OR two Redshift instances configured for datasharing as consumer and producer.
 # - Config.ini entry for [ci-cluster] file populated with the host and port of the single Redshift instance or the
@@ -149,7 +149,6 @@ def get_schemas_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, t
     return result
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_schemas_test_data())
 def test_get_schemas(mocker, _input, db_kwargs) -> None:
     database_metadata_current_db_only_val, _args = _input
@@ -280,7 +279,6 @@ def get_tables_test_data() -> typing.List[typing.Optional[typing.Tuple[bool, typ
     return result
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_tables_test_data())
 def test_get_tables(mocker, _input, db_kwargs) -> None:
     database_metadata_current_db_only_val, _args = _input
@@ -509,7 +507,6 @@ def get_columns_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, t
     return result
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_columns_test_data())
 def test_get_columns(mocker, _input, db_kwargs) -> None:
     database_metadata_current_db_only_val, _args = _input
@@ -570,7 +567,6 @@ def get_catalogs_test_data() -> typing.List[bool]:
     return [True, False]
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("_input", get_catalogs_test_data())
 def test_get_catalogs(mocker, _input, db_kwargs) -> None:
     database_metadata_current_db_only_val = _input

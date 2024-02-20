@@ -41,7 +41,6 @@ def create_datatype_test_resources(request):
     request.addfinalizer(fin)
 
 
-@pytest.mark.skip(reason="manual")
 @pytest.mark.parametrize("datatype", Datatypes.list())
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 def test_datatype_recv_support(db_kwargs, datatype, client_protocol) -> None:
@@ -98,7 +97,7 @@ def test_redshift_specific_recv_support(db_kwargs, _input, client_protocol) -> N
             results: typing.Tuple = cursor.fetchall()
             assert len(results) == 1
             assert len(results[0]) == 1
-            if datatype in ("varbyte", "geography"):
+            if datatype in ("varbyte", "geography", "geometry"):
                 assert results[0][0].lower() == exp_val.lower()
             else:
                 assert results[0][0] == exp_val
