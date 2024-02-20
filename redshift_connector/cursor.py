@@ -241,8 +241,8 @@ class Cursor:
             self._c.execute(self, operation, args)
         except Exception as e:
             try:
-                _logger.debug("Cursor's connection._usock state: %s", self.connection._usock.__dict__)  # type: ignore
-                _logger.debug("Cursor's connection._sock is closed: %s", self.connection._sock.closed)  # type: ignore
+                _logger.debug("Cursor's connection._usock state: %s", str(self._c._usock.__dict__))
+                _logger.debug("Cursor's connection._sock is closed: %s", str(self._c._sock.closed))
             except:
                 pass
             raise e
