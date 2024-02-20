@@ -245,11 +245,8 @@ trans_tab = dict(zip(map(ord, "{}"), "[]"))
 def numeric_in_binary(data: bytes, offset: int, length: int, scale: int) -> Decimal:
     raw_value: int
 
-    if length == 8:
-        raw_value = q_unpack(data, offset)[0]
-    elif length == 16:
-        temp: typing.Tuple[int, int] = qq_unpack(data, offset)
-        raw_value = (temp[0] << 64) | temp[1]
+    if length == 8 or length == 16:
+        raw_value = int.from_bytes(data[offset : offset + length], byteorder="big", signed=True)
     else:
         raise Exception("Malformed column value of type numeric received")
 
@@ -259,11 +256,8 @@ def numeric_in_binary(data: bytes, offset: int, length: int, scale: int) -> Deci
 def numeric_to_float_binary(data: bytes, offset: int, length: int, scale: int) -> float:
     raw_value: int
 
-    if length == 8:
-        raw_value = q_unpack(data, offset)[0]
-    elif length == 16:
-        temp: typing.Tuple[int, int] = qq_unpack(data, offset)
-        raw_value = (temp[0] << 64) | temp[1]
+    if length == 8 or length == 16:
+        raw_value = int.from_bytes(data[offset : offset + length], byteorder="big", signed=True)
     else:
         raise Exception("Malformed column value of type numeric received")
 

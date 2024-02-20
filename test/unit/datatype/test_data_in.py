@@ -25,6 +25,7 @@ class Datatypes(Enum):
     float8: typing.Callable = type_utils.float8_recv
     timestamp: typing.Callable = type_utils.timestamp_recv_integer
     numeric_binary: typing.Callable = type_utils.numeric_in_binary
+    numeric_to_float_binary: typing.Callable = type_utils.numeric_to_float_binary
     numeric: typing.Callable = type_utils.numeric_in
     timetz_binary: typing.Callable = type_utils.timetz_recv_binary
     time_binary: typing.Callable = type_utils.time_recv_binary
@@ -117,6 +118,73 @@ test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {
             datetime(year=2008, month=6, day=1, hour=9, minute=59, second=59),
         )
     ],
+    Datatypes.numeric_to_float_binary: [
+        # 8
+        (
+            b"\x00\x01\x00\x00\x00\x08\x01\xb6\x9bK\xac\xd0_\x15",
+            6,
+            8,
+            0,
+            Decimal(123456789123456789),
+        ),
+        (
+            b"\x00\x01\x00\x00\x00\x08\x00\x00\x00\x00I\x96\x02\xd3",
+            6,
+            8,
+            5,
+            Decimal(12345.67891),
+        ),
+        (
+            b"\x00\x01\x00\x00\x00\x08\xff\xff\xff\xff\xb6i\xfd-",
+            6,
+            8,
+            5,
+            Decimal(-12345.67891),
+        ),
+        (
+            b"\x00\x01\x00\x00\x00\x08\x00\x00\x00\x00\x00\x0009",
+            6,
+            8,
+            8,
+            Decimal(0.00012345),
+        ),
+        (
+            b"\x00\x01\x00\x00\x00\x08\x00\x00\x01\x1fq\xfb\x088",
+            6,
+            8,
+            8,
+            Decimal(12345.67891),
+        ),
+        (
+            b"\x00\x01\x00\x00\x00\x08\x00\x18\x1e\xab\xfb\xfaj\x9e",
+            6,
+            8,
+            3,
+            Decimal(6789123456789.15),
+        ),
+        (
+            b'\x00\x01\x00\x00\x00\x08\x11"\x10\xf4\xc0#\xb6\xd4',
+            6,
+            8,
+            1,
+            Decimal(123456789123456789.2),
+        ),
+        # 16
+        (
+            b"\x00\x01\x00\x00\x00\x10\tI\xb0\xf7\x13\xe9\x18_~\x8f\x1a\x99\xa9\x9b\xb6\xdb",
+            6,
+            16,
+            0,
+            Decimal(12345678912345678991234567891234567899),
+        ),
+        (
+            b"\x00\x01\x00\x00\x00\x10\x00\x02`\xb0`\x05\x18\xdb<\xd5\x01\x15\xd9\x8ek\x8d",
+            6,
+            16,
+            26,
+            Decimal(123456789.12345679104328155517578125),
+        ),
+    ],
     Datatypes.numeric_binary: [
         # 8
         (
@@ -153,6 +221,20 @@ test_data: typing.Dict[Datatypes, typing.List[typing.Tuple]] = {
             8,
             8,
             Decimal(12345.67891),
+        ),
+        (
+            b"\x00\x03\x00\x00\x00\x08\x00\x18\x1e\xab\xfb\xfaj\x9e\x00\x00\x00\x01a\x00\x00\x00\x08\x01\xb6\x9bK\xac\xd0_\x15",
+            6,
+            8,
+            3,
+            Decimal(6789123456789.15),
+        ),
+        (
+            b"\x00\x03\x00\x00\x00\x08\x00\x18\x1e\xab\xfb\xfaj\x9e\x00\x00\x00\x01a\x00\x00\x00\x08\x01\xb6\x9bK\xac\xd0_\x15",
+            23,
+            8,
+            0,
+            Decimal(123456789123456789.2),
         ),
         # 16
         (
@@ -376,7 +458,7 @@ def get_test_cases() -> typing.Generator:
 @pytest.mark.parametrize("_input", get_test_cases(), ids=[k.__name__ for k, v in get_test_cases()])
 def test_datatype_recv(_input):
     test_func, test_args = _input
-    if len(test_args) == 5:  # numeric_in_binary
+    if len(test_args) == 5:  # numeric_in_binary or numeric_to_float_binary
         _data, _offset, _length, scale, exp_result = test_args
         assert isclose(test_func(_data, _offset, _length, scale), exp_result, rel_tol=1e-6)
     else:
@@ -385,3 +467,28 @@ def test_datatype_recv(_input):
             assert isclose(test_func(_data, _offset, _length), exp_result, rel_tol=1e-6)
         else:
             assert test_func(_data, _offset, _length) == exp_result
+
+
+invalid_numeric_lengths: typing.List[int] = [-1, 0, 7, 9, 15, 17, 99]
+
+
+@pytest.mark.parametrize("length", invalid_numeric_lengths)
+def test_numeric_in_binary_raises_for_invalid_length(length):
+    with pytest.raises(Exception, match="Malformed column value of type numeric received"):
+        Datatypes.numeric_binary(
+            b"\x00\x02\x00\x00\x00\x0c-12345.67891\x00\x00\x00\x08\xff\xff\xfe\xe0\x8e\x04\xf7\xc8",
+            22,
+            length,  # invalid length
+            8,
+        )
+
+
+@pytest.mark.parametrize("length", invalid_numeric_lengths)
+def test_numeric_to_float_binary_raises_for_invalid_length(length):
+    with pytest.raises(Exception, match="Malformed column value of type numeric received"):
+        Datatypes.numeric_to_float_binary(
+            b"\x00\x02\x00\x00\x00\x0c-12345.67891\x00\x00\x00\x08\xff\xff\xfe\xe0\x8e\x04\xf7\xc8",
+            22,
+            length,  # invalid length
+            8,
+        )
