@@ -120,7 +120,6 @@ def test_redshift_varbyte_insert(db_kwargs, _input, client_protocol) -> None:
             assert results[0][1] == bytes(data, encoding="utf-8").hex()
 
 
-@pytest.mark.skip(reason="awaiting-server-support")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name, RedshiftDatatypes.intervald2s.name])
 def test_redshift_interval_insert(db_kwargs, datatype, client_protocol) -> None:
@@ -144,7 +143,6 @@ def test_redshift_interval_insert(db_kwargs, datatype, client_protocol) -> None:
             cursor.execute("drop table t_interval")
 
 
-@pytest.mark.skip(reason="awaiting-server-support")
 @pytest.mark.parametrize("client_protocol", ClientProtocolVersion.list())
 @pytest.mark.parametrize("datatype", [RedshiftDatatypes.intervaly2m.name, RedshiftDatatypes.intervald2s.name])
 def test_redshift_interval_prep_stmt(db_kwargs, datatype, client_protocol) -> None:
@@ -272,7 +270,7 @@ def test_numeric_to_float(db_kwargs, _input, client_protocol):
 
 numeric_precision_scale_vals: typing.List[typing.Tuple[str, float]] = [
     ("-135430.11999999999500::numeric(36,14)", -135430.11999999999500),
-    ("g", 135430.11999999999500),
+    ("135430.11999999999500::numeric(36,14)", 135430.11999999999500),
     ("-35430.11999999999500::numeric(36,14)", -35430.11999999999500),
     ("35430.11999999999500::numeric(36,14)", 35430.11999999999500),
     ("-7872432525245.4577::numeric(36,14)", -7872432525245.4577),
