@@ -2,6 +2,33 @@ Changelog
 =========
 
 
+v2.1.0 (2024-02-20)
+-------------------
+- Fix(execute): fixed a bug which resulted in Pandas Timestamp datatype
+  to be sent to Redshift as the DATE instead of TIMESTAMP/TIMESTAMPTZ
+  when statements are executed using bind parameters. issue #206.
+  [Brooke White]
+- Test(datatype): Enable intervaly2m, intervald2s integration tests.
+  Correct numeric integration tests. [Brooke White]
+- Feat(auth, AdfsCredentialsProvider): Add support for connection
+  parameter loginToRp in AdfsCredentialsProvider. This parameter
+  specifies a custom relying party trust to use for ADFS authentication.
+  Default behavior remains unchanged and backwards compatibility with
+  previous versions is maintained The loginToRp parameter can be used to
+  define a custom relying party trust used for authenticating with ADFS.
+  [Brooke White]
+- Doc(README): adjusts connection parameter table formatting. [Brooke
+  White]
+- Fix(datatype): Fix data ingestion to properly handle NUMERIC data
+  types when using the binary transfer protocol to prevent incorrect
+  results. issue #207. [Brooke White]
+- Fix(cursor, execute): log underlying connection state using class
+  variables when exception is raised. resolves db-api extension warnings
+  #204. [Brooke White]
+- Test: re-enable datatype integration tests. [Brooke White]
+- Test: disable or adjust flaky integration tests. [Brooke White]
+
+
 v2.0.918 (2023-12-14)
 ---------------------
 - Refactor(Connection): explicitly use TLS client protocol for
