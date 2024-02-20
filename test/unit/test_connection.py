@@ -2,6 +2,7 @@ import socket
 import typing
 from collections import deque
 from decimal import Decimal
+from test.utils import pandas_only
 from unittest import mock
 from unittest.mock import patch
 
@@ -520,3 +521,42 @@ def test_broken_pipe_timeout_on_connect(db_kwargs) -> None:
                     db_kwargs.pop("region")
                     db_kwargs.pop("cluster_identifier")
                     Connection(**db_kwargs)
+
+
+def make_mock_connection(db_kwargs):
+    db_kwargs["ssl"] = False
+    db_kwargs["timeout"] = 60
+
+    with mock.patch("socket.getaddrinfo") as mock_getaddrinfo:
+        addr_tuple = [(0, 1, 2, "", ("3.226.18.73", 5439)), (2, 1, 6, "", ("3.226.18.73", 5439))]
+        mock_getaddrinfo.return_value = addr_tuple
+        with mock.patch("socket.socket.connect") as mock_usock:
+            mock_usock.side_effect = lambda *args, **kwargs: None
+
+            with mock.patch("socket.socket.makefile") as mock_sock:
+                mock_file = mock_sock.return_value
+                mock_file.read.return_value = b"Zasej"
+                db_kwargs.pop("region")
+                db_kwargs.pop("cluster_identifier")
+                return Connection(**db_kwargs)
+
+
+@pandas_only
+def test_make_params_maps_pandas_timestamp_to_timestamp(db_kwargs):
+    import datetime
+
+    import pandas as pd
+
+    from redshift_connector.utils.oids import RedshiftOID
+    from redshift_connector.utils.type_utils import py_types, timestamptz_send_integer
+
+    columns = ["dw_inserted_at"]
+    values = pd.DataFrame({col: [datetime.datetime.now(datetime.timezone.utc)] * 1 for col in columns}).values.tolist()[
+        0
+    ]
+
+    mock_connection: Connection = make_mock_connection(db_kwargs)
+    res = mock_connection.make_params(values)
+    assert res[0][0] == RedshiftOID.TIMESTAMPTZ
+    assert res[0][1] == 1
+    assert res[0][2] == timestamptz_send_integer

@@ -1,3 +1,4 @@
+import datetime
 import typing
 from io import StringIO
 from math import ceil
@@ -502,3 +503,75 @@ def test_write_dataframe_handles_npdtyes(mocker):
         assert len(spy.mock_calls[1].args[1]) == 1
         # bind parameter list should not contain numpy objects
         assert not isinstance(spy.mock_calls[1].args[1][0], np.generic)
+
+
+@pandas_only
+def test_write_dataframe_handles_pandas_types(mocker):
+    import pandas as pd
+
+    mocker.patch("redshift_connector.Cursor.execute", return_value=None)
+    mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_cursor._c = mock_connection
+
+    mock_cursor.paramstyle = "mocked_val"
+
+    for datatype, data, _type in (
+        ("int64", pd.Series([42]), int),
+        ("float64", pd.Series([3.14]), float),
+        ("object", pd.Series(["Hello, Pandas!"]), str),
+        ("bool", pd.Series([True]), bool),
+        ("datetime64", pd.Series([pd.Timestamp("2022-01-01")]), int),
+        ("timedelta64", pd.Series([pd.Timedelta(days=5)]), int),
+    ):
+        spy = mocker.spy(mock_cursor, "execute")
+        dataframe = pd.DataFrame(data)
+        mock_cursor.write_dataframe(df=dataframe, table=datatype)
+
+        assert spy.called
+        assert spy.call_count == 2  # once for __is_valid_table, once for write_dataframe
+        assert not isinstance(spy.mock_calls[1].args[1], pd.core.base.PandasObject)
+        assert isinstance(spy.mock_calls[1].args[1], list)
+        assert len(spy.mock_calls[1].args[1]) == 1
+        # bind parameter list should not contain numpy objects
+        assert isinstance(spy.mock_calls[1].args[1][0], _type)
+
+
+@pandas_only
+@pytest.mark.parametrize(
+    "datatype,data,_type",
+    (
+        ("int", 42, int),
+        ("float", 3.14, float),
+        ("str", "H", str),
+        ("bool", True, bool),
+        ("list", [1, 2, 3], list),
+        ("tuple", (4, 5, 6), tuple),
+        ("set", {1, 2, 3}, set),
+        ("datetime", datetime.datetime.now(datetime.timezone.utc), datetime.datetime),
+    ),
+)
+def test_write_dataframe_handles_python_types(mocker, datatype, data, _type):
+    import datetime
+
+    import pandas as pd
+
+    mocker.patch("redshift_connector.Cursor.execute", return_value=None)
+    mocker.patch("redshift_connector.Cursor.fetchone", return_value=[1])
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_cursor._c = mock_connection
+
+    mock_cursor.paramstyle = "mocked_val"
+
+    spy = mocker.spy(mock_cursor, "execute")
+    dataframe = pd.DataFrame({col: [data] * 1 for col in (datatype,)})
+    mock_cursor.write_dataframe(df=dataframe, table=datatype)
+
+    assert spy.called
+    assert spy.call_count == 2  # once for __is_valid_table, once for write_dataframe
+    assert not isinstance(spy.mock_calls[1].args[1], pd.core.base.PandasObject)
+    assert isinstance(spy.mock_calls[1].args[1], list)
+    assert len(spy.mock_calls[1].args[1]) == 1
+    assert isinstance((spy.mock_calls[1].args[1][0]), _type)

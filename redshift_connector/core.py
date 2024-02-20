@@ -1609,11 +1609,19 @@ class Connection:
         for value in values:
             typ: typing.Type = type(value)
             try:
+                # 1) check if we have a direct match for this datatype in PY_TYPES mapping
                 params.append(self.py_types[typ])
             except KeyError:
                 try:
+                    # 2) if no match was found in 1) check if we have a match in inspect_funcs.
+                    # note that inspect_funcs inspect the data value to determine the type.
+                    # e.g. if the datatype is a Datetime and has a timezone, we want to map it
+                    # to TIMETSTAMPTZ rather than TIMESTAMP.
                     params.append(self.inspect_funcs[typ](value))
                 except KeyError as e:
+                    # 3) if no match was found in 1) nor 2), we again iterate through PY_TYPES but
+                    # check if our data is an instance of any datatypes found in PY_TYPES
+                    # rather than looking for an exact match as was performed in 1)
                     param: typing.Optional[typing.Tuple[int, int, typing.Callable]] = None
                     for k, v in self.py_types.items():
                         try:
@@ -1624,12 +1632,32 @@ class Connection:
                             pass
 
                     if param is None:
+                        # 4) if no match was found in 1) nor 2) nor 3), we again iterate through
+                        # inspect_funcs but check if our data is an instance of any datatype
+                        # found in inspect_funcs
                         for k, v in self.inspect_funcs.items():  # type: ignore
                             try:
                                 if isinstance(value, k):
                                     v_func: typing.Callable = typing.cast(typing.Callable, v)
                                     param = v_func(value)
                                     break
+                            except TypeError:
+                                pass
+                            except KeyError:
+                                pass
+                    elif param[0] == RedshiftOID.DATE:
+                        # 5) if we classified this data as DATE in 3), we perform a secondary check to
+                        # ensure this data was not misclassified in 3). Misclassification occurs in the case
+                        # where data having a type that is a subclass of datetime.date is also a subclass of
+                        # datetime.datetime. For this example, the misclassification leads to the loss of
+                        # time precision in transformed data sent to Redshift on the wire. The simplest
+                        # example of this edge case can be seen in
+                        # https://github.com/aws/amazon-redshift-python-driver/issues/206
+                        # where a pandas Timestamp is misclassified as Redshift DATE in 3).
+                        if isinstance(value, Datetime) and Datetime in self.inspect_funcs:
+                            try:
+                                v_func = typing.cast(typing.Callable, self.inspect_funcs[Datetime])
+                                param = v_func(value)
                             except TypeError:
                                 pass
                             except KeyError:
