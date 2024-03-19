@@ -57,7 +57,7 @@ MINUS_INFINITY_MICROSECONDS: int = -1 * INFINITY_MICROSECONDS - 1
 # pg element oid -> pg array typeoid
 pg_array_types: typing.Dict[int, int] = {
     16: 1000,
-    # 25: 1009,    # TEXT[]
+    25: 1009,    # TEXT[]
     701: 1022,
     1043: 1009,
     # 1700: 1231,  # NUMERIC[]
