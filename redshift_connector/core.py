@@ -653,7 +653,7 @@ class Connection:
                     self._usock.sendall(ii_pack(8, 80877103))
                     resp: bytes = self._usock.recv(1)
                     if resp != b"S":
-                        _logger.debug("Server response code when attempting to establish ssl connection: $s", resp)
+                        _logger.debug("Server response code when attempting to establish ssl connection: %s", resp)
                         raise InterfaceError("Server refuses SSL")
 
                     if sslmode == "verify-ca":
