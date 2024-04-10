@@ -2,6 +2,13 @@ Changelog
 =========
 
 
+v2.1.1 (2024-04-10)
+-------------------
+- Fix(auth, AdfsCredentialsProvider): Fixes a login issue that did not
+  allow the loginToRp connection parameter in the
+  AdfsCredentialsProvider to be set. [Brooke White]
+
+
 v2.1.0 (2024-02-20)
 -------------------
 - Fix(execute): fixed a bug which resulted in Pandas Timestamp datatype
