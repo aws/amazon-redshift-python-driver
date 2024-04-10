@@ -140,3 +140,15 @@ def test_set_is_cname_from_host(conn_params, exp_is_cname) -> None:
 
     info.set_is_cname()
     assert info.is_cname == exp_is_cname
+
+
+def test_login_to_rp_exists() -> None:
+    info: RedshiftProperty = RedshiftProperty()
+
+    assert info.__getattribute__("login_to_rp")
+
+
+def test_can_set_login_to_rp() -> None:
+    info: RedshiftProperty = RedshiftProperty(**{"login_to_rp": "foo_bar"})
+
+    assert info.__getattribute__("login_to_rp") == "foo_bar"

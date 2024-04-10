@@ -135,6 +135,7 @@ def connect(
     partner_sp_id: typing.Optional[str] = None,
     idp_response_timeout: typing.Optional[int] = None,
     listen_port: typing.Optional[int] = None,
+    login_to_rp: typing.Optional[str] = None,
     login_url: typing.Optional[str] = None,
     auto_create: typing.Optional[bool] = None,
     db_groups: typing.Optional[typing.List[str]] = None,
@@ -302,6 +303,7 @@ def connect(
     info.put("is_serverless", is_serverless)
     info.put("listen_port", listen_port)
     info.put("login_url", login_url)
+    info.put("login_to_rp", login_to_rp)
     info.put("max_prepared_statements", max_prepared_statements)
     info.put("numeric_to_float", numeric_to_float)
     info.put("partner_sp_id", partner_sp_id)
