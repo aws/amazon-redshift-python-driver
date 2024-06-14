@@ -618,7 +618,7 @@ class Connection:
                 raise ProgrammingError("one of host or unix_sock must be provided")
             if timeout is not None:
                 _logger.debug("set socket timeout=%s", timeout)
-                self._usock.settimeout(timeout)
+                self._usock.settimeout(int(timeout))
 
             if unix_sock is None and host is not None:
                 hostport: typing.Tuple[str, int] = Connection.__get_host_address_info(host, port)
