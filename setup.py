@@ -128,7 +128,9 @@ setup(
     ],
     keywords="redshift dbapi",
     include_package_data=True,
-    package_data={"redshift-connector": ["*.py", "*.crt", "LICENSE", "NOTICE"]},
+    package_data={
+        "redshift-connector": ["*.py", "*.crt", "LICENSE", "NOTICE", "py.typed"]
+    },
     packages=find_packages(exclude=["test*"]),
     cmdclass=custom_cmds,
 )
