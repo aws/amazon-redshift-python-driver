@@ -563,7 +563,9 @@ class Connection:
 
             if credentials_provider.split(".")[-1] in ("IdpTokenAuthPlugin",):
                 redshift_native_auth = True
-                self.set_idc_plugins_params(init_params, credentials_provider, identity_namespace, token_type)
+                self.set_idc_plugins_params(
+                    init_params, credentials_provider, identity_namespace, token_type
+                )
 
             if redshift_native_auth and provider_name:
                 init_params["provider_name"] = provider_name
@@ -633,7 +635,9 @@ class Connection:
             # create ssl connection with Redshift CA certificates and check the hostname
             if ssl is True:
                 try:
-                    from ssl import PROTOCOL_TLS_CLIENT, SSLContext
+                    from ssl import CERT_REQUIRED, SSLContext
+
+                    # ssl_context = ssl.create_default_context()
 
                     path = os.path.abspath(__file__)
                     if os.name == "nt":
@@ -641,8 +645,8 @@ class Connection:
                     else:
                         path = "/".join(path.split("/")[:-1]) + "/files/redshift-ca-bundle.crt"
 
-                    # The protocol enables CERT_REQUIRED and check_hostname by default.
-                    ssl_context: SSLContext = SSLContext(protocol=PROTOCOL_TLS_CLIENT)
+                    ssl_context: SSLContext = SSLContext()
+                    ssl_context.verify_mode = CERT_REQUIRED
                     ssl_context.load_default_certs()
                     _logger.debug("try to load Redshift CA certs from location %s", path)
                     ssl_context.load_verify_locations(path)
@@ -658,13 +662,12 @@ class Connection:
 
                     if sslmode == "verify-ca":
                         _logger.debug("applying sslmode=%s to socket", sslmode)
-                        ssl_context.check_hostname = False
                         self._usock = ssl_context.wrap_socket(self._usock)
                     elif sslmode == "verify-full":
                         _logger.debug("applying sslmode=%s to socket and force check_hostname", sslmode)
+                        ssl_context.check_hostname = True
                         self._usock = ssl_context.wrap_socket(self._usock, server_hostname=host)
                     else:
-                        ssl_context.check_hostname = False
                         _logger.debug("unknown sslmode=%s is ignored", sslmode)
                     _logger.debug("Socket SSL details: %s", self._usock.cipher())  # type: ignore
 

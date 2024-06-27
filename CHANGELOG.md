@@ -2,6 +2,15 @@ Changelog
 =========
 
 
+v2.1.2 (2024-06-19)
+-------------------
+- Temporarily reverted the following commit which caused connection
+  failure for some Docker containers when SSL was enabled:
+  “refactor(Connection): explicitly use TLS protocol for underlying
+  connection socket. previously TLS protocol was used by default.
+  resolves deprecation warnings in Python 3.11" [Brooke White]
+
+
 v2.1.1 (2024-04-10)
 -------------------
 - Fix(auth, AdfsCredentialsProvider): Fixes a login issue that did not
