@@ -11,3 +11,11 @@ updates:
       prefix-development: "chore"
       include: "scope"
     open-pull-requests-limit: 8
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      # Check for updates to GitHub Actions every week
+      interval: "weekly"
+      time: "09:00"
+      timezone: "Europe/London"
