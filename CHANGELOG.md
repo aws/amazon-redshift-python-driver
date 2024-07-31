@@ -2,6 +2,18 @@ Changelog
 =========
 
 
+v2.1.3 (2024-07-31)
+-------------------
+- Added support for a new browser authentication plugin called
+  BrowserIdcAuthPlugin to facilitate single-sign-on integration with AWS
+  IAM Identity Center. [Brooke White]
+- Chore: publish inline type annotations (#224) [James Dow, James Dow]
+
+  Allow inline type hints to be packaged and distributed
+  following PEP561 specification
+  https://peps.python.org/pep-0561/#specification
+
+
 v2.1.2 (2024-06-19)
 -------------------
 - Temporarily reverted the following commit which caused connection
