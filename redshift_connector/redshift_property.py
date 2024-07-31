@@ -60,6 +60,8 @@ class RedshiftProperty:
             self.host: str = ""
             self.iam: bool = False
             self.iam_disable_cache: bool = False
+            self.idc_client_display_name: typing.Optional[str] = None
+            self.idc_region: typing.Optional[str] = None
             self.identity_namespace: typing.Optional[str] = None
             # The IdP (identity provider) host you are using to authenticate into Redshift.
             self.idp_host: typing.Optional[str] = None
@@ -69,6 +71,7 @@ class RedshiftProperty:
             self.idp_tenant: typing.Optional[str] = None
             # The port used by an IdP (identity provider).
             self.idpPort: int = 443
+            self.issuer_url: typing.Optional[str] = None
             self.listen_port: int = 7890
             # property for specifying loginToRp used by AdfsCredentialsProvider
             self.login_to_rp: str = "urn:amazon:webservices"
