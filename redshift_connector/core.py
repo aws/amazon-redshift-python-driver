@@ -433,6 +433,7 @@ class Connection:
         numeric_to_float: bool = False,
         identity_namespace: typing.Optional[str] = None,
         token_type: typing.Optional[str] = None,
+        idc_client_display_name: typing.Optional[str] = None,
     ):
         """
         Creates a :class:`Connection` to an Amazon Redshift cluster. For more information on establishing a connection to an Amazon Redshift cluster using `federated API access <https://aws.amazon.com/blogs/big-data/federated-api-access-to-amazon-redshift-using-an-amazon-redshift-connector-for-python/>`_ see our examples page.
@@ -481,6 +482,8 @@ class Connection:
             The identity namespace to be used with IdC auth plugin. Default value is None.
         token_type: Optional[str]
             The token type to be used for authentication using IdP Token auth plugin
+        idc_client_display_name: Optional[str]
+            The client display name to be used for user consent in IdC browser auth plugin.
         """
         self.merge_socket_read = True
 
@@ -561,7 +564,10 @@ class Connection:
                 redshift_native_auth = True
                 init_params["idp_type"] = "AzureAD"
 
-            if credentials_provider.split(".")[-1] in ("IdpTokenAuthPlugin",):
+            if credentials_provider.split(".")[-1] in (
+                "IdpTokenAuthPlugin",
+                "BrowserIdcAuthPlugin",
+            ):
                 redshift_native_auth = True
                 self.set_idc_plugins_params(
                     init_params, credentials_provider, identity_namespace, token_type
@@ -2617,6 +2623,7 @@ class Connection:
         credentials_provider: typing.Optional[str] = None,
         identity_namespace: typing.Optional[str] = None,
         token_type: typing.Optional[str] = None,
+        idc_client_display_name: typing.Optional[str] = None,
     ) -> None:
         plugin_name = typing.cast(str, credentials_provider).split(".")[-1]
         init_params["idp_type"] = "AwsIdc"
@@ -2624,5 +2631,10 @@ class Connection:
         if identity_namespace:
             init_params["identity_namespace"] = identity_namespace
 
-        if token_type:
+        if plugin_name == "BrowserIdcAuthPlugin":
+            init_params["token_type"] = "ACCESS_TOKEN"
+        elif token_type:
             init_params["token_type"] = token_type
+
+        if idc_client_display_name:
+            init_params["idc_client_display_name"] = idc_client_display_name

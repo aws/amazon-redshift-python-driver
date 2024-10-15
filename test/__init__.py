@@ -10,5 +10,6 @@ from test.integration import (
     okta_browser_idp,
     okta_idp,
     ping_browser_idp,
+    redshift_browser_idc,
     redshift_idp_token_auth_plugin,
 )

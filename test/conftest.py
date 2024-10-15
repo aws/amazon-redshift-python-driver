@@ -311,6 +311,7 @@ def redshift_native_browser_azure_oauth2_idp() -> typing.Dict[str, typing.Union[
     }
     return db_connect
 
+
 @pytest.fixture(scope="class")
 def redshift_idp_token_auth_plugin() -> typing.Dict[str, typing.Optional[str]]:
     db_connect = {
@@ -323,6 +324,26 @@ def redshift_idp_token_auth_plugin() -> typing.Dict[str, typing.Optional[str]]:
         "token": conf.get("redshift-idp-token-auth-plugin", "token", fallback=None),
         "token_type": conf.get("redshift-idp-token-auth-plugin", "token_type", fallback=None),
         "identity_namespace": conf.get("redshift-idp-token-auth-plugin", "identity_namespace", fallback=None),
+    }
+    return db_connect
+
+
+@pytest.fixture(scope="class")
+def redshift_browser_idc() -> typing.Dict[str, typing.Union[str, typing.Optional[bool], int]]:
+    db_connect = {
+        "host": conf.get("redshift-browser-idc", "host", fallback=None),
+        "region": conf.get("redshift-browser-idc", "region", fallback=None),
+        "database": conf.get("redshift-browser-idc", "database", fallback="dev"),
+        "credentials_provider": conf.get(
+            "redshift-browser-idc", "credentials_provider", fallback="BrowserIdcAuthPlugin"
+        ),
+        "issuer_url": conf.get("redshift-browser-idc", "issuer_url", fallback=None),
+        "idc_region": conf.get("redshift-browser-idc", "idc_region", fallback=None),
+        "idp_response_timeout": conf.getint("redshift-browser-idc", "idp_response_timeout", fallback=120),
+        "listen_port": conf.get("redshift-browser-idc", "listen_port", fallback=7890),
+        "idc_client_display_name": conf.get(
+            "redshift-browser-idc", "idc_client_display_name", fallback="Amazon Redshift Python connector"
+        ),
     }
     return db_connect
 

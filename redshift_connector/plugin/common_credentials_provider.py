@@ -85,3 +85,6 @@ class CommonCredentialsProvider(INativePlugin, IdpCredentialsProvider):
 
     def get_sub_type(self: "CommonCredentialsProvider") -> int:
         return IamHelper.IDC_PLUGIN
+
+    def get_cache_key(self: "CommonCredentialsProvider") -> str:
+        return ""
