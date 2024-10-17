@@ -51,6 +51,23 @@ def test_fetch_dataframe_no_results(mocker) -> None:
     assert mock_cursor.fetch_dataframe(1).size == 0
 
 
+@pandas_only
+def test_fetch_dataframe_respects_case_sensitivity(mocker) -> None:
+    import pandas as pd
+
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mocker.patch(
+        "redshift_connector.Cursor._getDescription",
+        return_value=[("C", 23, None, None, None, None, None)],
+    )
+    mocker.patch("redshift_connector.Cursor.__next__", side_effect=StopIteration("mocked end"))
+
+    df = mock_cursor.fetch_dataframe()
+
+    assert df.size == 0
+    assert df.columns.to_list() == ["C"]
+
+
 def test_raw_connection_property_warns() -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor._c = Connection.__new__(Connection)
