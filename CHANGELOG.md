@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v2.1.4 (2024-11-20)
+-------------------
+- Updated the logic for retrieving database metadata through the getCatalogs(), getSchemas(), getTables(), and getColumns() API methods
+- Added developer dependency on Selenium
+
 
 v2.1.3 (2024-07-31)
 -------------------
