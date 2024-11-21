@@ -291,7 +291,7 @@ def test_get_tables(mocker, _input, db_kwargs) -> None:
             # ensure execute was called
             assert spy.called
 
-            if _args["schema_pattern"] is not None and conn.is_single_database_metadata:
+            if conn.is_single_database_metadata:
                 assert spy.call_count == 2  # call in __schema_pattern_match(), get_tables()
             else:
                 assert spy.call_count == 1  # call in get_tables()
@@ -519,7 +519,7 @@ def test_get_columns(mocker, _input, db_kwargs) -> None:
             # ensure execute was called
             assert spy.called
 
-            if _args["schema_pattern"] is not None and conn.is_single_database_metadata:
+            if conn.is_single_database_metadata:
                 assert spy.call_count == 2  # call in __schema_pattern_match(), get_columns()
             else:
                 assert spy.call_count == 1  # call in get_columns()

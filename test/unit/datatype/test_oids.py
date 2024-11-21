@@ -21,3 +21,7 @@ def test_get_datatype_name(oid, datatype):
 def test_get_datatype_name_invalid_oid_raises() -> None:
     with pytest.raises(ValueError, match="not a valid RedshiftOID"):
         get_datatype_name(-9)
+
+def test_modify_oid() -> None:
+    with pytest.raises(AttributeError, match="Cannot modify OID constant 'VARCHAR'"):
+        RedshiftOID.VARCHAR = 0

@@ -1,7 +1,15 @@
-from enum import IntEnum
+from enum import IntEnum, EnumMeta
+
+class RedshiftOIDMeta(EnumMeta):
+    def __setattr__(self, name, value):
+        if name in self.__dict__:
+            raise AttributeError(f"Cannot modify OID constant '{name}'")
+            # throw error if any constant value defined in RedshiftOID was modified
+            # e.g. "Cannot modify OID constant 'VARCHAR'"
+        super().__setattr__(name, value)
 
 
-class RedshiftOID(IntEnum):
+class RedshiftOID(IntEnum, metaclass=RedshiftOIDMeta):
     ACLITEM = 1033
     ACLITEM_ARRAY = 1034
     ANY_ARRAY = 2277

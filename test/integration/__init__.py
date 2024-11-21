@@ -3,6 +3,7 @@ from test.conftest import (
     azure_browser_idp,
     azure_idp,
     db_kwargs,
+    ds_consumer_dsdb_kwargs,
     idp_arg,
     jumpcloud_browser_idp,
     jwt_azure_v2_idp,

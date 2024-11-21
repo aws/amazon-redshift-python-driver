@@ -143,6 +143,18 @@ def ds_consumer_db_kwargs() -> typing.Dict[str, str]:
 
     return db_connect
 
+@pytest.fixture(scope="class")
+def ds_consumer_dsdb_kwargs() -> typing.Dict[str, str]:
+    dsdb_connect = {
+        "database": conf.get("redshift-dsdb-consumer", "database", fallback="mock_database"),
+        "host": conf.get("redshift-dsdb-consumer", "host", fallback="cname.mytest.com"),
+        "user": conf.get("redshift-dsdb-consumer", "user", fallback="mock_user"),
+        "password": conf.get("redshift-dsdb-consumer", "password", fallback="mock_password"),
+        "extra": conf.get("redshift-dsdb-consumer", "extra", fallback="mock_extra"),
+    }
+
+    return dsdb_connect
+
 
 @pytest.fixture(scope="class")
 def ds_producer_db_kwargs() -> typing.Dict[str, str]:
