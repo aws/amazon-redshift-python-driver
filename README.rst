@@ -10,6 +10,8 @@ redshift_connector
 .. |Python Version| image:: https://img.shields.io/badge/python->=3.6-brightgreen.svg
    :target: https://pypi.org/project/redshift_connector/
 
+⚠️ Python Driver v2.1.4 has been recalled. Python Driver v2.1.3 is recommended for use instead.
+
 ``redshift_connector`` is the Amazon Redshift connector for
 Python. Easy integration with `pandas <https://github.com/pandas-dev/pandas>`_ and `numpy <https://github.com/numpy/numpy>`_, as well as support for numerous Amazon Redshift specific features help you get the most out of your data
 
@@ -29,13 +31,13 @@ Getting Started
 Install from Binary
 ~~~~~~~~~~~~~~~~~~~
 
-+----------------------------------------------------------------+--------------------+-----------------------------------------------------+
-| Package Manager                                                | Downloads          | Installation Command                                |
-+================================================================+====================+=====================================================+
-| `PyPi <https://pypi.org/project/redshift-connector/>`_         |  |PyPi Downloads|  | ``pip install redshift_connector``                  |
-+----------------------------------------------------------------+--------------------+-----------------------------------------------------+
-| `Conda <https://anaconda.org/conda-forge/redshift_connector>`_ |  |Conda Downloads| | ``conda install -c conda-forge redshift_connector`` |
-+----------------------------------------------------------------+--------------------+-----------------------------------------------------+
++----------------------------------------------------------------+--------------------+--------------------------------------------------------------+
+| Package Manager                                                | Downloads          | Installation Command                                         |
++================================================================+====================+==============================================================+
+| `PyPi <https://pypi.org/project/redshift-connector/>`_         |  |PyPi Downloads|  | ``pip install 'redshift_connector==2.1.3'``                  |
++----------------------------------------------------------------+--------------------+--------------------------------------------------------------+
+| `Conda <https://anaconda.org/conda-forge/redshift_connector>`_ |  |Conda Downloads| | ``conda install -c conda-forge 'redshift_connector==2.1.3'`` |
++----------------------------------------------------------------+--------------------+--------------------------------------------------------------+
 
 .. |PyPi Downloads| image:: https://pepy.tech/badge/redshift_connector
 .. |Conda Downloads| image:: https://img.shields.io/conda/dn/conda-forge/redshift_connector.svg
