@@ -1,9 +1,19 @@
 Changelog
 =========
 
-v2.1.4 (2024-11-20)
+
+v2.1.5 (2024-12-23)
 -------------------
-- This driver version has been recalled. Python Driver v2.1.3 is recommended for use instead.
+- Updated the logic for retrieving database metadata through the
+  get_catalogs, get_schemas, get_tables, and get_columns API methods.
+  [jamescaii]
+- Update README.rst. [Beaux Sharifi]
+- Update CHANGELOG.md. [Beaux Sharifi]
+
+
+v2.1.4 (2024-11-21)
+-------------------
+- This driver version has been recalled. Python Driver v2.1.3 is recommended for use instead. 
 
 
 v2.1.3 (2024-07-31)
@@ -100,14 +110,13 @@ v2.0.916 (2023-11-13)
 - Feat(auth, iam): allowed use of getClusterCredentials V2 API when IdP
   Plugin authentication is used and group_federation=True. Previously an
   unsupported error was thrown. [Brooke White]
-- Fix(connection, logging): cast redshift_types as a str to resolve
-  exceptions seen when using redshift-connector with logbook. [Brooke
-  White]
 
 
 v2.0.915 (2023-10-16)
 ---------------------
-- Fix(connection): cast redshift_types as a str. [Brooke White]
+- Fix(connection, logging): cast redshift_types as a str to resolve
+  exceptions seen when using redshift-connector with logbook. [Brooke
+  White]
 - Chore: lint codebase. [Brooke White]
 
 
@@ -251,12 +260,14 @@ v2.0.908 (2022-06-30)
 - Docs(readme): remove json from data type table (#102) [Noah Holm]
 - Docs(readme): document connect timeout parameter (#101) [H​eikki
   H​okkanen]
-
-
-v2.0.907 (2022-05-06)
----------------------
 - Feat(idp, open_browser): Updated SAML Plugin browser launch process.
   [Brooke White]
+
+
+v2.0.907 (2022-05-05)
+---------------------
+- Feat(idp, open_browser): validate login URL for SAML plugin. [Brooke
+  White]
 - Docs: db_groups parameter takes a list, not str (#99) [H​eikki
   H​okkanen]
 
@@ -280,10 +291,6 @@ v2.0.906 (2022-04-15)
   - dependency-name: pytz
     dependency-type: direct:production
   ...
-
-
-v2.0.905 (2022-03-07)
----------------------
 - Fix(idp, BrowserAzureCredentialsProvider): remove client_secret
   parameter. [Brooke White]
 - Test(auth): sha256 password. [Brooke White]
