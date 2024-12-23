@@ -96,26 +96,18 @@ def test_get_auto_increment() -> None:
     assert 'NO' == mock_metadataAPIHelper.get_auto_increment('')
     assert 'NO' == mock_metadataAPIHelper.get_auto_increment(None)
 
-def test_check_name_is_not_pattern() -> None:
+def test_is_none_or_empty() -> None:
     mock_metadataAPIHelper: MetadataAPIHelper = MetadataAPIHelper.__new__(MetadataAPIHelper)
 
-    assert True == mock_metadataAPIHelper.check_name_is_not_pattern(None)
-    assert True == mock_metadataAPIHelper.check_name_is_not_pattern("")
-    assert True == mock_metadataAPIHelper.check_name_is_not_pattern("%")
+    assert True == mock_metadataAPIHelper.is_none_or_empty(None)
+    assert True == mock_metadataAPIHelper.is_none_or_empty("")
 
-    assert False == mock_metadataAPIHelper.check_name_is_not_pattern("exact_name")
-    assert False == mock_metadataAPIHelper.check_name_is_not_pattern("pattern_name%")
-
-
-def test_check_name_is_exact_name() -> None:
-    mock_metadataAPIHelper: MetadataAPIHelper = MetadataAPIHelper.__new__(MetadataAPIHelper)
-
-    assert False == mock_metadataAPIHelper.check_name_is_exact_name(None)
-    assert False == mock_metadataAPIHelper.check_name_is_exact_name("")
-    assert False == mock_metadataAPIHelper.check_name_is_exact_name("%")
-
-    assert True == mock_metadataAPIHelper.check_name_is_exact_name("exact_name")
-    assert False == mock_metadataAPIHelper.check_name_is_exact_name("pattern_name%")
+    assert False == mock_metadataAPIHelper.is_none_or_empty(" ")
+    assert False == mock_metadataAPIHelper.is_none_or_empty("%")
+    assert False == mock_metadataAPIHelper.is_none_or_empty("_")
+    assert False == mock_metadataAPIHelper.is_none_or_empty("exactName")
+    assert False == mock_metadataAPIHelper.is_none_or_empty("pattern_name")
+    assert False == mock_metadataAPIHelper.is_none_or_empty("patternName%")
 
 def test_get_column_size() -> None:
     mock_metadataAPIHelper: MetadataAPIHelper = MetadataAPIHelper.__new__(MetadataAPIHelper)

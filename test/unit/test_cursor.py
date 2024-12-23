@@ -18,9 +18,6 @@ description_warn_response_data: typing.List[typing.Tuple[bytes, str]] = [
     (b"ab\xffcd", "failed to decode column name"),
 ]
 
-def mock_sanitizer(input: str = "") -> str:
-    return str(input)
-
 @pytest.mark.parametrize("_input", description_warn_response_data)
 def test_get_description_warns_user(_input) -> None:
     data, exp_warning_msg = _input
@@ -167,10 +164,6 @@ def test_get_schemas_considers_args(_input, is_single_database_metadata_val, moc
     catalog, schema_pattern = _input
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     mocker.patch("redshift_connector.Cursor.fetchall", return_value=None)
-    mocker.patch(
-        "redshift_connector.Cursor.sanitize_parameter",
-        side_effect=mock_sanitizer
-    )
 
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
@@ -178,6 +171,7 @@ def test_get_schemas_considers_args(_input, is_single_database_metadata_val, moc
     mock_connection.parameter_statuses = deque(maxlen=100)
     mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
     spy = mocker.spy(mock_cursor, "execute")
 
     with patch(
@@ -198,19 +192,15 @@ def test_get_schemas_considers_args(_input, is_single_database_metadata_val, moc
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 def test_get_schemas_show_discovery(is_single_database_metadata_val, mocker) -> None:
-    mocker.patch(
-        "redshift_connector.Cursor.sanitize_parameter",
-        return_value="mock"
-    )
-
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
 
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'1'))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
     mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_schema_server_api')
@@ -249,6 +239,7 @@ def test_get_catalogs_considers_args(is_single_database_metadata_val, mocker) ->
     mock_connection.parameter_statuses = deque(maxlen=100)
     mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
     spy = mocker.spy(mock_cursor, "execute")
 
     with patch(
@@ -278,10 +269,11 @@ def test_get_catalogs_show_discovery(is_single_database_metadata_val, mocker) ->
 
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
     spy_execute = mocker.spy(mock_cursor, "execute")
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'1'))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
     mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_catalog_server_api')
@@ -340,10 +332,6 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
         "redshift_connector.Cursor.fetchall",
         return_value=None if schema_pattern_type == "EXTERNAL_SCHEMA_QUERY" else tuple("mock"),
     )
-    mocker.patch(
-        "redshift_connector.Cursor.sanitize_parameter",
-        side_effect=mock_sanitizer
-    )
 
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
@@ -351,6 +339,7 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
     mock_connection.parameter_statuses = deque(maxlen=100)
     mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
     spy = mocker.spy(mock_cursor, "execute")
 
     with patch(
@@ -361,7 +350,7 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
 
     assert spy.called
 
-    if is_single_database_metadata_val:
+    if schema_pattern is not None and is_single_database_metadata_val:
         assert spy.call_count == 2  # call in __schema_pattern_match(), get_tables()
     else:
         assert spy.call_count == 1
@@ -375,19 +364,15 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 def test_get_tables_show_discovery(is_single_database_metadata_val,mocker) -> None:
-    mocker.patch(
-        "redshift_connector.Cursor.sanitize_parameter",
-        return_value="mock"
-    )
-
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
 
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'1'))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
     mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_table_server_api')
@@ -420,19 +405,15 @@ def test_get_tables_show_discovery(is_single_database_metadata_val,mocker) -> No
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 def test_get_columns_show_discovery(is_single_database_metadata_val,mocker) -> None:
-    mocker.patch(
-        "redshift_connector.Cursor.sanitize_parameter",
-        return_value="mock"
-    )
-
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
 
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'1'))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
     mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_column_server_api')
@@ -461,19 +442,6 @@ def test_get_columns_show_discovery(is_single_database_metadata_val,mocker) -> N
 
     assert spy_metadataAPIPostProcessing.called
     assert spy_metadataAPIPostProcessing.call_count == 1
-
-@pytest.mark.parametrize("input_str", ["user' OR '1'='1","test;","tes   t","tes\t"])
-def test_sanitize_parameter_invalid(input_str) -> None:
-    mock_cursor: Cursor = Cursor(None)
-
-    with pytest.raises(Exception, match="Invalid parameter input:"):
-        mock_cursor.sanitize_parameter(input_str)
-
-def test_sanitize_parameter_valid() -> None:
-    mock_cursor: Cursor = Cursor(None)
-
-    assert mock_cursor.sanitize_parameter("test")
-
 
 @pytest.mark.parametrize("indexes, names", [([1], []), ([], ["c1"])])
 def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker) -> None:

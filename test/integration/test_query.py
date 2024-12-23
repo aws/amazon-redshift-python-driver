@@ -385,7 +385,10 @@ def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker) -> None:
 
 
 @pytest.mark.parametrize("_input", ["NO_SCHEMA_UNIVERSAL_QUERY", "EXTERNAL_SCHEMA_QUERY", "LOCAL_SCHEMA_QUERY"])
-def test___get_table_filter_clause_throws_for_bad_type(con, _input) -> None:
+def test___get_table_filter_clause_return_empty_result(con, _input) -> None:
     with con.cursor() as cursor:
-        with pytest.raises(redshift_connector.InterfaceError):
-            cursor.get_tables(schema_pattern=_input, types=["garbage"])
+        try:
+            result: tuple = cursor.get_tables(schema_pattern=_input, types=["garbage"])
+            assert len(result) == 0
+        except Exception as e:
+            assert "Invalid type: garbage provided" in e.args[0]

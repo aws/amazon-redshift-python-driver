@@ -16,28 +16,29 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 
 class MetadataAPIHelper:
-    def __init__(self: "MetadataAPIHelper") -> None:
-        self._CatalogsColNum: int = 1
-        self._get_catalogs_col: typing.Dict = {"TABLE_CAT": int(RedshiftOID.VARCHAR)}
+    _row_description_col_label_index: int = 0
 
-        self._SchemasColNum: int = 2
-        self._get_schemas_col: typing.Dict = {"TABLE_SCHEM": int(RedshiftOID.VARCHAR),
-                                         "TABLE_CATALOG": int(RedshiftOID.VARCHAR)}
+    _CatalogsColNum: int = 1
+    _get_catalogs_col: typing.Dict = {"TABLE_CAT": int(RedshiftOID.VARCHAR)}
 
-        self._TablesColNum: int = 10
-        self._get_tables_col: typing.Dict = {"TABLE_CAT": int(RedshiftOID.VARCHAR),
-                                        "TABLE_SCHEM": int(RedshiftOID.VARCHAR),
-                                        "TABLE_NAME": int(RedshiftOID.VARCHAR),
-                                        "TABLE_TYPE": int(RedshiftOID.VARCHAR),
-                                        "REMARKS": int(RedshiftOID.VARCHAR),
-                                        "TYPE_CAT": int(RedshiftOID.VARCHAR),
-                                        "TYPE_SCHEM": int(RedshiftOID.VARCHAR),
-                                        "TYPE_NAME": int(RedshiftOID.VARCHAR),
-                                        "SELF_REFERENCING_COL_NAME": int(RedshiftOID.VARCHAR),
-                                        "REF_GENERATION": int(RedshiftOID.VARCHAR)}
+    _SchemasColNum: int = 2
+    _get_schemas_col: typing.Dict = {"TABLE_SCHEM": int(RedshiftOID.VARCHAR),
+                                          "TABLE_CATALOG": int(RedshiftOID.VARCHAR)}
 
-        self._ColumnsColNum: int = 24
-        self._get_columns_col: typing.Dict = {"TABLE_CAT": int(RedshiftOID.VARCHAR),
+    _TablesColNum: int = 10
+    _get_tables_col: typing.Dict = {"TABLE_CAT": int(RedshiftOID.VARCHAR),
+                                         "TABLE_SCHEM": int(RedshiftOID.VARCHAR),
+                                         "TABLE_NAME": int(RedshiftOID.VARCHAR),
+                                         "TABLE_TYPE": int(RedshiftOID.VARCHAR),
+                                         "REMARKS": int(RedshiftOID.VARCHAR),
+                                         "TYPE_CAT": int(RedshiftOID.VARCHAR),
+                                         "TYPE_SCHEM": int(RedshiftOID.VARCHAR),
+                                         "TYPE_NAME": int(RedshiftOID.VARCHAR),
+                                         "SELF_REFERENCING_COL_NAME": int(RedshiftOID.VARCHAR),
+                                         "REF_GENERATION": int(RedshiftOID.VARCHAR)}
+
+    _ColumnsColNum: int = 24
+    _get_columns_col: typing.Dict = {"TABLE_CAT": int(RedshiftOID.VARCHAR),
                                           "TABLE_SCHEM": int(RedshiftOID.VARCHAR),
                                           "TABLE_NAME": int(RedshiftOID.VARCHAR),
                                           "COLUMN_NAME": int(RedshiftOID.VARCHAR),
@@ -62,109 +63,118 @@ class MetadataAPIHelper:
                                           "IS_AUTOINCREMENT": int(RedshiftOID.VARCHAR),
                                           "IS_GENERATEDCOLUMN": int(RedshiftOID.VARCHAR)}
 
-        self._SHOW_DATABASES_database_name: str = 'database_name'
+    _SHOW_DATABASES_database_name: str = 'database_name'
 
-        self._SHOW_SCHEMA_database_name: str = 'database_name'
-        self._SHOW_SCHEMA_schema_name: str = 'schema_name'
+    _SHOW_SCHEMA_database_name: str = 'database_name'
+    _SHOW_SCHEMA_schema_name: str = 'schema_name'
 
-        self._SHOW_TABLES_database_name: str = 'database_name'
-        self._SHOW_TABLES_schema_name: str = 'schema_name'
-        self._SHOW_TABLES_table_name: str = 'table_name'
-        self._SHOW_TABLES_table_type: str = 'table_type'
-        self._SHOW_TABLES_remarks: str = 'remarks'
+    _SHOW_TABLES_database_name: str = 'database_name'
+    _SHOW_TABLES_schema_name: str = 'schema_name'
+    _SHOW_TABLES_table_name: str = 'table_name'
+    _SHOW_TABLES_table_type: str = 'table_type'
+    _SHOW_TABLES_remarks: str = 'remarks'
 
-        self._SHOW_COLUMNS_database_name: str = "database_name"
-        self._SHOW_COLUMNS_schema_name: str = "schema_name"
-        self._SHOW_COLUMNS_table_name: str = "table_name"
-        self._SHOW_COLUMNS_column_name: str = "column_name"
-        self._SHOW_COLUMNS_ordinal_position: str = "ordinal_position"
-        self._SHOW_COLUMNS_column_default: str = "column_default"
-        self._SHOW_COLUMNS_is_nullable: str = "is_nullable"
-        self._SHOW_COLUMNS_data_type: str = "data_type"
-        self._SHOW_COLUMNS_character_maximum_length: str = "character_maximum_length"
-        self._SHOW_COLUMNS_numeric_precision: str = "numeric_precision"
-        self._SHOW_COLUMNS_numeric_scale: str = "numeric_scale"
-        self._SHOW_COLUMNS_remarks: str = "remarks"
+    _SHOW_COLUMNS_database_name: str = "database_name"
+    _SHOW_COLUMNS_schema_name: str = "schema_name"
+    _SHOW_COLUMNS_table_name: str = "table_name"
+    _SHOW_COLUMNS_column_name: str = "column_name"
+    _SHOW_COLUMNS_ordinal_position: str = "ordinal_position"
+    _SHOW_COLUMNS_column_default: str = "column_default"
+    _SHOW_COLUMNS_is_nullable: str = "is_nullable"
+    _SHOW_COLUMNS_data_type: str = "data_type"
+    _SHOW_COLUMNS_character_maximum_length: str = "character_maximum_length"
+    _SHOW_COLUMNS_numeric_precision: str = "numeric_precision"
+    _SHOW_COLUMNS_numeric_scale: str = "numeric_scale"
+    _SHOW_COLUMNS_remarks: str = "remarks"
 
+    _sql_show_databases: str = "SHOW DATABASES;"
+    _sql_show_databases_like: str = "SHOW DATABASES LIKE {0};"
+    _sql_show_schemas: str = "SHOW SCHEMAS FROM DATABASE {0};"
+    _sql_show_schemas_like: str = "SHOW SCHEMAS FROM DATABASE {0} LIKE {1};"
+    _sql_show_tables: str = "SHOW TABLES FROM SCHEMA {0}.{1};"
+    _sql_show_tables_like: str = "SHOW TABLES FROM SCHEMA {0}.{1} LIKE {2};"
+    _sql_show_columns: str = "SHOW COLUMNS FROM TABLE {0}.{1}.{2};"
+    _sql_show_columns_like: str = "SHOW COLUMNS FROM TABLE {0}.{1}.{2} LIKE {3};"
 
-        self._sql_show_databases: str = "SHOW DATABASES;"
-        self._sql_show_databases_like: str = "SHOW DATABASES LIKE '{0}';"
-        self._sql_show_schemas: str = "SHOW SCHEMAS FROM DATABASE {0};"
-        self._sql_show_schemas_like: str = "SHOW SCHEMAS FROM DATABASE {0} LIKE '{1}';"
-        self._sql_show_tables: str = "SHOW TABLES FROM SCHEMA {0}.{1};"
-        self._sql_show_tables_like: str = "SHOW TABLES FROM SCHEMA {0}.{1} LIKE '{2}';"
-        self._sql_show_columns: str = "SHOW COLUMNS FROM TABLE {0}.{1}.{2};"
-        self._sql_show_columns_like: str = "SHOW COLUMNS FROM TABLE {0}.{1}.{2} LIKE '{3}';"
+    # define constant for QUOTE_IDENT()
+    _prepare_quote_ident: str = "select pg_catalog.QUOTE_IDENT(%s); "
+    _quote_iden_result_row: int = 0
+    _quote_iden_result_col: int = 0
 
-        self.__rs_type_map = {
-            "character varying": "varchar",
-            "\"char\"": "char",
-            "character": "char",
-            "smallint": "int2",
-            "integer": "int4",
-            "bigint": "int8",
-            "real": "float4",
-            "double precision": "float8",
-            "boolean": "bool",
-            "time without time zone": "time",
-            "time with time zone": "timetz",
-            "timestamp without time zone": "timestamp",
-            "timestamp with time zone": "timestamptz",
-            "interval year to month": "intervaly2m",
-            "interval year": "intervaly2m",
-            "interval month": "intervaly2m",
-            "interval day to second": "intervald2s",
-            "interval day": "intervald2s",
-            "interval second": "intervald2s",
-            "binary varying": "varbyte"
-        }
+    # define constant for QUOTE_LITERAL
+    _prepare_quote_literal: str = "select pg_catalog.QUOTE_LITERAL(%s); "
+    _quote_literal_result_row: int = 0
+    _quote_literal_result_col: int = 0
 
-        self.__sql_type_mapping = {
-            "varchar": int(SQLType.SQL_VARCHAR),
-            "char": int(SQLType.SQL_CHAR),
-            "int2": int(SQLType.SQL_SMALLINT),
-            "int4": int(SQLType.SQL_INTEGER),
-            "int8": int(SQLType.SQL_BIGINT),
-            "float4": int(SQLType.SQL_REAL),
-            "float8": int(SQLType.SQL_DOUBLE),
-            "numeric": int(SQLType.SQL_NUMERIC),
-            "bool": int(SQLType.SQL_BIT),
-            "date": int(SQLType.SQL_DATE),
-            "time": int(SQLType.SQL_TIME),
-            "timetz": int(SQLType.SQL_TIME_WITH_TIMEZONE),
-            "timestamp": int(SQLType.SQL_TIMESTAMP),
-            "timestamptz": int(SQLType.SQL_TIMESTAMP_WITH_TIMEZONE),
-            "intervaly2m": int(SQLType.SQL_OTHER),
-            "intervald2s": int(SQLType.SQL_OTHER),
-            "super": int(SQLType.SQL_LONGVARCHAR),
-            "geometry": int(SQLType.SQL_LONGVARBINARY),
-            "geography": int(SQLType.SQL_LONGVARBINARY),
-            "varbyte": int(SQLType.SQL_LONGVARBINARY)
-        }
+    __rs_type_map = {
+        "character varying": "varchar",
+        "\"char\"": "char",
+        "character": "char",
+        "smallint": "int2",
+        "integer": "int4",
+        "bigint": "int8",
+        "real": "float4",
+        "double precision": "float8",
+        "boolean": "bool",
+        "time without time zone": "time",
+        "time with time zone": "timetz",
+        "timestamp without time zone": "timestamp",
+        "timestamp with time zone": "timestamptz",
+        "interval year to month": "intervaly2m",
+        "interval year": "intervaly2m",
+        "interval month": "intervaly2m",
+        "interval day to second": "intervald2s",
+        "interval day": "intervald2s",
+        "interval second": "intervald2s",
+        "binary varying": "varbyte"
+    }
 
-        self.__data_type_length = {
-            "bool": 1,
-            "bit": 1,
-            "boolean": 1,
-            "int2": 5,
-            "smallint": 5,
-            "int4": 10,
-            "integer": 10,
-            "int": 10,
-            "int8": 19,
-            "bigint": 19,
-            "float4": 8,
-            "real": 8,
-            "float8": 17,
-            "double precision": 17,
-            "date": 13,
-            "time": 15,
-            "timetz": 21,
-            "timestamp": 29,
-            "timestamptz": 35,
-            "intervaly2m": 32,
-            "intervald2s": 64
-        }
+    __sql_type_mapping = {
+        "varchar": int(SQLType.SQL_VARCHAR),
+        "char": int(SQLType.SQL_CHAR),
+        "int2": int(SQLType.SQL_SMALLINT),
+        "int4": int(SQLType.SQL_INTEGER),
+        "int8": int(SQLType.SQL_BIGINT),
+        "float4": int(SQLType.SQL_REAL),
+        "float8": int(SQLType.SQL_DOUBLE),
+        "numeric": int(SQLType.SQL_NUMERIC),
+        "bool": int(SQLType.SQL_BIT),
+        "date": int(SQLType.SQL_DATE),
+        "time": int(SQLType.SQL_TIME),
+        "timetz": int(SQLType.SQL_TIME_WITH_TIMEZONE),
+        "timestamp": int(SQLType.SQL_TIMESTAMP),
+        "timestamptz": int(SQLType.SQL_TIMESTAMP_WITH_TIMEZONE),
+        "intervaly2m": int(SQLType.SQL_OTHER),
+        "intervald2s": int(SQLType.SQL_OTHER),
+        "super": int(SQLType.SQL_LONGVARCHAR),
+        "geometry": int(SQLType.SQL_LONGVARBINARY),
+        "geography": int(SQLType.SQL_LONGVARBINARY),
+        "varbyte": int(SQLType.SQL_LONGVARBINARY)
+    }
+
+    __data_type_length = {
+        "bool": 1,
+        "bit": 1,
+        "boolean": 1,
+        "int2": 5,
+        "smallint": 5,
+        "int4": 10,
+        "integer": 10,
+        "int": 10,
+        "int8": 19,
+        "bigint": 19,
+        "float4": 8,
+        "real": 8,
+        "float8": 17,
+        "double precision": 17,
+        "date": 13,
+        "time": 15,
+        "timetz": 21,
+        "timestamp": 29,
+        "timestamptz": 35,
+        "intervaly2m": 32,
+        "intervald2s": 64
+    }
 
     def get_second_fraction(self, data_type: str = None) -> (str, bool):
         date_time_customize_precision: bool = False
@@ -234,11 +244,5 @@ class MetadataAPIHelper:
             return "NO"
 
     @staticmethod
-    def check_name_is_not_pattern(name: str) -> bool:
-        return name is None or not name or name == "%"
-
-    @staticmethod
-    def check_name_is_exact_name(name: str) -> bool:
-        if name is not None and len(name) != 0 and ("%" not in name):
-            return True
-        return False
+    def is_none_or_empty(input_str: str) -> bool:
+        return input_str is None or input_str == ""

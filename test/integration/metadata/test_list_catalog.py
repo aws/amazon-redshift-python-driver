@@ -155,26 +155,27 @@ def test_get_schemas(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            spy = mocker.spy(cursor, "execute")
-            result: typing.Tuple = cursor.get_schemas(**_args)
-            print(result)
-            # ensure execute was called
-            assert spy.called
-            assert spy.call_count == 1  # call in get_schemas()
+            if cursor.supportSHOWDiscovery() < 2:
+                spy = mocker.spy(cursor, "execute")
+                result: typing.Tuple = cursor.get_schemas(**_args)
+                print(result)
+                # ensure execute was called
+                assert spy.called
+                assert spy.call_count == 1  # call in get_schemas()
 
-            # ensure execute was called with the catalog value in the prepared statement
-            if _args["catalog"] is not None:
-                assert _args["catalog"] in spy.call_args[0][0]
+                # ensure execute was called with the catalog value in the prepared statement
+                if _args["catalog"] is not None:
+                    assert _args["catalog"] in spy.call_args[0][0]
 
-            # ensure execute was called with below bind parameters
-            if _args["schema_pattern"] is not None:
-                assert _args["schema_pattern"] in spy.call_args[0][1]
+                # ensure execute was called with below bind parameters
+                if _args["schema_pattern"] is not None:
+                    assert _args["schema_pattern"] in spy.call_args[0][1]
 
-            # assert query text executed contains the target table name
-            if conn.is_single_database_metadata:
-                assert "FROM pg_catalog.pg_namespace" in spy.call_args[0][0]
-            else:
-                assert "FROM PG_CATALOG.SVV_ALL_SCHEMAS" in spy.call_args[0][0]
+                # assert query text executed contains the target table name
+                if conn.is_single_database_metadata:
+                    assert "FROM pg_catalog.pg_namespace" in spy.call_args[0][0]
+                else:
+                    assert "FROM PG_CATALOG.SVV_ALL_SCHEMAS" in spy.call_args[0][0]
 
 
 def get_tables_test_data() -> typing.List[typing.Optional[typing.Tuple[bool, typing.Dict[str, typing.Any]]]]:
@@ -285,53 +286,54 @@ def test_get_tables(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            spy = mocker.spy(cursor, "execute")
-            result: typing.Tuple = cursor.get_tables(**_args)
-            print(result)
-            # ensure execute was called
-            assert spy.called
+            if cursor.supportSHOWDiscovery() < 2:
+                spy = mocker.spy(cursor, "execute")
+                result: typing.Tuple = cursor.get_tables(**_args)
+                print(result)
+                # ensure execute was called
+                assert spy.called
 
-            if conn.is_single_database_metadata:
-                assert spy.call_count == 2  # call in __schema_pattern_match(), get_tables()
-            else:
-                assert spy.call_count == 1  # call in get_tables()
+                if _args["schema_pattern"] is not None and conn.is_single_database_metadata:
+                    assert spy.call_count == 2  # call in __schema_pattern_match(), get_tables()
+                else:
+                    assert spy.call_count == 1  # call in get_tables()
 
-            # ensure execute was called with the catalog value in the prepared statement
-            if _args["catalog"] is not None:
-                assert _args["catalog"] in spy.call_args[0][0]
+                # ensure execute was called with the catalog value in the prepared statement
+                if _args["catalog"] is not None:
+                    assert _args["catalog"] in spy.call_args[0][0]
 
-            # ensure execute was called with below bind parameters
-            for arg in (_args["schema_pattern"], _args["table_name_pattern"]):
-                if arg is not None:
-                    assert arg in spy.call_args[0][1]
+                # ensure execute was called with below bind parameters
+                for arg in (_args["schema_pattern"], _args["table_name_pattern"]):
+                    if arg is not None:
+                        assert arg in spy.call_args[0][1]
 
-            # we cannot easily know what schema pattern matches in Python driver, so
-            # we check table is one of a few options based on whether is_single_database_metadata
-            # is true or false
+                # we cannot easily know what schema pattern matches in Python driver, so
+                # we check table is one of a few options based on whether is_single_database_metadata
+                # is true or false
 
-            possible_not_ds_tables = (
-                "FROM svv_tables",  # universal
-                "FROM pg_catalog.pg_namespace n, pg_catalog.pg_class",  # local
-                "FROM svv_external_tables",  # external
-            )
-            possible_ds_tables = (
-                "FROM PG_CATALOG.SVV_ALL_TABLES",  # universal
-                "FROM pg_catalog.pg_namespace n, pg_catalog.pg_class",  # local
-                "FROM svv_external_tables",  # external
-            )
+                possible_not_ds_tables = (
+                    "FROM svv_tables",  # universal
+                    "FROM pg_catalog.pg_namespace n, pg_catalog.pg_class",  # local
+                    "FROM svv_external_tables",  # external
+                )
+                possible_ds_tables = (
+                    "FROM PG_CATALOG.SVV_ALL_TABLES",  # universal
+                    "FROM pg_catalog.pg_namespace n, pg_catalog.pg_class",  # local
+                    "FROM svv_external_tables",  # external
+                )
 
-            if conn.is_single_database_metadata:
-                for table in possible_not_ds_tables:
-                    if table in spy.call_args[0][0]:
-                        assert 1 == 1
-                        return
-                assert 1 == 0, spy.call_args[0][0]
-            else:
-                for table in possible_ds_tables:
-                    if table in spy.call_args[0][0]:
-                        assert 1 == 1
-                        return
-                assert 1 == 0, spy.call_args[0][0]
+                if conn.is_single_database_metadata:
+                    for table in possible_not_ds_tables:
+                        if table in spy.call_args[0][0]:
+                            assert 1 == 1
+                            return
+                    assert 1 == 0, spy.call_args[0][0]
+                else:
+                    for table in possible_ds_tables:
+                        if table in spy.call_args[0][0]:
+                            assert 1 == 1
+                            return
+                    assert 1 == 0, spy.call_args[0][0]
 
 
 def get_columns_test_data() -> typing.List[typing.Tuple[bool, typing.Dict[str, typing.Optional[str]]]]:
@@ -513,54 +515,55 @@ def test_get_columns(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            spy = mocker.spy(cursor, "execute")
-            result: typing.Tuple = cursor.get_columns(**_args)
-            print(result)
-            # ensure execute was called
-            assert spy.called
+            if cursor.supportSHOWDiscovery() < 2:
+                spy = mocker.spy(cursor, "execute")
+                result: typing.Tuple = cursor.get_columns(**_args)
+                print(result)
+                # ensure execute was called
+                assert spy.called
 
-            if conn.is_single_database_metadata:
-                assert spy.call_count == 2  # call in __schema_pattern_match(), get_columns()
-            else:
-                assert spy.call_count == 1  # call in get_columns()
+                if _args["schema_pattern"] is not None and conn.is_single_database_metadata:
+                    assert spy.call_count == 2  # call in __schema_pattern_match(), get_columns()
+                else:
+                    assert spy.call_count == 1  # call in get_columns()
 
-            # ensure execute was called with below bind parameters
-            for arg in (
-                _args["catalog"],
-                _args["schema_pattern"],
-                _args["tablename_pattern"],
-                _args["columnname_pattern"],
-            ):
-                if arg is not None:
-                    assert arg in spy.call_args[0][0]
+                # ensure execute was called with below bind parameters
+                for arg in (
+                    _args["catalog"],
+                    _args["schema_pattern"],
+                    _args["tablename_pattern"],
+                    _args["columnname_pattern"],
+                ):
+                    if arg is not None:
+                        assert arg in spy.call_args[0][0]
 
-            # we cannot easily know what schema pattern matches in Python driver, so
-            # we check table is one of a few options based on whether is_single_database_metadata
-            # is true or false
+                # we cannot easily know what schema pattern matches in Python driver, so
+                # we check table is one of a few options based on whether is_single_database_metadata
+                # is true or false
 
-            possible_not_ds_tables = (
-                "FROM svv_columns",  # universal
-                "FROM pg_catalog.pg_namespace",  # local
-                "FROM svv_external_columns",  # external
-            )
-            possible_ds_tables = (
-                "FROM PG_CATALOG.svv_all_columns",  # universal
-                "FROM pg_catalog.pg_namespace",  # local
-                "FROM svv_external_columns",  # external
-            )
+                possible_not_ds_tables = (
+                    "FROM svv_columns",  # universal
+                    "FROM pg_catalog.pg_namespace",  # local
+                    "FROM svv_external_columns",  # external
+                )
+                possible_ds_tables = (
+                    "FROM PG_CATALOG.svv_all_columns",  # universal
+                    "FROM pg_catalog.pg_namespace",  # local
+                    "FROM svv_external_columns",  # external
+                )
 
-            if conn.is_single_database_metadata:
-                for table in possible_not_ds_tables:
-                    if table in spy.call_args[0][0]:
-                        assert 1 == 1
-                        return
-                assert 1 == 0, spy.call_args[0][0]
-            else:
-                for table in possible_ds_tables:
-                    if table in spy.call_args[0][0]:
-                        assert 1 == 1
-                        return
-                assert 1 == 0, spy.call_args[0][0]
+                if conn.is_single_database_metadata:
+                    for table in possible_not_ds_tables:
+                        if table in spy.call_args[0][0]:
+                            assert 1 == 1
+                            return
+                    assert 1 == 0, spy.call_args[0][0]
+                else:
+                    for table in possible_ds_tables:
+                        if table in spy.call_args[0][0]:
+                            assert 1 == 1
+                            return
+                    assert 1 == 0, spy.call_args[0][0]
 
 
 def get_catalogs_test_data() -> typing.List[bool]:
@@ -573,14 +576,15 @@ def test_get_catalogs(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            spy = mocker.spy(cursor, "execute")
-            result: typing.Tuple = cursor.get_catalogs()
-            print(result)
-            # ensure execute was called
-            assert spy.called
-            assert spy.call_count == 1  # call in get_catalogs()
+            if cursor.supportSHOWDiscovery() < 2:
+                spy = mocker.spy(cursor, "execute")
+                result: typing.Tuple = cursor.get_catalogs()
+                print(result)
+                # ensure execute was called
+                assert spy.called
+                assert spy.call_count == 1  # call in get_catalogs()
 
-            if conn.is_single_database_metadata:
-                assert "current_database()" in spy.call_args[0][0]
-            else:
-                assert "PG_CATALOG.SVV_REDSHIFT_DATABASES" in spy.call_args[0][0]
+                if conn.is_single_database_metadata:
+                    assert "current_database()" in spy.call_args[0][0]
+                else:
+                    assert "PG_CATALOG.SVV_REDSHIFT_DATABASES" in spy.call_args[0][0]
