@@ -6,9 +6,8 @@ v2.1.5 (2024-12-23)
 -------------------
 - Updated the logic for retrieving database metadata through the
   get_catalogs, get_schemas, get_tables, and get_columns API methods.
-  [jamescaii]
-- Update README.rst. [Beaux Sharifi]
-- Update CHANGELOG.md. [Beaux Sharifi]
+- Added developer dependency on Selenium. 
+- Addressed security issues as detailed in CVE-2024-12745.
 
 
 v2.1.4 (2024-11-21)
