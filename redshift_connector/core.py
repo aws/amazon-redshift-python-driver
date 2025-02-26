@@ -700,10 +700,6 @@ class Connection:
         self._read: typing.Callable = self._sock.read
         self._write: typing.Callable = self._sock.write
         self._backend_key_data: typing.Optional[bytes] = None
-
-        trans_tab = dict(zip(map(ord, "{}"), "[]"))
-        glbls = {"Decimal": Decimal}
-
         self.inspect_funcs: typing.Dict[type, typing.Callable] = {
             Datetime: self.inspect_datetime,
             list: self.array_inspect,
