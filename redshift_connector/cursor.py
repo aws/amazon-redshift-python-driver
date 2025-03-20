@@ -7,6 +7,9 @@ from itertools import count, islice
 from typing import TYPE_CHECKING
 from warnings import warn
 
+from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
+from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
+
 import redshift_connector
 from redshift_connector.config import (
     ClientProtocolVersion,
@@ -105,6 +108,18 @@ class Cursor:
             self.paramstyle: str = redshift_connector.paramstyle
         else:
             self.paramstyle = paramstyle
+
+        self._metadataServerAPIHelper = MetadataServerAPIHelper(self)
+        self._metadataAPIPostProcessing = MetadataAPIPostProcessing(self)
+        self._cur_catalog: str = None
+        self._SHOW_DATABASES_Col_index: typing.Optional = None
+        self._SHOW_SCHEMAS_Col_index: typing.Optional = None
+        self._SHOW_TABLES_Col_index: typing.Optional = None
+        self._SHOW_COLUMNS_Col_index: typing.Optional = None
+
+        # The minimum show discovery version for the following metadata api was version 2:
+        # get_catalogs, get_schemas, get_tables, get_columns
+        self._MIN_SHOW_DISCOVERY_VERSION: int = 2
 
         _logger.debug("Cursor.paramstyle=%s", self.paramstyle)
 
@@ -707,12 +722,27 @@ class Cursor:
         if self._c is None:
             raise InterfaceError("connection is closed")
 
+        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
+            _logger.debug("Support SHOW command. get_schemas with catalog = %s, schema_pattern = %s", catalog, schema_pattern)
+
+            # Commented out the following line since the Driver will temporarily accept empty string but will block in near future
+            # ret_empty: bool = self.is_empty(catalog) or self.is_empty(schema_pattern)
+            ret_empty: bool = False
+
+            schemas: typing.Tuple = self._metadataAPIPostProcessing.get_schema_post_processing(self._metadataServerAPIHelper.get_schema_server_api(catalog, schema_pattern, ret_empty, self._c.is_single_database_metadata))
+
+            return schemas
+        else:
+            return self.get_schemas_legacy_hardcoded_query(catalog, schema_pattern)
+
+    def get_schemas_legacy_hardcoded_query(
+        self: "Cursor", catalog: typing.Optional[str] = None, schema_pattern: typing.Optional[str] = None
+    ) -> tuple:
         query_args: typing.List[str] = []
         sql: str = ""
-
         if self._c.is_single_database_metadata is True:
             sql = (
-                "SELECT nspname AS TABLE_SCHEM, NULL AS TABLE_CATALOG FROM pg_catalog.pg_namespace "
+                "SELECT nspname AS TABLE_SCHEM, current_database() AS TABLE_CATALOG FROM pg_catalog.pg_namespace "
                 " WHERE nspname <> 'pg_toast' AND (nspname !~ '^pg_temp_' "
                 " OR nspname = (pg_catalog.current_schemas(true))[1]) AND (nspname !~ '^pg_toast_temp_' "
                 " OR nspname = replace((pg_catalog.current_schemas(true))[1], 'pg_temp_', 'pg_toast_temp_')) "
@@ -820,6 +850,23 @@ class Cursor:
         if self._c is None:
             raise InterfaceError("connection is closed")
 
+        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
+            _logger.debug("Support SHOW command. get_catalogs")
+
+            if self._c.is_single_database_metadata is True:
+                sql = "select current_database as TABLE_CAT FROM current_database() ORDER BY TABLE_CAT"
+
+                self.execute(sql)
+                catalogs: typing.Tuple = self.fetchall()
+                self._metadataAPIPostProcessing.set_row_description(self._metadataAPIPostProcessing._get_catalogs_col)
+            else:
+                catalogs: typing.Tuple = self._metadataAPIPostProcessing.get_catalog_post_processing(self._metadataServerAPIHelper.get_catalog_server_api())
+
+            return catalogs
+        else:
+            return self.get_catalogs_legacy_hardcoded_query()
+
+    def get_catalogs_legacy_hardcoded_query(self: "Cursor") -> typing.Tuple:
         sql: str = ""
         if self._c.is_single_database_metadata is True:
             sql = "select current_database as TABLE_CAT FROM current_database()"
@@ -855,7 +902,29 @@ class Cursor:
         """
         if self._c is None:
             raise InterfaceError("connection is closed")
+        elif types is None:
+            types = []
 
+        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
+            _logger.debug("Support SHOW command. get_tables with catalog = %s, schema_pattern = %s, table_name_pattern = %s", catalog, schema_pattern, table_name_pattern)
+
+            # Commented out the following line since the Driver will temporarily accept empty string but will block in near future
+            # ret_empty: bool = self.is_empty(catalog) or self.is_empty(schema_pattern) or self.is_empty(table_name_pattern)
+            ret_empty: bool = False
+
+            tables: typing.Tuple = self._metadataAPIPostProcessing.get_table_post_processing(self._metadataServerAPIHelper.get_table_server_api(catalog, schema_pattern, table_name_pattern, ret_empty, self._c.is_single_database_metadata), types)
+
+            return tables
+        else:
+            return self.get_tables_legacy_hardcoded_query(catalog, schema_pattern, table_name_pattern, types)
+
+    def get_tables_legacy_hardcoded_query(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema_pattern: typing.Optional[str] = None,
+        table_name_pattern: typing.Optional[str] = None,
+        types: list = [],
+    ) -> tuple:
         sql: str = ""
         sql_args: typing.Tuple[str, ...] = tuple()
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
@@ -1144,6 +1213,26 @@ class Cursor:
         if self._c is None:
             raise InterfaceError("connection is closed")
 
+        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
+            _logger.debug("Support SHOW command. get_columns with catalog = %s, schema_pattern = %s, table_name_pattern = %s, column_name_pattern = %s", catalog, schema_pattern, tablename_pattern, columnname_pattern)
+
+            # Commented out the following line since the Driver will temporarily accept empty string but will block in near future
+            # ret_empty: bool = self.is_empty(catalog) or self.is_empty(schema_pattern) or self.is_empty(tablename_pattern) or self.is_empty(columnname_pattern)
+            ret_empty: bool = False
+
+            columns: typing.Tuple = self._metadataAPIPostProcessing.get_column_post_processing(self._metadataServerAPIHelper.get_column_server_api(catalog, schema_pattern, tablename_pattern, columnname_pattern, ret_empty, self._c.is_single_database_metadata))
+
+            return columns
+        else:
+            return self.get_columns_legacy_hardcoded_query(catalog, schema_pattern, tablename_pattern, columnname_pattern)
+
+    def get_columns_legacy_hardcoded_query(
+            self: "Cursor",
+            catalog: typing.Optional[str] = None,
+            schema_pattern: typing.Optional[str] = None,
+            tablename_pattern: typing.Optional[str] = None,
+            columnname_pattern: typing.Optional[str] = None,
+    ) -> tuple:
         sql: str = ""
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
@@ -2343,3 +2432,34 @@ class Cursor:
 
     def __escape_quotes(self: "Cursor", s: str) -> str:
         return "'{s}'".format(s=self.__sanitize_str(s))
+
+    def supportSHOWDiscovery(self: "Cursor") -> int:
+        for item in self._c.parameter_statuses:
+            if item[0] == b"show_discovery":
+                try:
+                    _logger.debug("Cluster support SHOW discovery version %d", int(item[1].decode()))
+                    return int(item[1].decode())
+                except ValueError:
+                    _logger.debug("SHOW support version unclear: %s, will fall back to version 0", item[1].decode())
+                    return 0
+        _logger.debug("Cluster doesn't support SHOW. Return version number as 0")
+        return 0
+
+    @staticmethod
+    def is_empty(string: str) -> bool:
+        if string is not None and len(string) == 0:
+            return True
+        else:
+            return False
+
+    def cur_catalog(self) -> str:
+        if self._cur_catalog is None:
+            sql: str = "select current_database as TABLE_CAT FROM current_database()"
+
+            self.execute(sql)
+            catalogs: typing.Tuple = self.fetchall()
+
+            self._cur_catalog = catalogs[0][0]
+            _logger.debug("current catalog: %s", self._cur_catalog)
+
+        return self._cur_catalog
