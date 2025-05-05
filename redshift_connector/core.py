@@ -1,6 +1,7 @@
 import logging
 import os
 import socket
+import sys
 import typing
 from collections import deque
 from copy import deepcopy
@@ -363,6 +364,18 @@ IDLE_IN_FAILED_TRANSACTION: bytes = b"E"
 arr_trans: typing.Mapping[int, typing.Optional[str]] = dict(zip(map(ord, "[] 'u"), ["{", "}", None, None, None]))
 
 
+class TCPKeepAlive:
+    after_idle_sec: int
+    """
+    TCP Keepalive settings
+    """
+
+    def __init__(self, after_idle_sec: int, interval_sec: int, max_fails: int):
+        self.after_idle_sec = after_idle_sec
+        self.interval_sec = interval_sec
+        self.max_fails = max_fails
+
+
 class Connection:
     # DBAPI Extension: supply exceptions as attributes on the connection
     Warning = property(lambda self: self._getError(Warning))
@@ -422,7 +435,7 @@ class Connection:
         sslmode: str = "verify-ca",
         timeout: typing.Optional[int] = None,
         max_prepared_statements: int = 1000,
-        tcp_keepalive: typing.Optional[bool] = True,
+        tcp_keepalive: typing.Optional[typing.Union[bool, TCPKeepAlive]] = True,
         application_name: typing.Optional[str] = None,
         replication: typing.Optional[str] = None,
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
@@ -682,8 +695,26 @@ class Connection:
 
             self._sock = self._usock.makefile(mode="rwb")
             if tcp_keepalive:
+                # logic copied from: https://github.com/sfinktah/keepalive/blob/master/keepalive/keepalive.py
                 _logger.debug("enabling tcp keepalive on socket")
                 self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                # set a sane default value for tcp_keepalive if not supplied
+                if not isinstance(tcp_keepalive, TCPKeepAlive):
+                    tcp_keepalive = TCPKeepAlive(after_idle_sec=200, interval_sec=200, max_fails=5)
+                if sys.platform == 'linux':
+                    self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE,
+                                           tcp_keepalive.after_idle_sec)
+                    self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL,
+                                           tcp_keepalive.interval_sec)
+                    self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT,
+                                           tcp_keepalive.max_fails)
+                elif sys.platform == 'darwin':
+                    # scraped from /usr/include, not exported by python's socket module
+                    _TCP_KEEPALIVE = 0x10
+                    self._usock.setsockopt(socket.IPPROTO_TCP, _TCP_KEEPALIVE, tcp_keepalive.interval_sec)
+                elif sys.platform == 'win32':
+                    self._usock.ioctl(socket.SIO_KEEPALIVE_VALS, (1, tcp_keepalive.after_idle_sec * 1000,
+                                                                  tcp_keepalive.interval_sec * 1000))
 
         except socket.timeout as timeout_error:
             self._usock.close()
