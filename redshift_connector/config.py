@@ -28,6 +28,7 @@ class ClientProtocolVersion(IntEnum):
 
 
 DEFAULT_PROTOCOL_VERSION: int = ClientProtocolVersion.BINARY.value
+DEFAULT_MAX_PREPARED_STATEMENTS: int = 1000
 
 
 class DbApiParamstyle(Enum):

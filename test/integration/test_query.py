@@ -370,19 +370,144 @@ def test_merge_read(con) -> None:
 
 
 def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker) -> None:
+    """
+    Test the handling of prepared statement cache cleanup for different SQL commands.
+    This test verifies that DDL commands trigger cache cleanup while DML commands preserve the cache.
+
+    The test executes the following sequence:
+    1. DROP TABLE IF EXISTS t1 (should clear cache)
+    2. CREATE TABLE t1 (should clear cache)
+    3. ALTER TABLE t1 (should clear cache)
+    4. INSERT INTO t1 (should preserve cache)
+    5. SELECT FROM t1 (should preserve cache)
+    6. ROLLBACK (should clear cache)
+    7. CREATE TABLE AS SELECT (should preserve cache)
+    8. SELECT FROM t1 (should preserve cache)
+    9. DROP TABLE IF EXISTS t1 (should clear cache)
+
+    Args:
+        con: Database connection fixture
+        mocker: pytest-mock fixture for creating spies
+    """
     with con.cursor() as cursor:
-        cursor.execute("drop table if exists t1")
-
+        # Create spy to track calls to close_prepared_statement
         spy = mocker.spy(con, "close_prepared_statement")
-        cursor.execute("create table t1 (a int primary key)")
 
-        assert len(con._caches) == 1
-        cache_iter = next(iter(con._caches.values()))  # get first transaction
-        assert len(next(iter(cache_iter.values()))["statement"]) == 3  # should be 3 ps in this transaction
-        # begin transaction, drop table t1, create table t1
+        cursor.execute("drop table if exists t1")
         assert spy.called
-        assert spy.call_count == 3
+        # Two calls expected: one for BEGIN transaction, one for DROP TABLE
+        assert spy.call_count == 2
+        spy.reset_mock()
 
+        cursor.execute("create table t1 (a int primary key)")
+        assert spy.called
+        # One call expected for CREATE TABLE
+        assert spy.call_count == 1
+        spy.reset_mock()
+
+        cursor.execute("alter table t1 rename column a to b;")
+        assert spy.called
+        # One call expected for ALTER TABLE
+        assert spy.call_count == 1
+        spy.reset_mock()
+
+        cursor.execute("insert into t1 values(1)")
+        assert spy.call_count == 0
+        spy.reset_mock()
+
+        cursor.execute("select * from t1")
+        assert spy.call_count == 0
+        spy.reset_mock()
+
+        cursor.execute("rollback")
+        assert spy.called
+        # Three calls expected: INSERT, SELECT, and ROLLBACK statements
+        assert spy.call_count == 3
+        spy.reset_mock()
+
+        cursor.execute("create table t1 as (select 1)")
+        assert spy.call_count == 0
+        spy.reset_mock()
+
+        cursor.execute("select * from t1")
+        assert spy.call_count == 0
+        spy.reset_mock()
+
+        cursor.execute("drop table if exists t1")
+        assert spy.called
+        # Four calls expected: BEGIN, CREATE TABLE AS, SELECT, and DROP
+        assert spy.call_count == 4
+        spy.reset_mock()
+
+        # Ensure there's exactly one process in the cache
+        assert len(con._caches) == 1
+        # get cache for current process
+        cache_iter = next(iter(con._caches.values()))
+
+        # Verify the number of prepared statements in this transaction
+        # Should be 7 statements total from all operations
+        assert len(next(iter(cache_iter.values()))["statement"]) == 8  # should be 8 ps in this process
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "name": "max_prepared_statements_zero",
+        "max_prepared_statements": 0,
+        "queries": ["SELECT 1", "SELECT 2"],
+        "expected_close_calls": 0,
+        "expected_cache_size": 0
+    },
+    {
+        "name": "max_prepared_statements_default",
+        "max_prepared_statements": 1000,
+        "queries": ["SELECT 1", "SELECT 2"],
+        "expected_close_calls": 0,
+        "expected_cache_size": 3
+    },
+    {
+        "name": "max_prepared_statements_limit_1",
+        "max_prepared_statements": 2,
+        "queries": ["SELECT 1", "SELECT 2", "SELECT 3"],
+        "expected_close_calls": 2,
+        "expected_cache_size": 2
+    },
+{
+        "name": "max_prepared_statements_limit_2",
+        "max_prepared_statements": 2,
+        "queries": ["SELECT 1", "SELECT 2"],
+        "expected_close_calls": 2,
+        "expected_cache_size": 1
+    }
+])
+def test_max_prepared_statement(con, mocker, test_case) -> None:
+    """
+    Test the prepared statement cache management functionality.
+    This test verifies the behavior of the cache cleanup mechanism when:
+    1. max_prepared_statements = 0: No statement will be cached
+    2. max_prepared_statements > 0: Statements are cached up to the limit
+
+    :param con: Connection object
+    :param mocker: pytest mocker fixture
+    :param test_case: Dictionary containing test parameters:
+    :return: None
+    """
+    con.max_prepared_statements = test_case["max_prepared_statements"]
+    with con.cursor() as cursor:
+        # Create spy to track calls to close_prepared_statement
+        spy = mocker.spy(con, "close_prepared_statement")
+
+        for query in test_case["queries"]:
+            cursor.execute(query)
+
+        # Ensure there's exactly one process in the cache
+        assert len(con._caches) == 1
+        # Get cache for current process
+        cache_iter = next(iter(con._caches.values()))
+
+        # Verify close_prepared_statement was called the expected number of times
+        assert spy.call_count == test_case["expected_close_calls"]
+
+        # Verify the final cache size matches expected size
+        assert len(next(iter(cache_iter.values()))["ps"]) == test_case["expected_cache_size"]
 
 @pytest.mark.parametrize("_input", ["NO_SCHEMA_UNIVERSAL_QUERY", "EXTERNAL_SCHEMA_QUERY", "LOCAL_SCHEMA_QUERY"])
 def test___get_table_filter_clause_return_empty_result(con, _input) -> None:

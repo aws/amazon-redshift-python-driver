@@ -19,6 +19,7 @@ from scramp import ScramClient  # type: ignore
 
 from redshift_connector.config import (
     DEFAULT_PROTOCOL_VERSION,
+    DEFAULT_MAX_PREPARED_STATEMENTS,
     ClientProtocolVersion,
     DbApiParamstyle,
     _client_encoding,
@@ -421,7 +422,7 @@ class Connection:
         ssl: bool = True,
         sslmode: str = "verify-ca",
         timeout: typing.Optional[int] = None,
-        max_prepared_statements: int = 1000,
+        max_prepared_statements: int = DEFAULT_MAX_PREPARED_STATEMENTS,
         tcp_keepalive: typing.Optional[bool] = True,
         application_name: typing.Optional[str] = None,
         replication: typing.Optional[str] = None,
@@ -500,7 +501,7 @@ class Connection:
         self.notifications: deque = deque(maxlen=100)
         self.notices: deque = deque(maxlen=100)
         self.parameter_statuses: deque = deque(maxlen=100)
-        self.max_prepared_statements: int = int(max_prepared_statements)
+        self.max_prepared_statements: int = int(self.get_max_prepared_statement(max_prepared_statements))
         self._run_cursor: Cursor = Cursor(self, paramstyle=DbApiParamstyle.NAMED.value)
         self._client_protocol_version: int = client_protocol_version
         self._database = database
@@ -1845,7 +1846,8 @@ class Connection:
             # consist of "redshift_connector", statement, process id and statement number.
             # e.g redshift_connector_statement_11432_2
             statement_name: str = "_".join(("redshift_connector", "statement", str(pid), str(statement_num)))
-            statement_name_bin: bytes = statement_name.encode("ascii") + NULL_BYTE
+            statement_name_bin: bytes = self.get_statement_name_bin(statement_name)
+
             # row_desc: list that used to store metadata of rows from DB
             # param_funcs: type transform function
             ps = {
@@ -1942,12 +1944,12 @@ class Connection:
 
             ps["bind_2"] = h_pack(len(output_fc)) + pack("!" + "h" * len(output_fc), *output_fc)
 
-            if len(cache["ps"]) > self.max_prepared_statements:
+            if len(cache["ps"]) >= self.max_prepared_statements:
                 for p in cache["ps"].values():
                     self.close_prepared_statement(p["statement_name_bin"])
                 cache["ps"].clear()
-
-            cache["ps"][key] = ps
+            if self.max_prepared_statements > 0:
+                cache["ps"][key] = ps
 
         cursor._cached_rows.clear()
         cursor._row_count = -1
@@ -2118,7 +2120,7 @@ class Connection:
             # cursor object
             cursor._redshift_row_count = len(cursor._cached_rows)
 
-        if command in (b"ALTER", b"CREATE"):
+        if command in (b"ALTER", b"CREATE", b"DROP", b"ROLLBACK"):
             for scache in self._caches.values():
                 for pcache in scache.values():
                     for ps in pcache["ps"].values():
@@ -2638,3 +2640,14 @@ class Connection:
 
         if idc_client_display_name:
             init_params["idc_client_display_name"] = idc_client_display_name
+
+    def get_statement_name_bin(self, statement_name: str) -> bytes:
+        # When max_prepared_statements is 0, we use an empty statement name. This creates an unnamed
+        # prepared statement that lasts only until the next Parse statement, avoiding "statement already exists" errors
+        return ("" if self.max_prepared_statements == 0 else statement_name).encode("ascii") + NULL_BYTE
+
+    def get_max_prepared_statement(self, max_prepared_statements: int) -> int:
+        if max_prepared_statements < 0:
+            _logger.error("Parameter max_prepared_statements must >= 0. Using default value %d", DEFAULT_MAX_PREPARED_STATEMENTS)
+            return DEFAULT_MAX_PREPARED_STATEMENTS
+        return max_prepared_statements
