@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v2.1.6 (2025-05-06)
+-------------------
+- Directly imports a package as a fallback mechanism for retrieving a package’s version number during identity provider authentication.
+- Fixed stale prepared statement caching issue by clearing the cache upon execution of DROP or ROLLBACK commands.
+
 
 v2.1.5 (2024-12-23)
 -------------------
