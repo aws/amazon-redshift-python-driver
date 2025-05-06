@@ -47,7 +47,13 @@ class IdpAuthHelper:
 
             return Version(pkg_resources.get_distribution(module_name).version)
 
-        return Version(version(module_name))
+        pkg_version = version(module_name)
+        if pkg_version is not None:
+            return Version(pkg_version)
+
+        import importlib
+        imported_module = importlib.import_module(module_name)
+        return Version(imported_module.__version__)
 
     @staticmethod
     def set_auth_properties(info: RedshiftProperty):
