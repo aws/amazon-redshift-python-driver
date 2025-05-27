@@ -1,6 +1,10 @@
 Changelog
 =========
 
+v2.1.7 (2025-05-27)
+-------------------
+- Modified connection parameter ssl_insecure to be False by default.
+
 v2.1.6 (2025-05-06)
 -------------------
 - Directly imports a package as a fallback mechanism for retrieving a package’s version number during identity provider authentication.
