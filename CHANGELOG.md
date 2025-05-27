@@ -4,6 +4,7 @@ Changelog
 v2.1.7 (2025-05-27)
 -------------------
 - Modified connection parameter ssl_insecure to be False by default.
+- Addressed security issue as detailed in CVE-2025-5279
 
 v2.1.6 (2025-05-06)
 -------------------
