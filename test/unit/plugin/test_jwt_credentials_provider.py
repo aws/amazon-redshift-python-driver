@@ -1,3 +1,23 @@
+import typing
+from unittest.mock import patch
+
+import pytest  # type: ignore
+
+from redshift_connector import RedshiftProperty
+from redshift_connector.plugin import JwtCredentialsProvider
+
+@patch.multiple(JwtCredentialsProvider, __abstractmethods__=set())
+def make_valid_jwt_credentials_provider() -> typing.Tuple[JwtCredentialsProvider, RedshiftProperty]:
+    rp: RedshiftProperty = RedshiftProperty()
+    jcp: JwtCredentialsProvider = JwtCredentialsProvider()  # type: ignore
+    jcp.add_parameter(rp)
+    return jcp, rp
+
+def test_default_parameters_jwt_credentials_provider() -> None:
+    jcp, _ = make_valid_jwt_credentials_provider()
+    assert jcp.ssl_insecure == False
+    assert jcp.do_verify_ssl_cert() == True
+
 # import base64
 # import json
 # import typing

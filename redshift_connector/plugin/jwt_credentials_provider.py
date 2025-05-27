@@ -93,7 +93,7 @@ class JwtCredentialsProvider(INativePlugin, IdpCredentialsProvider):
             self.last_refreshed_credentials = credentials
 
     def do_verify_ssl_cert(self: "JwtCredentialsProvider") -> bool:
-        return self.ssl_insecure
+        return not self.ssl_insecure
 
     def get_idp_token(self: "JwtCredentialsProvider") -> str:
         jwt: str = self.get_jwt_assertion()

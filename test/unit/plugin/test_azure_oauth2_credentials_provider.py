@@ -21,6 +21,11 @@ def make_valid_azure_oauth2_provider() -> typing.Tuple[BrowserAzureOAuth2Credent
     cp.add_parameter(rp)
     return cp, rp
 
+def test_default_parameters_azure_oauth2_specific() -> None:
+    acp, _ = make_valid_azure_oauth2_provider()
+    assert acp.ssl_insecure == False
+    assert acp.do_verify_ssl_cert() == True
+
 
 def test_add_parameter_sets_azure_oauth2_specific() -> None:
     acp, rp = make_valid_azure_oauth2_provider()

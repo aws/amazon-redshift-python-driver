@@ -106,8 +106,8 @@ class RedshiftProperty:
             self.source_address: typing.Optional[str] = None
             # if SSL authentication will be used
             self.ssl: bool = True
-            # This property indicates whether the IDP hosts server certificate should be verified.
-            self.ssl_insecure: bool = True
+            # This property indicates whether to disable the verification of the IdP host's server SSL certificate.
+            self.ssl_insecure: bool = False
             # ssl mode: verify-ca or verify-full.
             self.sslmode: str = "verify-ca"
             # Use this property to enable or disable TCP keepalives.

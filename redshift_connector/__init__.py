@@ -243,7 +243,7 @@ def connect(
     database_metadata_current_db_only : Optional[bool]
         Is `datashare <https://docs.aws.amazon.com/redshift/latest/dg/datashare-overview.html>`_ disabled. Default value is True, implying datasharing will not be used.
     ssl_insecure : Optional[bool]
-        Specifies if IdP host's server certificate will be verified. Default value is True
+        Specifies whether to disable the verification of the IdP host's server SSL certificate. Default value is False. ssl_insecure=True indicates that verification of the IdP host's server SSL certificate will be disabled. It is NOT recommended to disable the verification of an IdP host's server SSL certificate in a production environment.
     web_identity_token: Optional[str]
         A web identity token used for authentication with JWT.
     role_session_name: Optional[str]
@@ -366,7 +366,7 @@ def connect(
         if info.credentials_provider in IDC_OR_NATIVE_IDP_PLUGINS_LIST:
             raise InterfaceError("Authentication must use an SSL connection.")
 
-    if (info.iam is False) and (info.ssl_insecure is False):
+    if (info.iam is False) and (info.ssl_insecure is True):
         raise InterfaceError("Invalid connection property setting. IAM must be enabled when using ssl_insecure")
 
     if info.client_protocol_version not in ClientProtocolVersion.list():

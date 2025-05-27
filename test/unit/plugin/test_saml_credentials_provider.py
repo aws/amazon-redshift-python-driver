@@ -20,6 +20,12 @@ def make_valid_saml_credentials_provider() -> typing.Tuple[SamlCredentialsProvid
     return scp, rp
 
 
+def test_default_parameters_saml_credentials_provider() -> None:
+    acp, _ = make_valid_saml_credentials_provider()
+    assert acp.ssl_insecure == False
+    assert acp.do_verify_ssl_cert() == True
+
+
 def test_get_cache_key_format_as_expected() -> None:
     scp, _ = make_valid_saml_credentials_provider()
     expected_cache_key: str = "{username}{password}{idp_host}{idp_port}{duration}{preferred_role}".format(
