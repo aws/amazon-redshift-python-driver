@@ -16,6 +16,7 @@ from redshift_connector import (
     InterfaceError,
     OperationalError,
     ProgrammingError,
+    validate_keepalive_values,
 )
 from redshift_connector.config import (
     ClientProtocolVersion,
@@ -560,3 +561,24 @@ def test_make_params_maps_pandas_timestamp_to_timestamp(db_kwargs):
     assert res[0][0] == RedshiftOID.TIMESTAMPTZ
     assert res[0][1] == 1
     assert res[0][2] == timestamptz_send_integer
+
+
+@pytest.mark.parametrize(
+    "idle,interval,count,expected_error",
+    [
+        (-1, None, None, "tcp_keepalive_idle must be positive"),
+        (None, -1, None, "tcp_keepalive_interval must be positive"),
+        (None, None, -1, "tcp_keepalive_count must be positive"),
+        (0, None, None, "tcp_keepalive_idle must be positive"),
+        (None, 0, None, "tcp_keepalive_interval must be positive"),
+        (None, None, 0, "tcp_keepalive_count must be positive"),
+        (1, 1, 1, None),  # valid values should not raise error
+    ],
+)
+def test_tcp_keepalive_validation(idle, interval, count, expected_error):
+    if expected_error:
+        with pytest.raises(ValueError, match=expected_error):
+            validate_keepalive_values(idle, interval, count)
+    else:
+        # Should not raise any exception
+        validate_keepalive_values(idle, interval, count)

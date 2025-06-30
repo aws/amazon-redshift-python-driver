@@ -363,7 +363,6 @@ IDLE_IN_FAILED_TRANSACTION: bytes = b"E"
 
 arr_trans: typing.Mapping[int, typing.Optional[str]] = dict(zip(map(ord, "[] 'u"), ["{", "}", None, None, None]))
 
-
 class Connection:
     # DBAPI Extension: supply exceptions as attributes on the connection
     Warning = property(lambda self: self._getError(Warning))
@@ -424,6 +423,9 @@ class Connection:
         timeout: typing.Optional[int] = None,
         max_prepared_statements: int = DEFAULT_MAX_PREPARED_STATEMENTS,
         tcp_keepalive: typing.Optional[bool] = True,
+        tcp_keepalive_idle: typing.Optional[int] = None,
+        tcp_keepalive_interval: typing.Optional[int] = None,
+        tcp_keepalive_count: typing.Optional[int] = None,
         application_name: typing.Optional[str] = None,
         replication: typing.Optional[str] = None,
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
@@ -462,7 +464,13 @@ class Connection:
             The number of seconds before the connection to the server will timeout. By default there is no timeout.
         max_prepared_statements : int
         tcp_keepalive : Optional[bool]
-            Is `TCP keepalive <https://en.wikipedia.org/wiki/Keepalive#TCP_keepalive>`_ used. The default value is ``True``.
+            A boolean specifying whether the driver uses TCP keepalives to prevent connections from timing out. Defaults to ``True``.
+        tcp_keepalive_idle : Optional[int]
+            Time (in seconds) before sending TCP keepalive probes on an idle connection.  Defaults to None (system default).
+        tcp_keepalive_interval : Optional[int]
+            Time (in seconds) between individual TCP keepalive probes.  Defaults to None (system default).
+        tcp_keepalive_count : Optional[int]
+            Maximum number of TCP keepalive probes to send before dropping the connection if no response is received.  Defaults to None (system default).
         application_name : Optional[str]
             Sets the application name. The default value is None.
         replication : Optional[str]
@@ -685,6 +693,32 @@ class Connection:
             if tcp_keepalive:
                 _logger.debug("enabling tcp keepalive on socket")
                 self._usock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+                # Set TCP keepalive parameters if supported by platform and values are defined
+                if tcp_keepalive_idle is not None:
+                    # Mac OS X uses TCP_KEEPALIVE instead of TCP_KEEPIDLE
+                    if hasattr(socket, 'TCP_KEEPIDLE'):
+                        self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keepalive_idle)
+                        _logger.debug(f"Set TCP_KEEPIDLE to {tcp_keepalive_idle}")
+                    elif hasattr(socket, 'TCP_KEEPALIVE'):  # macOS/BSD
+                        self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE, tcp_keepalive_idle)
+                        _logger.debug(f"Set TCP_KEEPALIVE to {tcp_keepalive_idle}")
+                    else:
+                        _logger.warning("Neither TCP_KEEPIDLE nor TCP_KEEPALIVE supported on this platform")
+
+                if tcp_keepalive_interval is not None:
+                    if hasattr(socket, 'TCP_KEEPINTVL'):
+                        self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keepalive_interval)
+                        _logger.debug(f"Set TCP_KEEPINTVL to {tcp_keepalive_interval}")
+                    else:
+                        _logger.warning("TCP_KEEPINTVL not supported on this platform")
+
+                if tcp_keepalive_count is not None:
+                    if hasattr(socket, 'TCP_KEEPCNT'):
+                        self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keepalive_count)
+                        _logger.debug(f"Set TCP_KEEPCNT to {tcp_keepalive_count}")
+                    else:
+                        _logger.warning("TCP_KEEPCNT not supported on this platform")
 
         except socket.timeout as timeout_error:
             self._usock.close()

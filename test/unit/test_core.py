@@ -1,4 +1,5 @@
-from unittest.mock import Mock, patch
+import socket
+from unittest.mock import Mock, patch, MagicMock, call
 from redshift_connector.core import Connection
 from redshift_connector.cursor import Cursor
 
@@ -33,6 +34,31 @@ def connection():
             b"SELECT",
         )
     return connection
+
+@pytest.fixture
+def mock_socket_connection():
+    """Fixture to provide a mock socket with basic connection behavior"""
+    with patch('socket.socket') as mock_socket:
+        mock_socket_instance = MagicMock()
+        mock_socket.return_value = mock_socket_instance
+        # Initial authentication response from server
+        mock_socket_instance.recv.return_value = b'S'
+        mock_file = MagicMock()
+        mock_file.read.side_effect = [
+            # Authentication request (R) message: 8 bytes total length, specifying auth type 0
+            b'\x52\x00\x00\x00\x08',  # 'R' followed by message length
+            b'\x00\x00\x00\x00',  # Auth type 0 (success)
+
+            # ParameterStatus (S) message: setting client encoding
+            b'\x53\x00\x00\x00\x1a',  # 'S' followed by message length (26 bytes)
+            b'client_encoding\x00UTF8\x00',  # Parameter name and value, null-terminated
+
+            # ReadyForQuery (Z) message: indicating idle state
+            b'\x5a\x00\x00\x00\x05',  # 'Z' followed by message length (5 bytes)
+            b'I',  # 'I' indicates idle state
+        ]
+        mock_socket_instance.makefile.return_value = mock_file
+        yield mock_socket_instance
 
 @pytest.mark.parametrize("command_status", [
     b'ALTER\x00',
@@ -235,3 +261,192 @@ def test_get_max_prepared_statement(max_prepared_statements, expected_result):
     # Setup Connection instance
     mock_connection = Connection.__new__(Connection)
     assert mock_connection.get_max_prepared_statement(max_prepared_statements) == expected_result
+
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "name": "system_defaults",
+        "params": {},
+        "expected": {
+            "keepalive": True,  # Keepalive defaults to True
+            "check_values": False
+        }
+    },
+    {
+        "name": "custom_values",
+        "params": {
+            "tcp_keepalive": True,
+            "tcp_keepalive_idle": 300,
+            "tcp_keepalive_interval": 60,
+            "tcp_keepalive_count": 5
+        },
+        "expected": {
+            "keepalive": True,
+            "check_values": True,
+            "keepalive_idle": 300,
+            "keepalive_interval": 60,
+            "keepalive_count": 5
+        }
+    },
+    {
+        "name": "keepalive_enabled_with_defaults",
+        "params": {
+            "tcp_keepalive": True
+        },
+        "expected": {
+            "keepalive": True,
+            "check_values": False  # Don't check values as they should be system defaults
+        }
+    },
+    {
+        "name": "keepalive_disabled",
+        "params": {
+            "tcp_keepalive": False
+        },
+        "expected": {
+            "keepalive": False,
+            "check_values": False
+        }
+    }
+])
+def test_tcp_keepalive_configuration(test_case: dict):
+    """
+    Test TCP keepalive configuration with different settings.
+    TCP keepalive is enabled by default.
+    """
+    with patch('socket.socket') as mock_socket:
+        # Mock socket behavior
+        mock_socket_instance = MagicMock()
+        mock_socket.return_value = mock_socket_instance
+        mock_socket_instance.recv.return_value = b'S'
+        mock_file = MagicMock()
+        mock_file.read.side_effect = [
+            b'\x52\x00\x00\x00\x08',
+            b'\x00\x00\x00\x00',
+            b'\x53\x00\x00\x00\x1a',
+            b'client_encoding\x00UTF8\x00',
+            b'\x5a\x00\x00\x00\x05',
+            b'I',
+        ]
+        mock_socket_instance.makefile.return_value = mock_file
+
+        # Create connection with test values
+        Connection(
+            user="test_user",
+            password="test_password",
+            database="test_db",
+            ssl=False,
+            host="localhost",
+            **test_case["params"]
+        )
+
+        if test_case["expected"]["keepalive"]:
+            # Verify keepalive was enabled
+            keepalive_call = call(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+            assert keepalive_call in mock_socket_instance.setsockopt.call_args_list, \
+                "Expected SO_KEEPALIVE to be enabled"
+
+            if test_case["expected"]["check_values"]:
+                # Only verify specific values if they were explicitly set
+                expected_calls = []
+
+                # Add platform-specific idle time call
+                if hasattr(socket, 'TCP_KEEPIDLE'):
+                    expected_calls.append(
+                        call(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, test_case["expected"]["keepalive_idle"])
+                    )
+                elif hasattr(socket, 'TCP_KEEPALIVE'):
+                    expected_calls.append(
+                        call(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE, test_case["expected"]["keepalive_idle"])
+                    )
+
+                # Add other keepalive calls if supported
+                if hasattr(socket, 'TCP_KEEPINTVL'):
+                    expected_calls.append(
+                        call(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, test_case["expected"]["keepalive_interval"])
+                    )
+                if hasattr(socket, 'TCP_KEEPCNT'):
+                    expected_calls.append(
+                        call(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, test_case["expected"]["keepalive_count"])
+                    )
+
+                for expected_call in expected_calls:
+                    assert expected_call in mock_socket_instance.setsockopt.call_args_list, \
+                        f"Expected call {expected_call} not found in {mock_socket_instance.setsockopt.call_args_list}"
+        else:
+            # When explicitly disabled, verify no keepalive calls were made
+            keepalive_calls = [
+                c for c in mock_socket_instance.setsockopt.call_args_list
+                if socket.SO_KEEPALIVE in c[0]
+            ]
+            assert len(keepalive_calls) == 0, \
+                f"Expected no keepalive calls but found {keepalive_calls}"
+
+@pytest.mark.parametrize("platform_config", [
+    {
+        "name": "linux_platform",
+        "socket_attributes": {
+            "TCP_KEEPIDLE": True,
+            "TCP_KEEPALIVE": False,
+            "TCP_KEEPINTVL": True,
+            "TCP_KEEPCNT": True
+        }
+    },
+    {
+        "name": "macos_platform",
+        "socket_attributes": {
+            "TCP_KEEPIDLE": False,
+            "TCP_KEEPALIVE": True,
+            "TCP_KEEPINTVL": True,
+            "TCP_KEEPCNT": True
+        }
+    },
+    {
+        "name": "limited_platform",
+        "socket_attributes": {
+            "TCP_KEEPALIVE": False,
+            "TCP_KEEPIDLE": False,
+            "TCP_KEEPINTVL": False,
+            "TCP_KEEPCNT": False
+        }
+    }
+])
+def test_tcp_keepalive_platform_support(platform_config: dict, mock_socket_connection):
+    """
+    Test TCP keepalive configuration across different platforms with varying socket support.
+    Only tests that keepalive can be enabled/disabled as other values use system defaults.
+    """
+    # Store original socket attributes
+    original_attrs = {}
+    for attr in platform_config["socket_attributes"]:
+        original_attrs[attr] = getattr(socket, attr, None)
+
+    try:
+        # Mock platform-specific socket attributes
+        for attr, has_attr in platform_config["socket_attributes"].items():
+            if has_attr:
+                setattr(socket, attr, 1)
+            elif hasattr(socket, attr):
+                delattr(socket, attr)
+
+        # Create connection with keepalive enabled
+        Connection(
+            user="test_user",
+            password="test_password",
+            database="test_db",
+            ssl=False,
+            host="localhost",
+            tcp_keepalive=True
+        )
+
+        # Verify only that keepalive was enabled
+        keepalive_call = call(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        assert keepalive_call in mock_socket_connection.setsockopt.call_args_list
+
+    finally:
+        # Restore original socket attributes
+        for attr, value in original_attrs.items():
+            if value is not None:
+                setattr(socket, attr, value)
+            elif hasattr(socket, attr):
+                delattr(socket, attr)

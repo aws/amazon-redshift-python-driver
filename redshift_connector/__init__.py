@@ -103,6 +103,18 @@ IDC_OR_NATIVE_IDP_PLUGINS_LIST = (
 
 __author__ = "Mathieu Fenniak"
 
+def validate_keepalive_values(idle, interval, count):
+    if idle is not None:
+        if idle <= 0:
+            raise ValueError("tcp_keepalive_idle must be positive")
+
+    if interval is not None:
+        if interval <= 0:
+            raise ValueError("tcp_keepalive_interval must be positive")
+
+    if count is not None:
+        if count <= 0:
+            raise ValueError("tcp_keepalive_count must be positive")
 
 def connect(
     user: typing.Optional[str] = None,
@@ -117,6 +129,9 @@ def connect(
     timeout: typing.Optional[int] = None,
     max_prepared_statements: typing.Optional[int] = None,
     tcp_keepalive: typing.Optional[bool] = None,
+    tcp_keepalive_idle: typing.Optional[int] = None,
+    tcp_keepalive_interval: typing.Optional[int] = None,
+    tcp_keepalive_count: typing.Optional[int] = None,
     application_name: typing.Optional[str] = None,
     replication: typing.Optional[str] = None,
     idp_host: typing.Optional[str] = None,
@@ -193,7 +208,13 @@ def connect(
         The number of seconds before the connection to the server will timeout. By default there is no timeout.
     max_prepared_statements : Optional[int]
     tcp_keepalive : Optional[bool]
-        Is `TCP keepalive <https://en.wikipedia.org/wiki/Keepalive#TCP_keepalive>`_ used. The default value is ``True``.
+        A boolean specifying whether the driver uses TCP keepalives to prevent connections from timing out. Defaults to ``True``.
+    tcp_keepalive_idle : Optional[int]
+        Time (in seconds) before sending keepalive probes. Defaults to None (system default).
+    tcp_keepalive_interval : Optional[int]
+        Time (in seconds) between keepalive probes. Defaults to None (system default).
+    tcp_keepalive_count : Optional[int]
+        Number of failed probes before connection is considered dead. Defaults to None (system default).
     application_name : Optional[str]
         Sets the application name. The default value is None.
     replication : Optional[str]
@@ -343,6 +364,9 @@ def connect(
     info.put("ssl_insecure", ssl_insecure)
     info.put("sslmode", sslmode)
     info.put("tcp_keepalive", tcp_keepalive)
+    info.put("tcp_keepalive_idle", tcp_keepalive_idle)
+    info.put("tcp_keepalive_interval", tcp_keepalive_interval)
+    info.put("tcp_keepalive_count", tcp_keepalive_count)
     info.put("timeout", timeout)
     info.put("token", token)
     info.put("token_type", token_type)
@@ -385,6 +409,16 @@ def connect(
     if not redshift_native_auth:
         IamHelper.set_iam_properties(info)
 
+    if info.tcp_keepalive:
+        try:
+            validate_keepalive_values(
+                info.tcp_keepalive_idle,
+                info.tcp_keepalive_interval,
+                info.tcp_keepalive_count
+            )
+        except ValueError as e:
+            raise InterfaceError(str(e))
+
     _logger.debug(make_divider_block())
     _logger.debug("Connection arguments following validation and IAM auth (if applicable)")
     _logger.debug(make_divider_block())
@@ -404,6 +438,9 @@ def connect(
         timeout=info.timeout,
         max_prepared_statements=info.max_prepared_statements,
         tcp_keepalive=info.tcp_keepalive,
+        tcp_keepalive_idle=info.tcp_keepalive_idle,
+        tcp_keepalive_interval=info.tcp_keepalive_interval,
+        tcp_keepalive_count=info.tcp_keepalive_count,
         application_name=info.application_name,
         replication=info.replication,
         client_protocol_version=info.client_protocol_version,

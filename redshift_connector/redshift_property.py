@@ -112,6 +112,12 @@ class RedshiftProperty:
             self.sslmode: str = "verify-ca"
             # Use this property to enable or disable TCP keepalives.
             self.tcp_keepalive: bool = True
+            # Time (in seconds) before sending keepalive probes
+            self.tcp_keepalive_idle: typing.Optional[int] = None
+            # Time (in seconds) between keepalive probes
+            self.tcp_keepalive_interval: typing.Optional[int] = None
+            # Number of failed probes before connection is considered dead
+            self.tcp_keepalive_count: typing.Optional[int] = None
             # This is the time in seconds before the connection to the server will time out.
             self.timeout: typing.Optional[int] = None
             self.token: typing.Optional[str] = None
