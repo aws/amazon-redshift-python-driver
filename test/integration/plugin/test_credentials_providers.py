@@ -45,6 +45,9 @@ if "java" in sys.platform:
     # at a later time
     DEFAULT_CONTEXT = SSLContext.getDefault()
 
+def skip_if_okta(idp_arg):
+    if "OktaCredentialsProvider" == idp_arg["credentials_provider"]:
+        pytest.skip("Temporarily disable the test due to expired Okta credential (Redshift-115253)")
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_idp_password(idp_arg):
@@ -59,6 +62,7 @@ def test_idp_password(idp_arg):
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_cluster_identifier(idp_arg):
+    skip_if_okta(idp_arg)
     wrong_identifier = "redshift-cluster-11"
     idp_arg["cluster_identifier"] = wrong_identifier
 
@@ -68,6 +72,7 @@ def test_cluster_identifier(idp_arg):
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_region(idp_arg):
+    skip_if_okta(idp_arg)
     wrong_region = "us-east-22"
     idp_arg["region"] = wrong_region
 
@@ -80,12 +85,14 @@ def test_region(idp_arg):
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_credentials_provider(idp_arg):
+    skip_if_okta(idp_arg)
     with redshift_connector.connect(**idp_arg):
         pass
 
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_preferred_role_invalid_should_fail(idp_arg):
+    skip_if_okta(idp_arg)
     idp_arg["preferred_role"] = "arn:aws:iam::111111111111:role/Trash-role"
     with pytest.raises(
         redshift_connector.InterfaceError,
@@ -110,6 +117,7 @@ def test_invalid_db_group(idp_arg):
 @pytest.mark.parametrize("idp_arg", ["okta_idp", "azure_idp"], indirect=True)
 @pytest.mark.parametrize("ssl_insecure_val", [True, False])
 def test_ssl_insecure_is_used(idp_arg, ssl_insecure_val):
+    skip_if_okta(idp_arg)
     idp_arg["ssl_insecure"] = ssl_insecure_val
 
     with redshift_connector.connect(**idp_arg):
@@ -169,6 +177,7 @@ def use_cached_temporary_credentials(idp_arg):
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_stl_connection_log_contains_plugin_name(idp_arg, db_kwargs):
+    skip_if_okta(idp_arg)
     idp_arg["auto_create"] = True
     with redshift_connector.connect(**idp_arg) as conn:
         with conn.cursor() as cursor:
@@ -211,6 +220,7 @@ def uses_db_groups_nominal(idp_arg, db_groups):
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_connect_with_group_federation(idp_arg):
+    skip_if_okta(idp_arg)
     idp_arg["group_federation"] = True
 
     with redshift_connector.connect(**idp_arg):

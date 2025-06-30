@@ -22,6 +22,7 @@ def test_idp_host_invalid_should_fail(idp_arg) -> None:
         redshift_connector.connect(**idp_arg)
 
 
+@pytest.mark.skip(reason="Temporarily disable the test due to expired Okta credential (Redshift-115253)")
 @pytest.mark.parametrize("idp_arg", PROVIDER, indirect=True)
 def test_preferred_role_should_use(idp_arg) -> None:
     idp_arg["preferred_role"] = conf.get("okta-idp", "preferred_role")
