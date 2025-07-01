@@ -1,10 +1,17 @@
 Changelog
 =========
 
+v2.1.8 (2025-07-01)
+-------------------
+- Added support for TCP keepalive properties tcp_keepalive_idle, tcp_keepalive_interval, and tcp_keepalive_count. This allows users to configure TCP keepalive settings, helping to maintain and verify the integrity of long-running database connections
+- Added version constraint for lxml dependency to maintain compatibility and prevent breaking changes introduced in lxml 6.0.0
+
+
 v2.1.7 (2025-05-27)
 -------------------
 - Modified connection parameter ssl_insecure to be False by default.
 - Addressed security issue as detailed in CVE-2025-5279
+
 
 v2.1.6 (2025-05-06)
 -------------------
