@@ -1420,6 +1420,15 @@ class Connection:
             self._usock.close()
             self._sock = None  # type: ignore
 
+    def is_closed(self: "Connection") -> bool:
+        """Returns if the connection instance is closed.
+
+        Returns
+        -------
+        bool:bool
+        """
+        return self._sock is None
+
     def handle_AUTHENTICATION_REQUEST(self: "Connection", data: bytes, cursor: Cursor) -> None:
         """
         Handler for AuthenticationRequest message received via Amazon Redshift wire protocol, represented by
