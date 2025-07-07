@@ -68,7 +68,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
             BrowserAzureOAuth2CredentialsProvider.handle_missing_required_property("idp_tenant")
         if not self.client_id:
             BrowserAzureOAuth2CredentialsProvider.handle_missing_required_property("client_id")
-        if not self.idp_response_timeout or self.idp_response_timeout < 10:
+        if not self.idp_response_timeout or int(self.idp_response_timeout) < 10:
             BrowserAzureOAuth2CredentialsProvider.handle_invalid_property_value(
                 "idp_response_timeout", "Must be 10 seconds or greater"
             )
