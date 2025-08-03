@@ -222,10 +222,6 @@ def intervald2s_send_integer(v: IntervalDayToSecond) -> bytes:
     return typing.cast(bytes, q_pack(microseconds))
 
 
-glbls: typing.Dict[str, type] = {"Decimal": Decimal}
-trans_tab = dict(zip(map(ord, "{}"), "[]"))
-
-
 # def array_in(data: bytes, idx: int, length: int) -> typing.List:
 #     arr: typing.List[str] = []
 #     prev_c = None
