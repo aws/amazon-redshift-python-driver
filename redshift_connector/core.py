@@ -395,19 +395,28 @@ class Connection:
             os_version = "unknown"
         return os_version
 
+
     @staticmethod
-    def __get_host_address_info(host: str, port: int):
+    def __get_host_address_info(host: str, port: int) -> typing.Tuple:
         """
-        Returns IPv4 address and port given a host name and port
+        Returns address and port given a host name and port, supports both IPv4 and IPv6.
         """
-        # https://docs.python.org/3/library/socket.html#socket.getaddrinfo
-        response = socket.getaddrinfo(host=host, port=port, family=socket.AF_INET)
+        response = socket.getaddrinfo(host=host, port=port)
         _logger.debug("getaddrinfo response %s", response)
 
         if not response:
-            raise InterfaceError("Unable to determine ip for host %s port %s", host, port)
+            raise InterfaceError(
+                "Unable to determine IP for host %s port %s" % (host, port)
+            )
 
-        return response[0][4]
+        for res in response:
+            af, socktype, proto, canonname, sockaddr = res
+            if af == socket.AF_INET or af == socket.AF_INET6:
+                return sockaddr, af
+
+        raise InterfaceError(
+            "No suitable address found for host %s port %s" % (host, port)
+        )
 
     def __init__(
         self: "Connection",
@@ -638,8 +647,13 @@ class Connection:
                 self._usock.settimeout(timeout)
 
             if unix_sock is None and host is not None:
-                hostport: typing.Tuple[str, int] = Connection.__get_host_address_info(host, port)
+                # hostport: typing.Tuple[str, int] = Connection.__get_host_address_info(host, port)
+                # _logger.debug("Attempting to create connection socket with address %s", hostport)
+                # self._usock.connect(hostport)
+                hostport, address_family = Connection.__get_host_address_info(host, port)
                 _logger.debug("Attempting to create connection socket with address %s", hostport)
+
+                self._usock = socket.socket(address_family, socket.SOCK_STREAM)
                 self._usock.connect(hostport)
             elif unix_sock is not None:
                 _logger.debug("connecting to socket with unix socket")
