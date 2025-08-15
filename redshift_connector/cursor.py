@@ -538,7 +538,7 @@ class Cursor:
 
         columns: typing.Optional[typing.List[typing.Union[str, bytes]]] = None
         try:
-            columns = [column[0].lower() for column in self.description]
+            columns = [column[0] for column in self.description]
         except:
             warn("No row description was found. pandas dataframe will be missing column labels.", stacklevel=2)
 
