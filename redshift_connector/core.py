@@ -307,10 +307,6 @@ PORTAL_SUSPENDED: bytes = b"s"
 NO_DATA: bytes = b"n"
 PARAMETER_DESCRIPTION: bytes = b"t"
 NOTIFICATION_RESPONSE: bytes = b"A"
-COPY_DONE: bytes = b"c"
-COPY_DATA: bytes = b"d"
-COPY_IN_RESPONSE: bytes = b"G"
-COPY_OUT_RESPONSE: bytes = b"H"
 EMPTY_QUERY_RESPONSE: bytes = b"I"
 
 BIND: bytes = b"B"
@@ -335,7 +331,6 @@ def create_message(code: bytes, data: bytes = b"") -> bytes:
 FLUSH_MSG: bytes = create_message(FLUSH)
 SYNC_MSG: bytes = create_message(SYNC)
 TERMINATE_MSG: bytes = create_message(TERMINATE)
-COPY_DONE_MSG: bytes = create_message(COPY_DONE)
 EXECUTE_MSG: bytes = create_message(EXECUTE, NULL_BYTE + i_pack(0))
 
 # DESCRIBE constants
@@ -766,10 +761,6 @@ class Connection:
             NO_DATA: self.handle_NO_DATA,
             PARAMETER_DESCRIPTION: self.handle_PARAMETER_DESCRIPTION,
             NOTIFICATION_RESPONSE: self.handle_NOTIFICATION_RESPONSE,
-            COPY_DONE: self.handle_COPY_DONE,
-            COPY_DATA: self.handle_COPY_DATA,
-            COPY_IN_RESPONSE: self.handle_COPY_IN_RESPONSE,
-            COPY_OUT_RESPONSE: self.handle_COPY_OUT_RESPONSE,
         }
 
         # Int32 - Message length, including self.
@@ -1138,155 +1129,6 @@ class Connection:
         # count = h_unpack(data)[0]
         # type_oids = unpack_from("!" + "i" * count, data, 2)
         _logger.debug("ParameterDescription received from BE")
-
-    def handle_COPY_DONE(self: "Connection", data, ps):
-        """
-        Handler for CopyDone message received via Amazon Redshift wire protocol, represented by b'c' code.
-
-        CopyDone (F & B)
-            Byte1('c')
-                Identifies the message as a COPY-complete indicator.
-
-            Int32(4)
-                Length of message contents in bytes, including self.
-
-        Parameters
-        ----------
-        :param data: bytes:
-            Message content
-        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
-            Prepared Statement from associated Cursor
-
-        Returns
-        -------
-        None:None
-        """
-        _logger.debug("CopyDone received from BE")
-        self._copy_done = True
-
-    def handle_COPY_OUT_RESPONSE(self: "Connection", data, ps):
-        """
-        Handler for CopyOutResponse message received via Amazon Redshift wire protocol, represented by b'H' code.
-
-        CopyOutResponse (B)
-            Byte1('H')
-                Identifies the message as a Start Copy Out response. This message will be followed by copy-out data.
-
-            Int32
-                Length of message contents in bytes, including self.
-
-            Int8
-                0 indicates the overall COPY format is textual (rows separated by newlines, columns separated by separator characters, etc). 1 indicates the overall copy format is binary (similar to DataRow format). See COPY for more information.
-
-            Int16
-                The number of columns in the data to be copied (denoted N below).
-
-            Int16[N]
-                The format codes to be used for each column. Each must presently be zero (text) or one (binary). All must be zero if the overall copy format is textual.
-
-        Parameters
-        ----------
-        :param data: bytes:
-            Message content
-        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
-            Prepared Statement from associated Cursor
-
-        Returns
-        -------
-        None:None
-        """
-        _logger.debug("CopyOutResponse received from BE")
-        is_binary, num_cols = bh_unpack(data)
-        _logger.debug("isbinary=%s num_cols=%s", is_binary, num_cols)
-        # column_formats = unpack_from('!' + 'h' * num_cols, data, 3)
-        if ps.stream is None:
-            raise InterfaceError("An output stream is required for the COPY OUT response.")
-
-    def handle_COPY_DATA(self: "Connection", data, ps) -> None:
-        """
-        Handler for CopyData message received via Amazon Redshift wire protocol, represented by b'd' code.
-
-        CopyData (F & B)
-            Byte1('d')
-                Identifies the message as COPY data.
-
-            Int32
-                Length of message contents in bytes, including self.
-
-            Byten
-                Data that forms part of a COPY data stream. Messages sent from the backend will always correspond to single data rows, but messages sent by frontends may divide the data stream arbitrarily.
-
-        Parameters
-        ----------
-        :param data: bytes:
-            Message content
-        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
-            Prepared Statement from associated Cursor
-
-        Returns
-        -------
-        None:None
-        """
-        _logger.debug("CopyData received from BE")
-        ps.stream.write(data)
-
-    def handle_COPY_IN_RESPONSE(self: "Connection", data, ps):
-        """
-        Handler for CopyInResponse message received via Amazon Redshift wire protocol, represented by b'G' code.
-
-        CopyInResponse (B)
-            Byte1('G')
-                Identifies the message as a Start Copy In response. The frontend must now send copy-in data (if not prepared to do so, send a CopyFail message).
-
-            Int32
-                Length of message contents in bytes, including self.
-
-            Int8
-                0 indicates the overall COPY format is textual (rows separated by newlines, columns separated by separator characters, etc). 1 indicates the overall copy format is binary (similar to DataRow format). See COPY for more information.
-
-            Int16
-                The number of columns in the data to be copied (denoted N below).
-
-            Int16[N]
-                The format codes to be used for each column. Each must presently be zero (text) or one (binary). All must be zero if the overall copy format is textual.
-
-        Parameters
-        ----------
-        :param data: bytes:
-            Message content
-        :param ps: typing.Optional[typing.Dict[str, typing.Any]]:
-            Prepared Statement from associated Cursor
-
-        Returns
-        -------
-        None:None
-        """
-        _logger.debug("CopyInResponse received from BE")
-        # Int16(2) - Number of columns
-        # Int16(N) - Format codes for each column (0 text, 1 binary)
-        is_binary, num_cols = bh_unpack(data)
-        _logger.debug("isbinary=%s num_cols=%s", (is_binary, num_cols))
-        # column_formats = unpack_from('!' + 'h' * num_cols, data, 3)
-        if ps.stream is None:
-            raise InterfaceError("An input stream is required for the COPY IN response.")
-
-        bffr: bytearray = bytearray(8192)
-        while True:
-            bytes_read = ps.stream.readinto(bffr)
-            if bytes_read == 0:
-                break
-            self._write(COPY_DATA + i_pack(bytes_read + 4))
-            self._write(bffr[:bytes_read])
-            self._flush()
-
-        # Send CopyDone
-        # Byte1('c') - Identifier.
-        # Int32(4) - Message length, including self.
-        _logger.debug("Sending CopyDone message to BE")
-        self._write(COPY_DONE_MSG)
-        _logger.debug("Sending Sync message to BE")
-        self._write(SYNC_MSG)
-        self._flush()
 
     def handle_NOTIFICATION_RESPONSE(self: "Connection", data, ps):
         """

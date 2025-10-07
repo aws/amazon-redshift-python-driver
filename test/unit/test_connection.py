@@ -142,13 +142,6 @@ def test_handle_error_response(_input) -> None:
     assert str(expected_decoded_msg) in str(mock_connection.error)
 
 
-def test_handle_copy_done() -> None:
-    mock_connection = Connection.__new__(Connection)
-    assert hasattr(mock_connection, "_copy_done") is False
-    mock_connection.handle_COPY_DONE(None, None)
-    assert mock_connection._copy_done is True
-
-
 test_inspect_int_vals: typing.List[typing.Tuple[int, typing.Tuple[int, int, typing.Callable]]] = [
     (min_int2 - 1, PY_TYPES[23]),
     (min_int2, PY_TYPES[23]),
