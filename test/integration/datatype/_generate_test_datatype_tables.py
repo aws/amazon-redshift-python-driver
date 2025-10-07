@@ -428,14 +428,14 @@ test_data: typing.Dict[str, typing.Tuple[typing.Tuple[typing.Any, ...], ...]] = 
         ("early", "00:00:00 EST", time(hour=5, minute=0, second=0, tzinfo=timezone.utc)),
         ("noon", "12:30:10 WDT", time(hour=3, minute=30, second=10, tzinfo=timezone.utc)),
         ("evening", "18:42:22 GMT", time(hour=18, minute=42, second=22, tzinfo=timezone.utc)),
-        ("night", "22:44:54 CET", time(hour=21, minute=44, second=54, tzinfo=timezone.utc)),
+        ("night", "22:44:54 PDT", time(hour=5, minute=44, second=54, tzinfo=timezone.utc)),
         (
             "with micro1",
-            "22:44:54.189717 CET",
-            time(hour=21, minute=44, second=54, microsecond=189717, tzinfo=timezone.utc),
+            "22:44:54.189717 PDT",
+            time(hour=5, minute=44, second=54, microsecond=189717, tzinfo=timezone.utc),
         ),
-        ("with micro2", "22:44:54.18 CET", time(hour=21, minute=44, second=54, microsecond=18, tzinfo=timezone.utc)),
-        ("end", "24:00:00 WET", time(hour=0, minute=0, second=0, tzinfo=timezone.utc)),
+        ("with micro2", "22:44:54.18 PDT", time(hour=5, minute=44, second=54, microsecond=18, tzinfo=timezone.utc)),
+        ("end", "24:00:00 CST", time(hour=6, minute=0, second=0, tzinfo=timezone.utc)),
     ),
 }
 
