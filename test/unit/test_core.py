@@ -178,16 +178,16 @@ def test_handle_command_complete_no_cache_cleanup(command_status, connection):
         "name": "max_prepared_statements_limit_1",
         "max_prepared_statements": 2,
         "queries": ["SELECT 1", "SELECT 2", "SELECT 3"],
-        "expected_close_calls": 2
+        "expected_close_calls": 1
     },
-{
+    {
         "name": "max_prepared_statements_limit_2",
         "max_prepared_statements": 2,
         "queries": ["SELECT 1", "SELECT 2"],
         "expected_close_calls": 0
     }
 ])
-def test_max_prepared_statement_zero(mocker, test_case):
+def test_prepared_statement_cache_behavior(mocker, test_case):
     """
     Test prepared statement cache management in execute() with different configurations.
     :type mocker: object
@@ -216,6 +216,53 @@ def test_max_prepared_statement_zero(mocker, test_case):
     # Verify close_prepared_statement was called for each execution
     assert mock_connection.close_prepared_statement.call_count == test_case["expected_close_calls"]
 
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "name": "statement_reuse",
+        "queries": ["SELECT 1", "SELECT 2", "SELECT 1", "SELECT 3"],
+        "expected_in_cache": ["SELECT 1", "SELECT 3"],
+        "expected_not_in_cache": ["SELECT 2"],
+        "expected_close_calls": 1
+    },
+    {
+        "name": "lru_order",
+        "queries": ["SELECT 1", "SELECT 2", "SELECT 1", "SELECT 2", "SELECT 3"],
+        "expected_in_cache": ["SELECT 2", "SELECT 3"],
+        "expected_not_in_cache": ["SELECT 1"],
+        "expected_close_calls": 1
+    }
+])
+def test_prepared_statement_lru_behavior(mocker, test_case):
+    """Test LRU behavior of prepared statement cache."""
+    from os import getpid
+
+    mock_connection = Connection.__new__(Connection)
+    mock_connection.max_prepared_statements = 2  # Set to 2 for LRU testing
+    mock_connection.merge_socket_read = True
+    mock_connection._caches = {}
+    mock_connection._send_message = mocker.Mock()
+    mock_connection._write = mocker.Mock()
+    mock_connection._flush = mocker.Mock()
+    mock_connection.handle_messages = mocker.Mock()
+    mock_connection.handle_messages_merge_socket_read = mocker.Mock()
+    mock_connection.close_prepared_statement = mocker.Mock()
+
+    mock_cursor = mocker.Mock()
+    mock_cursor.paramstyle = "named"
+
+    for query in test_case["queries"]:
+        mock_connection.execute(mock_cursor, query, None)
+
+    assert mock_connection.close_prepared_statement.call_count == test_case["expected_close_calls"]
+
+    # Verify cache contents
+    pid = getpid()
+    cache = mock_connection._caches["named"][pid]
+    for query in test_case["expected_in_cache"]:
+        assert any(key[0] == query for key in cache["statement_dict"])
+    for query in test_case["expected_not_in_cache"]:
+        assert not any(key[0] == query for key in cache["statement_dict"])
 
 @pytest.mark.parametrize("test_case", [
     {

@@ -2,7 +2,7 @@ import logging
 import os
 import socket
 import typing
-from collections import deque
+from collections import deque, OrderedDict
 from copy import deepcopy
 from datetime import datetime as Datetime
 from datetime import timedelta as Timedelta
@@ -1826,11 +1826,14 @@ class Connection:
         # transforms user provided bind parameters to server friendly bind parameters
         params: typing.Tuple[typing.Optional[typing.Tuple[int, int, typing.Callable]], ...] = ()
         has_bind_parameters: bool = False if vals is None else True
-        # multi dimensional dictionary to store the data
-        # cache = self._caches[cursor.paramstyle][pid]
-        # cache = {'statement': {}, 'ps': {}}
-        # statement stores the data of the statement, ps store the data of the prepared statement
-        # statement = {operation(query): tuple from 'convert_paramstyle'(statement, make_args)}
+        statements_to_close = []
+        # Cache structure for prepared statements:
+        # self._caches[paramstyle][pid] contains:
+        #   - 'statement': stores SQL statements and their parameter processors
+        #   - 'ps': stores prepared statement metadata
+        #   - 'statement_dict': OrderedDict tracking most recently used prepared statements
+        #                      (used when max_prepared_statements is set)
+        # Each statement entry contains (processed_statement, parameter_binding_function)
         try:
             cache = self._caches[cursor.paramstyle][pid]
         except KeyError:
@@ -1842,7 +1845,11 @@ class Connection:
             try:
                 cache = param_cache[pid]
             except KeyError:
-                cache = param_cache[pid] = {"statement": {}, "ps": {}}
+                cache = param_cache[pid] = {
+                    "statement": {},
+                    "ps": {},
+                    "statement_dict": OrderedDict() if self.max_prepared_statements > 0 else None
+                }
 
         try:
             statement, make_args = cache["statement"][operation]
@@ -1863,6 +1870,9 @@ class Connection:
 
         try:
             ps = cache["ps"][key]
+            # If statement exists, move it to end of ordered dict (most recently used)
+            if self.max_prepared_statements > 0 and 'statement_dict' in cache and key in cache["statement_dict"]:
+                cache["statement_dict"].move_to_end(key)
             _logger.debug("Using cached prepared statement")
             cursor.ps = ps
         except KeyError:
@@ -1978,12 +1988,21 @@ class Connection:
 
             ps["bind_2"] = h_pack(len(output_fc)) + pack("!" + "h" * len(output_fc), *output_fc)
 
-            if len(cache["ps"]) >= self.max_prepared_statements:
-                for p in cache["ps"].values():
-                    self.close_prepared_statement(p["statement_name_bin"])
-                cache["ps"].clear()
             if self.max_prepared_statements > 0:
+                # Ensure consistency between ps and statement_dict
+                if len(cache["ps"]) != len(cache["statement_dict"]):
+                    for existing_key in cache["ps"]:
+                        cache["statement_dict"][existing_key] = None
+
+                # If cache is full, remove oldest statement
+                if len(cache["ps"]) >= self.max_prepared_statements:
+                    oldest_key, _ = cache["statement_dict"].popitem(last=False)
+                    statements_to_close.append(cache["ps"][oldest_key]["statement_name_bin"])
+                    del cache["ps"][oldest_key]
+
+                # Add new statement to cache and queue
                 cache["ps"][key] = ps
+                cache["statement_dict"][key] = None
 
         cursor._cached_rows.clear()
         cursor._row_count = -1
@@ -2030,6 +2049,10 @@ class Connection:
             self.handle_messages_merge_socket_read(cursor)
         else:
             self.handle_messages(cursor)
+
+        # Clean up prepared statements after query execution and results are returned
+        for stmt in statements_to_close:
+            self.close_prepared_statement(stmt)
 
     def _send_message(self: "Connection", code: bytes, data: bytes) -> None:
         _logger.debug("Sending message with code %s to BE", code)

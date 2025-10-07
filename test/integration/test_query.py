@@ -474,8 +474,8 @@ def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker) -> None:
         "name": "max_prepared_statements_limit_2",
         "max_prepared_statements": 2,
         "queries": ["SELECT 1", "SELECT 2"],
-        "expected_close_calls": 2,
-        "expected_cache_size": 1
+        "expected_close_calls": 1,
+        "expected_cache_size": 2
     }
 ])
 def test_max_prepared_statement(con, mocker, test_case) -> None:
