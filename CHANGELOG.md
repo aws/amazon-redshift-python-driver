@@ -1,6 +1,12 @@
 Changelog
 =========
 
+v2.1.9 (2025-10-14)
+-------------------
+- Removed unsupported client/stdin COPY protocol implementation that was no longer maintained or supported
+- Added LRU (Least Recently Used) cache for prepared statements to improve memory management
+
+
 v2.1.8 (2025-07-01)
 -------------------
 - Added support for TCP keepalive properties tcp_keepalive_idle, tcp_keepalive_interval, and tcp_keepalive_count. This allows users to configure TCP keepalive settings, helping to maintain and verify the integrity of long-running database connections
