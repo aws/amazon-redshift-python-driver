@@ -10,7 +10,7 @@ def validate_idp_partition(idp_partition: typing.Optional[str]) -> typing.Option
         if not isinstance(idp_partition, str):
             raise InterfaceError("idp_partition must be a string")
         # Validate against allowed values
-        valid_partitions = ["", "us-gov", "cn"]
+        valid_partitions = ["", "commercial", "us-gov", "cn"]
         normalized = idp_partition.strip().lower()
         if normalized not in valid_partitions:
             raise InterfaceError(

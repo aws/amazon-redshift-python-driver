@@ -12,6 +12,12 @@ def test_get_microsoft_idp_host_empty_partition_returns_commercial_host(partitio
     assert get_microsoft_idp_host(partition) == "login.microsoftonline.com"
 
 
+@pytest.mark.parametrize("partition", ["commercial", "COMMERCIAL", "Commercial   "])
+def test_get_microsoft_idp_host_commercial_partition_returns_commercial_host(partition) -> None:
+    """Test that 'commercial' partitions return commercial host."""
+    assert get_microsoft_idp_host(partition) == "login.microsoftonline.com"
+
+
 @pytest.mark.parametrize("partition", ["us-gov", "US-GOV", "Us-gov   "])
 def test_get_microsoft_idp_host_us_gov_partition(partition) -> None:
     """Test that us-gov partitions return US government host."""
@@ -30,7 +36,7 @@ def test_get_microsoft_idp_host_invalid_partition_throws_error() -> None:
         get_microsoft_idp_host("random_partition")
 
 
-@pytest.mark.parametrize("partition", ["", "us-gov", "cn", None])
+@pytest.mark.parametrize("partition", ["", "commercial", "us-gov", "cn", None])
 def test_validate_idp_partition_valid_values(partition) -> None:
     """Test that valid partition values are accepted."""
     result = validate_idp_partition(partition)

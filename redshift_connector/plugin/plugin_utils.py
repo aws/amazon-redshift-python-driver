@@ -16,12 +16,14 @@ def get_microsoft_idp_host(idp_partition: typing.Optional[str] = None) -> str:
         return MICROSOFT_COMMERCIAL_HOST
 
     partition = validated_partition.strip().lower()
+    
+    if partition == "commercial":
+        return MICROSOFT_COMMERCIAL_HOST
+    
     if partition in MICROSOFT_IDP_HOSTS:
         return MICROSOFT_IDP_HOSTS[partition]
     else:
-        supported_values = list(MICROSOFT_IDP_HOSTS.keys())
-        raise InterfaceError(
-            "Invalid IdP partition: '{}' (normalized: '{}'). Supported values are: {}, or empty/None for commercial cloud.".format(
-                idp_partition, partition, ", ".join("'{}'".format(v) for v in supported_values)
-            )
-        )
+        supported_values = list(MICROSOFT_IDP_HOSTS.keys()) + ["commercial"]
+        raise InterfaceError("Invalid IdP partition: '{}' (normalized: '{}'). Supported values are: {}, or empty/None for commercial cloud.".format(
+            idp_partition, partition, ", ".join("'{}'".format(v) for v in supported_values)
+        ))
