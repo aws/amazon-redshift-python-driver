@@ -376,6 +376,17 @@ def connect(
     info.put("user_name", user)
     info.put("web_identity_token", web_identity_token)
 
+    warning_message = """
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! WARNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ****************************************************************************************************************************************
+    *                                                                                                                                      *
+    *  Log level DEBUG is enabled!                                                                                                         *
+    *  WARNING: Log level Debug captures ALL data which may include sensitive information.                                                 *
+    *                                                                                                                                      *
+    *  IMPORTANT: Before sharing logs with support or any third party, ensure all sensitive information is redacted/removed from the logs  *
+    ****************************************************************************************************************************************
+    """
+    _logger.debug(warning_message)
     _logger.debug(make_divider_block())
     _logger.debug("User provided connection arguments")
     _logger.debug(make_divider_block())
