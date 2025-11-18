@@ -51,6 +51,7 @@ class BrowserIdcAuthPlugin(CommonCredentialsProvider):
     CURRENT_INTERACTION_SCHEMA = "https"
     OIDC_SCHEMA = "oidc"
     AMAZON_COM_SCHEMA = "amazonaws.com"
+    AMAZON_CHINA_SCHEMA = "amazonaws.com.cn"
     REDSHIFT_IDC_CONNECT_SCOPE = "redshift:connect"
     AUTH_CODE_GRANT_TYPE = "authorization_code"
     REDIRECT_URI = "http://127.0.0.1"
@@ -389,7 +390,7 @@ class BrowserIdcAuthPlugin(CommonCredentialsProvider):
         }
 
         encoded_params: str = urlencode(params)
-        idc_host = self.OIDC_SCHEMA + "." + str(self.idc_region) + "." + self.AMAZON_COM_SCHEMA
+        idc_host = self._build_oidc_host_url(self.idc_region)
 
         return urlunsplit(
             (
@@ -400,6 +401,31 @@ class BrowserIdcAuthPlugin(CommonCredentialsProvider):
                 "",
             )
         )
+
+    def _build_oidc_host_url(self: "BrowserIdcAuthPlugin", idc_region: str) -> str:
+        """
+        Builds the OpenID Connect (OIDC) host URL based on the provided region.
+        
+        :param idc_region: The AWS region identifier (e.g., "us-west-2", "cn-north-1")
+        :return: The formatted OIDC host URL
+        :raises InterfaceError: if the region is null, empty, or not a valid AWS region
+        """
+        if not idc_region:
+            raise InterfaceError("Region cannot be null or empty")
+        
+        normalized_region = idc_region.strip().lower()
+        if not normalized_region:
+            raise InterfaceError("Region cannot be empty")
+        
+        # Validate region format to prevent injection attacks
+        import re
+        # AWS region format: partition-region-az (e.g., us-west-2, cn-north-1, us-gov-east-1)
+        region_pattern = r'^[a-z]{2,3}(-[a-z]+)+-[0-9]+$'
+        if not re.match(region_pattern, normalized_region):
+            raise InterfaceError(f"Invalid AWS region format: {normalized_region}")
+        
+        domain = self.AMAZON_CHINA_SCHEMA if normalized_region.startswith("cn-") else self.AMAZON_COM_SCHEMA
+        return f"{self.OIDC_SCHEMA}.{normalized_region}.{domain}"
 
     def get_listen_socket(self: "BrowserIdcAuthPlugin", listen_port: int) -> socket.socket:
         """

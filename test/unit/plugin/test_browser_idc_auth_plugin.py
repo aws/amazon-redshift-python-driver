@@ -14,7 +14,7 @@ from redshift_connector.redshift_property import RedshiftProperty
 
 def make_valid_browser_idc_provider() -> typing.Tuple[BrowserIdcAuthPlugin, RedshiftProperty]:
     rp: RedshiftProperty = RedshiftProperty()
-    rp.idc_region = "some_region"
+    rp.idc_region = "us-west-2"
     rp.issuer_url = "some_url"
     rp.idp_response_timeout = 100
     rp.listen_port = 8000
@@ -25,7 +25,7 @@ def make_valid_browser_idc_provider() -> typing.Tuple[BrowserIdcAuthPlugin, Reds
 
 def valid_browser_without_optional_parameter() -> typing.Tuple[BrowserIdcAuthPlugin, RedshiftProperty]:
     rp: RedshiftProperty = RedshiftProperty()
-    rp.idc_region = "some_region"
+    rp.idc_region = "us-west-2"
     rp.issuer_url = "some_url"
     cp: BrowserIdcAuthPlugin = BrowserIdcAuthPlugin()
     cp.add_parameter(rp)
@@ -261,7 +261,7 @@ def test_authorization_token_url():
     mocked_state: str = "mockedState"
     mocked_client_id: str = "mockedClientId"
     mocked_code_challenge: str = "mockedCodeChallenge"
-    expected_url = "https://oidc.some_region.amazonaws.com/authorize?response_type=code&client_id=mockedClientId&redirect_uri=None&state=mockedState&scopes=redshift%3Aconnect&code_challenge=mockedCodeChallenge&code_challenge_method=S256"
+    expected_url = "https://oidc.us-west-2.amazonaws.com/authorize?response_type=code&client_id=mockedClientId&redirect_uri=None&state=mockedState&scopes=redshift%3Aconnect&code_challenge=mockedCodeChallenge&code_challenge_method=S256"
 
     url: str = idc_credentials_provider.get_authorization_token_url(
         mocked_state, mocked_client_id, mocked_code_challenge
@@ -292,3 +292,42 @@ def test_open_browser():
 
     listen_socket: socket.socket = idc_credentials_provider.get_listen_socket(mocked_port)
     assert str(listen_socket.getsockname()) == expected_socket
+
+
+@pytest.mark.parametrize("region,expected_host", [
+    ("cn-north-1", "oidc.cn-north-1.amazonaws.com.cn"),
+    ("CN-NORTH-1", "oidc.cn-north-1.amazonaws.com.cn"),
+    (" cn-north-1 ", "oidc.cn-north-1.amazonaws.com.cn"),  # Test with spaces
+    ("us-west-2", "oidc.us-west-2.amazonaws.com"),
+    (" US-WEST-2 ", "oidc.us-west-2.amazonaws.com"),  # Test with upper case and spaces
+    ("us-gov-west-1", "oidc.us-gov-west-1.amazonaws.com"),
+    ("us-gov-east-1", "oidc.us-gov-east-1.amazonaws.com"),
+    ("us-east-1", "oidc.us-east-1.amazonaws.com"),
+    ("eu-west-1", "oidc.eu-west-1.amazonaws.com"),  # Dublin
+    ("ap-southeast-2", "oidc.ap-southeast-2.amazonaws.com"),  # Multi-word region
+    ("eu-central-1", "oidc.eu-central-1.amazonaws.com"),  # Frankfurt
+])
+def test_build_oidc_host_url_valid_regions(region, expected_host):
+    """Test that valid regions produce correct OIDC host URLs"""
+    idc_credentials_provider, rp = make_valid_browser_idc_provider()
+    
+    result = idc_credentials_provider._build_oidc_host_url(region)
+    assert result == expected_host
+
+
+@pytest.mark.parametrize("invalid_region", [
+    None,
+    "",
+    " ",
+    "invalid-region",
+    "../../etc/passwd",
+    "us-west-2; rm -rf /",
+    "us-west-2.evil.com",
+    "evil.com#us-west-2"
+])
+def test_build_oidc_host_url_invalid_regions(invalid_region):
+    """Test that invalid regions raise InterfaceError"""
+    idc_credentials_provider, rp = make_valid_browser_idc_provider()
+    
+    with pytest.raises(InterfaceError):
+        idc_credentials_provider._build_oidc_host_url(invalid_region)
