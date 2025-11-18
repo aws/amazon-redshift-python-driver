@@ -4,8 +4,10 @@ import typing
 from enum import Enum
 
 from redshift_connector.error import InterfaceError
+from redshift_connector.plugin.azure_utils import validate_idp_partition
 from redshift_connector.plugin.credential_provider_constants import azure_headers
 from redshift_connector.plugin.jwt_credentials_provider import JwtCredentialsProvider
+from redshift_connector.plugin.plugin_utils import get_microsoft_idp_host
 from redshift_connector.redshift_property import RedshiftProperty
 
 if typing.TYPE_CHECKING:
@@ -35,8 +37,8 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         SCOPE: str = "scope"
         RESPONSE_MODE: str = "response_mode"
         RESOURCE: str = "resource"
+        IDP_PARTITION: str = "idp_partition"
 
-    MICROSOFT_IDP_HOST: str = "login.microsoftonline.com"
     CURRENT_INTERACTION_SCHEMA: str = "https"
 
     def __init__(self: "BrowserAzureOAuth2CredentialsProvider") -> None:
@@ -44,6 +46,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         self.idp_tenant: typing.Optional[str] = None
         self.client_id: typing.Optional[str] = None
         self.scope: str = ""
+        self.idp_partition: typing.Optional[str] = None
         self.idp_response_timeout: int = 120
         self.listen_port: int = 0
 
@@ -55,6 +58,9 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         self.idp_tenant = info.idp_tenant
         self.client_id = info.client_id
         self.scope = info.scope
+        
+        # Validate and set idp_partition
+        self.idp_partition = validate_idp_partition(info.idp_partition)
 
         if info.idp_response_timeout:
             self.idp_response_timeout = info.idp_response_timeout
@@ -207,7 +213,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         return urlunsplit(
             (
                 BrowserAzureOAuth2CredentialsProvider.CURRENT_INTERACTION_SCHEMA,
-                BrowserAzureOAuth2CredentialsProvider.MICROSOFT_IDP_HOST,
+                get_microsoft_idp_host(self.idp_partition),
                 "/{}/oauth2/v2.0/authorize".format(self.idp_tenant),
                 encoded_params,
                 "",
@@ -251,7 +257,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         """
         return "{}://{}{}".format(
             BrowserAzureOAuth2CredentialsProvider.CURRENT_INTERACTION_SCHEMA,
-            BrowserAzureOAuth2CredentialsProvider.MICROSOFT_IDP_HOST,
+            get_microsoft_idp_host(self.idp_partition),
             "/{}/oauth2/v2.0/token".format(self.idp_tenant),
         )
 

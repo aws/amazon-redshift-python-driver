@@ -7,6 +7,15 @@ import requests
 from redshift_connector import InterfaceError, RedshiftProperty
 from redshift_connector.plugin import AzureCredentialsProvider
 from redshift_connector.plugin.credential_provider_constants import azure_headers
+from redshift_connector.plugin.plugin_utils import get_microsoft_idp_host
+
+# Import common Azure tests
+from test.unit.plugin.test_azure_common import (
+    test_get_microsoft_idp_host_empty_partition_returns_commercial_host,
+    test_get_microsoft_idp_host_us_gov_partition,
+    test_get_microsoft_idp_host_china_partition,
+    test_get_microsoft_idp_host_invalid_partition_throws_error
+)
 
 
 def make_valid_azure_credentials_provider() -> typing.Tuple[AzureCredentialsProvider, RedshiftProperty]:

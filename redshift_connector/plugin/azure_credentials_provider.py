@@ -3,7 +3,9 @@ import logging
 import typing
 
 from redshift_connector.error import InterfaceError
+from redshift_connector.plugin.azure_utils import validate_idp_partition
 from redshift_connector.plugin.credential_provider_constants import azure_headers
+from redshift_connector.plugin.plugin_utils import get_microsoft_idp_host
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
@@ -23,6 +25,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         self.idp_tenant: typing.Optional[str] = None
         self.client_secret: typing.Optional[str] = None
         self.client_id: typing.Optional[str] = None
+        self.idp_partition: typing.Optional[str] = None
 
     # method to grab the field parameters specified by end user.
     # This method adds to it Azure specific parameters.
@@ -34,6 +37,9 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         self.client_secret = info.client_secret
         # The value of parameter client_id.
         self.client_id = info.client_id
+        
+        # Validate and set idp_partition
+        self.idp_partition = validate_idp_partition(info.idp_partition)
 
     # Required method to grab the SAML Response. Used in base class to refresh temporary credentials.
     def get_saml_assertion(self: "AzureCredentialsProvider") -> str:
@@ -63,7 +69,10 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         import requests
 
         # endpoint to connect with Microsoft Azure to get SAML Assertion token
-        url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
+        url: str = "https://{host}/{tenant}/oauth2/token".format(
+            host=get_microsoft_idp_host(self.idp_partition), 
+            tenant=self.idp_tenant
+        )
         _logger.debug("Uri: %s", url)
         self.validate_url(url)
 

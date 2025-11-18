@@ -67,6 +67,8 @@ class RedshiftProperty:
             self.idp_host: typing.Optional[str] = None
             # timeout for authentication via Browser IDP
             self.idp_response_timeout: int = 120
+            # The IdP partition for multi-tenant IdP configurations (Azure AD: us-gov, cn)
+            self.idp_partition: typing.Optional[str] = None
             # The Azure AD tenant ID for your Redshift application.Only used for Azure AD.
             self.idp_tenant: typing.Optional[str] = None
             # The port used by an IdP (identity provider).

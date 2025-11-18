@@ -360,6 +360,25 @@ def redshift_browser_idc() -> typing.Dict[str, typing.Union[str, typing.Optional
     return db_connect
 
 
+@pytest.fixture(scope="class")
+def redshift_browser_azure_oauth2() -> typing.Dict[str, typing.Union[str, typing.Optional[bool], int]]:
+    db_connect = {
+        "host": conf.get("redshift-browser-azure-oauth2", "host", fallback=None),
+        "port": conf.getint("redshift-browser-azure-oauth2", "port", fallback=5439),
+        "database": conf.get("redshift-browser-azure-oauth2", "database", fallback="dev"),
+        "iam": conf.getboolean("redshift-browser-azure-oauth2", "iam", fallback=True),
+        "credentials_provider": conf.get(
+            "redshift-browser-azure-oauth2", "credentials_provider", fallback="BrowserAzureOAuth2CredentialsProvider"
+        ),
+        "idp_tenant": conf.get("redshift-browser-azure-oauth2", "idp_tenant", fallback=None),
+        "client_id": conf.get("redshift-browser-azure-oauth2", "client_id", fallback=None),
+        "scope": conf.get("redshift-browser-azure-oauth2", "scope", fallback=None),
+        "idp_partition": conf.get("redshift-browser-azure-oauth2", "idp_partition", fallback=None),
+        "idp_response_timeout": conf.getint("redshift-browser-azure-oauth2", "idp_response_timeout", fallback=120),
+    }
+    return db_connect
+
+
 @pytest.fixture
 def con(request, db_kwargs) -> redshift_connector.Connection:
     conn: redshift_connector.Connection = redshift_connector.connect(**db_kwargs)

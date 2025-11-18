@@ -6,7 +6,9 @@ import socket
 import typing
 
 from redshift_connector.error import InterfaceError
+from redshift_connector.plugin.azure_utils import validate_idp_partition
 from redshift_connector.plugin.credential_provider_constants import azure_headers
+from redshift_connector.plugin.plugin_utils import get_microsoft_idp_host
 from redshift_connector.plugin.saml_credentials_provider import SamlCredentialsProvider
 from redshift_connector.redshift_property import RedshiftProperty
 
@@ -28,6 +30,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
         self.idp_response_timeout: int = 120
         self.listen_port: int = 0
+        self.idp_partition: typing.Optional[str] = None
 
         self.redirectUri: typing.Optional[str] = None
 
@@ -48,6 +51,9 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         self.idp_tenant = info.idp_tenant
         # The value of parameter client_id.
         self.client_id = info.client_id
+        
+        # Validate and set idp_partition
+        self.idp_partition = validate_idp_partition(info.idp_partition)
 
         self.idp_response_timeout = info.idp_response_timeout
 
@@ -110,7 +116,10 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         _logger.debug("BrowserAzureCredentialsProvider.fetch_saml_response")
         import requests
 
-        url: str = "https://login.microsoftonline.com/{tenant}/oauth2/token".format(tenant=self.idp_tenant)
+        url: str = "https://{host}/{tenant}/oauth2/token".format(
+            host=get_microsoft_idp_host(self.idp_partition), 
+            tenant=self.idp_tenant
+        )
         # headers to pass with POST request
         headers: typing.Dict[str, str] = azure_headers
         self.validate_url(url)
@@ -237,16 +246,21 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
     def open_browser(self: "BrowserAzureCredentialsProvider", state: str) -> None:
         _logger.debug("BrowserAzureCredentialsProvider.open_browser")
         import webbrowser
+        from urllib.parse import quote, urlencode
 
-        url: str = (
-            "https://login.microsoftonline.com/{tenant}"
-            "/oauth2/authorize"
-            "?scope=openid"
-            "&response_type=code"
-            "&response_mode=form_post"
-            "&client_id={id}"
-            "&redirect_uri={uri}"
-            "&state={state}".format(tenant=self.idp_tenant, id=self.client_id, uri=self.redirectUri, state=state)
+        # For query parameters, use urlencode for the entire query string
+        query_params = {
+            'scope': 'openid',
+            'response_type': 'code',
+            'response_mode': 'form_post',
+            'client_id': self.client_id,
+            'redirect_uri': self.redirectUri,
+            'state': state
+        }
+        url: str = "https://{host}/{tenant}/oauth2/authorize?{query}".format(
+            host=get_microsoft_idp_host(self.idp_partition), 
+            tenant=self.idp_tenant,
+            query=urlencode(query_params)
         )
         self.validate_url(url)
         webbrowser.open(url)

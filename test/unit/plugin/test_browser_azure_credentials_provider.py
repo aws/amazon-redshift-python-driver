@@ -3,6 +3,7 @@ import webbrowser
 from test.unit.mocks.mock_socket import MockSocket
 from test.unit.plugin.data import browser_azure_data
 from unittest.mock import patch
+from urllib.parse import urlparse
 
 import pytest  # type: ignore
 import requests
@@ -11,6 +12,15 @@ from redshift_connector import RedshiftProperty
 from redshift_connector.error import InterfaceError
 from redshift_connector.plugin.browser_azure_credentials_provider import (
     BrowserAzureCredentialsProvider,
+)
+from redshift_connector.plugin.plugin_utils import get_microsoft_idp_host
+
+# Import common Azure tests
+from test.unit.plugin.test_azure_common import (
+    test_get_microsoft_idp_host_empty_partition_returns_commercial_host,
+    test_get_microsoft_idp_host_us_gov_partition,
+    test_get_microsoft_idp_host_china_partition,
+    test_get_microsoft_idp_host_invalid_partition_throws_error
 )
 
 if typing.TYPE_CHECKING:
@@ -278,6 +288,29 @@ def test_fetch_saml_response_malformed_should_fail(mocked_post, datas) -> None:
         bacp.fetch_saml_response(token="blah")
 
     assert expected_error in str(ex.value)
+
+
+@pytest.mark.parametrize("partition, expected_host", [
+    (None, "login.microsoftonline.com"),
+    ("", "login.microsoftonline.com"),
+    ("us-gov", "login.microsoftonline.us"),
+    ("cn", "login.chinacloudapi.cn")
+])
+def test_open_browser_with_partition(mocker, partition, expected_host) -> None:
+    """Test that open_browser uses the correct IdP host based on partition"""
+    bacp: BrowserAzureCredentialsProvider = make_valid_browser_azure_credential_provider()
+    bacp.idp_partition = partition
+    
+    mock_webbrowser_open = mocker.patch("webbrowser.open")
+    bacp.open_browser(browser_azure_data.state)
+    
+    # Verify URL components separately using urlparse
+    call_args = mock_webbrowser_open.call_args
+    url = call_args[0][0]  # First positional argument is the URL
+    parsed_url = urlparse(url)
+    assert parsed_url.netloc == expected_host
+    assert parsed_url.scheme == 'https'
+    assert '/oauth2/authorize' in parsed_url.path
 
 
 def test_open_browser(mocker) -> None:

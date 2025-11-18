@@ -153,6 +153,7 @@ def connect(
     client_secret: typing.Optional[str] = None,
     partner_sp_id: typing.Optional[str] = None,
     idp_response_timeout: typing.Optional[int] = None,
+    idp_partition: typing.Optional[str] = None,
     listen_port: typing.Optional[int] = None,
     login_to_rp: typing.Optional[str] = None,
     login_url: typing.Optional[str] = None,
@@ -334,6 +335,7 @@ def connect(
     info.put("idc_region", idc_region)
     info.put("identity_namespace", identity_namespace)
     info.put("idp_host", idp_host)
+    info.put("idp_partition", idp_partition)
     info.put("idp_response_timeout", idp_response_timeout)
     info.put("idp_tenant", idp_tenant)
     info.put("issuer_url", issuer_url)
