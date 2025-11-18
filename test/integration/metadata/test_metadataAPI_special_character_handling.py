@@ -1,15 +1,9 @@
-import configparser
-import os
 import typing
 
 import pytest  # type: ignore
-
 import redshift_connector
 from redshift_connector.metadataAPIHelper import MetadataAPIHelper
 
-conf: configparser.ConfigParser = configparser.ConfigParser()
-root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-conf.read(root_path + "/config.ini")
 
 current_catalog: str = "dev"
 

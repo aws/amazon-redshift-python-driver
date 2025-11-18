@@ -155,7 +155,7 @@ def test_get_schemas(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() < 2:
+            if cursor.get_show_discovery_version() < 2:
                 spy = mocker.spy(cursor, "execute")
                 result: typing.Tuple = cursor.get_schemas(**_args)
                 print(result)
@@ -286,7 +286,7 @@ def test_get_tables(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() < 2:
+            if cursor.get_show_discovery_version() < 2:
                 spy = mocker.spy(cursor, "execute")
                 result: typing.Tuple = cursor.get_tables(**_args)
                 print(result)
@@ -515,7 +515,7 @@ def test_get_columns(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() < 2:
+            if cursor.get_show_discovery_version() < 2:
                 spy = mocker.spy(cursor, "execute")
                 result: typing.Tuple = cursor.get_columns(**_args)
                 print(result)
@@ -576,7 +576,7 @@ def test_get_catalogs(mocker, _input, db_kwargs) -> None:
     db_kwargs["database_metadata_current_db_only"] = database_metadata_current_db_only_val
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() < 2:
+            if cursor.get_show_discovery_version() < 2:
                 spy = mocker.spy(cursor, "execute")
                 result: typing.Tuple = cursor.get_catalogs()
                 print(result)

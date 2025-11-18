@@ -6,6 +6,10 @@ from collections import deque
 from itertools import count, islice
 from typing import TYPE_CHECKING, Optional
 from warnings import warn
+from dataclasses import dataclass
+
+from redshift_connector.metadataServerProxy import MetadataServerProxy
+from redshift_connector.metadataAPIPostProcessor import MetadataAPIPostProcessor
 
 import redshift_connector
 from redshift_connector.config import (
@@ -19,8 +23,6 @@ from redshift_connector.error import (
     InterfaceError,
     ProgrammingError,
 )
-from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
 
 if TYPE_CHECKING:
     from redshift_connector.core import Connection
@@ -33,6 +35,210 @@ if TYPE_CHECKING:
 
 _logger: logging.Logger = logging.getLogger(__name__)
 
+
+# Define returned result for get_catalogs
+CatalogsRow = typing.Tuple[
+    str #table_cat
+]
+CatalogsResult = typing.Tuple[CatalogsRow, ...]
+
+
+# Define returned result for get_schemas
+SchemaRow = typing.Tuple[
+    str,  # table_schem
+    str   # table_catalog
+]
+SchemasResult = typing.Tuple[SchemaRow, ...]
+
+# Define returned result for get_tables
+TableRow = typing.Tuple[
+    str,  # table_cat
+    str,  # table_schem
+    str,  # table_name
+    str,  # table_type
+    str,  # remarks
+    str,  # type_cat
+    str,  # type_schem
+    str,  # type_name
+    str,  # self_referencing_col_name
+    str   # ref_generation
+]
+TablesResult = typing.Tuple[TableRow, ...]
+
+# Define returned result for get_columns
+ColumnRow = typing.Tuple[
+    str,  # table_cat
+    str,  # table_schem
+    str,  # table_name
+    str,  # column_name
+    int,  # data_type
+    str,  # type_name
+    int,  # column_size
+    typing.Optional[int],  # buffer_length
+    int,  # decimal_digits
+    int,  # num_prec_radix
+    int,  # nullable
+    typing.Optional[str],  # remarks
+    typing.Optional[str],  # column_def
+    int,  # sql_data_type
+    typing.Optional[int],  # sql_datetime_sub
+    typing.Optional[int],  # char_octet_length
+    int,  # ordinal_position
+    str,  # is_nullable
+    typing.Optional[str],  # scope_catalog
+    typing.Optional[str],  # scope_schema
+    typing.Optional[str],  # scope_table
+    typing.Optional[int],  # source_data_type
+    str,  # is_autoincrement
+    str   # is_generatedcolumn
+]
+ColumnsResult = typing.Tuple[ColumnRow, ...]
+
+# Define returned result for get_primary_keys
+PrimaryKeyRow = typing.Tuple[
+    str,  # table_cat
+    str,  # table_schem
+    str,  # table_name
+    str,  # column_name
+    int,  # key_seq
+    str   # pk_name
+]
+PrimaryKeysResult = typing.Tuple[PrimaryKeyRow, ...]
+
+# Define returned result for get_imported_keys and get_exported_keys
+ForeignKeyRow = typing.Tuple[
+    str,  # pktable_cat
+    str,  # pktable_schem
+    str,  # pktable_name
+    str,  # pkcolumn_name
+    str,  # fktable_cat
+    str,  # fktable_schem
+    str,  # fktable_name
+    str,  # fkcolum_name
+    int,  # key_seq
+    int,  # update_rule
+    int,  # delete_rule
+    str,  # fk_name
+    str,  # pk_name
+    int   # deferrability
+]
+ForeignKeysResult = typing.Tuple[ForeignKeyRow, ...]
+
+# Define returned result for get_best_row_identifier
+BestRowIdentifierRow = typing.Tuple[
+    int,  # scope
+    str,  # column_name
+    int,  # data_type
+    str,  # type_name
+    int,  # column_size
+    typing.Optional[int],  # buffer_length
+    int,  # decimal_digits
+    int   # pseudo_column
+]
+BestRowIdentifierResult = typing.Tuple[BestRowIdentifierRow, ...]
+
+# Define returned result for get_column_privileges
+ColumnPrivilegeRow = typing.Tuple[
+    str,  # table_cat
+    str,  # table_schem
+    str,  # table_name
+    str,  # column_name
+    str,  # grantor
+    str,  # grantee
+    str,  # privilege
+    str   # is_grantable
+]
+ColumnPrivilegeResult = typing.Tuple[ColumnPrivilegeRow, ...]
+
+# Define returned result for get_table_privileges
+TablePrivilegeRow = typing.Tuple[
+    str,  # table_cat
+    str,  # table_schem
+    str,  # table_name
+    str,  # grantor
+    str,  # grantee
+    str,  # privilege
+    str   # is_grantable
+]
+TablePrivilegeResult = typing.Tuple[TablePrivilegeRow, ...]
+
+# Define returned result for get_procedures
+ProcedureRow = typing.Tuple[
+    str,  # procedure_cat
+    str,  # procedure_schem
+    str,  # procedure_name
+    typing.Optional[str],  # reserve1
+    typing.Optional[str],  # reserve2
+    typing.Optional[str],  # reserve3
+    typing.Optional[str],  # remarks
+    int,  # procedure_type
+    str   # specific_name
+]
+ProcedureResult = typing.Tuple[ProcedureRow, ...]
+
+# Define returned result for get_procedure_columns
+ProcedureColumnRow = typing.Tuple[
+    str,  # procedure_cat
+    str,  # procedure_schem
+    str,  # procedure_name
+    str,  # column_name
+    int,  # column_type
+    int,  # data_type
+    str,  # type_name
+    int,  # precision
+    typing.Optional[int],  # length
+    int,  # scale
+    int,  # radix
+    int,  # nullable
+    typing.Optional[str],  # remarks
+    typing.Optional[str],  # column_def
+    int,  # sql_data_type
+    typing.Optional[int],  # sql_datetime_sub
+    typing.Optional[int],  # char_octet_length
+    int,  # ordinal_position
+    str,  # is_nullable
+    str   # specific_name
+]
+ProcedureColumnResult = typing.Tuple[ProcedureColumnRow, ...]
+
+# Define returned result for get_functions
+FunctionRow = typing.Tuple[
+    str,  # function_cat
+    str,  # function_schem
+    str,  # function_name
+    typing.Optional[str],  # remarks
+    int,  # function_type
+    str   # specific_name
+]
+FunctionResult = typing.Tuple[FunctionRow, ...]
+
+# Define returned result for get_function_columns
+FunctionColumnRow = typing.Tuple[
+    str,  # function_cat
+    str,  # function_schem
+    str,  # function_name
+    str,  # column_name
+    int,  # column_type
+    int,  # data_type
+    str,  # type_name
+    int,  # precision
+    typing.Optional[int],  # length
+    int,  # scale
+    int,  # radix
+    int,  # nullable
+    typing.Optional[str],  # remarks
+    typing.Optional[int],  # char_octet_length
+    int,  # ordinal_position
+    str,  # is_nullable
+    str   # specific_name
+]
+FunctionColumnResult = typing.Tuple[FunctionColumnRow, ...]
+
+# Define returned result for get_catalogs
+TableTypesRow = typing.Tuple[
+    str #table_type
+]
+TableTypesResult = typing.Tuple[TableTypesRow, ...]
 
 class Cursor:
     """A cursor object is returned by the :meth:`~Connection.cursor` method of
@@ -108,17 +314,30 @@ class Cursor:
         else:
             self.paramstyle = paramstyle
 
-        self._metadataServerAPIHelper = MetadataServerAPIHelper(self)
-        self._metadataAPIPostProcessing = MetadataAPIPostProcessing(self)
-        self._cur_catalog: Optional[str] = None
-        self._SHOW_DATABASES_Col_index: Optional[typing.Dict] = None
-        self._SHOW_SCHEMAS_Col_index: Optional[typing.Dict] = None
-        self._SHOW_TABLES_Col_index: Optional[typing.Dict] = None
-        self._SHOW_COLUMNS_Col_index: Optional[typing.Dict] = None
+        self._metadataServerProxy = MetadataServerProxy(self)
+        self._metadataAPIPostProcessor = MetadataAPIPostProcessor(self)
+        self._cur_catalog: typing.Optional[str] = None
+        self._SHOW_DATABASES_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_SCHEMAS_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_TABLES_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_COLUMNS_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_CONSTRAINTS_PK_Col_index:  typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_CONSTRAINTS_FK_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_GRANTS_COLUMN_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_GRANTS_TABLE_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_PROCEDURES_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_PARAMETERS_PRO_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_FUNCTIONS_Col_index: typing.Optional[typing.Dict[str, int]] = None
+        self._SHOW_PARAMETERS_FUNC_Col_index: typing.Optional[typing.Dict[str, int]] = None
 
-        # The minimum show discovery version for the following metadata api was version 2:
-        # get_catalogs, get_schemas, get_tables, get_columns
-        self._MIN_SHOW_DISCOVERY_VERSION: int = 2
+        self._TABLE_TYPE_LIST:typing.List[typing.Tuple] = [("EXTERNAL TABLE",), ("EXTERNAL VIEW",), ("LOCAL TEMPORARY",), ("TABLE",), ("VIEW",)]
+
+        # The minimum show discovery version with prepare support for the following metadata api was version 4:
+        # get_catalogs, get_schemas, get_tables, get_columns,
+        # get_primary_keys, get_imported_keys, get_exported_keys, get_best_row_identifier,
+        # get_column_privileges, get_table_privileges,
+        # get_procedures, get_procedure_columns, get_functions, get_function_columns
+        self._MIN_SHOW_DISCOVERY_VERSION_V4: int = 4
 
         _logger.debug("Cursor.paramstyle=%s", self.paramstyle)
 
@@ -643,12 +862,250 @@ class Cursor:
 
         return numpy.array(fetched)
 
+
+    def _process_metadata_request(self,
+                                metadata_api_name: str,
+                                min_show_discovery_version: int,
+                                params: typing.Optional[typing.Dict[str, typing.Any]],
+                                api_method: typing.Optional[typing.Callable],
+                                post_process_method: typing.Optional[typing.Callable],
+                                legacy_method: typing.Optional[typing.Callable] = None,
+                                required_params: typing.Optional[typing.Dict[typing.Any, str]] = None,
+                                additional_args: typing.Dict = None) -> typing.Any:
+
+        """
+        Helper function to process metadata API requests with version checking, parameter validation,
+        and result post-processing.
+
+        Args:
+            metadata_api_name: Name of the metadata API being called
+            min_show_discovery_version: Minimum version required for SHOW command support
+            params: Dictionary of parameters for the API call
+            api_method: The main API method to execute
+            post_process_method: Method to process the API results
+            legacy_method: Optional fallback method for older padb versions
+            required_params: Dictionary mapping required parameters to their names
+            additional_args: Additional arguments needed for post-processing
+
+        Returns:
+            Processed results from the metadata API call
+        """
+
+        self._check_connection()
+
+        has_legacy = legacy_method is not None
+        if not self._check_show_discovery_support(min_show_discovery_version, metadata_api_name, has_legacy):
+            if 'is_single_database_metadata' in params:
+                params.pop('is_single_database_metadata')
+            return legacy_method(**params) if has_legacy else []
+
+        _logger.debug(f"Executing {metadata_api_name} with params: {params}")
+
+        if required_params:
+            for param, param_name in required_params.items():
+                if param not in params:
+                    raise ProgrammingError(f"Required parameter '{param_name}' is missing in {metadata_api_name}")
+                self._validate_required_param(param, param_name, metadata_api_name)
+
+        # Commented out the following line since the Driver will temporarily accept empty string but will block in near future
+        # Issue is tracked in SIM [Redshift-112709]
+        # ret_empty: bool = self._check_empty_parameter(params)
+        ret_empty = False
+        if ret_empty:
+            return post_process_method([])
+
+        # Execute
+        return post_process_method(api_method(**params)) if additional_args is None \
+            else post_process_method(api_method(**params), **additional_args)
+
     def get_procedures(
+            self: "Cursor",
+            catalog: typing.Optional[str] = None,
+            schema_pattern: typing.Optional[str] = None,
+            procedure_name_pattern: typing.Optional[str] = None
+    ) -> ProcedureResult:
+        """
+        Retrieves a description of the stored procedures.
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
+        procedure_name_pattern : Optional[str]
+            The name of the procedure (can be either exact name or pattern)
+
+        Returns
+        -------
+        A tuple where each row is a procedure description: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_procedures",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema_pattern': schema_pattern,
+                'procedure_name_pattern': procedure_name_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_procedures,
+            self._metadataAPIPostProcessor.get_procedures_post_processing,
+            self.get_procedures_legacy_hardcoded_query,
+            {'procedure_name_pattern': procedure_name_pattern}
+        )
+
+    def get_procedure_columns(
         self: "Cursor",
         catalog: typing.Optional[str] = None,
         schema_pattern: typing.Optional[str] = None,
         procedure_name_pattern: typing.Optional[str] = None,
-    ) -> tuple:
+        column_name_pattern: typing.Optional[str] = None
+    ) -> ProcedureColumnResult:
+        """
+        Retrieves a description of the column for stored procedures.
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
+        procedure_name_pattern : Optional[str]
+            The name of the procedure (can be either exact name or pattern)
+        column_name_pattern : Optional[str]
+            The name of the column (can be either exact name or pattern)
+
+        Returns
+        -------
+        A tuple where each row is a procedure column description: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_procedure_columns",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema_pattern': schema_pattern,
+                'procedure_name_pattern': procedure_name_pattern,
+                'column_name_pattern': column_name_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_procedure_columns,
+            self._metadataAPIPostProcessor.get_procedure_columns_post_processing,
+            None,
+            {
+                'procedure_name_pattern': procedure_name_pattern,
+                'column_name_pattern': column_name_pattern
+            }
+        )
+
+    def get_functions(
+            self: "Cursor",
+            catalog: typing.Optional[str] = None,
+            schema_pattern: typing.Optional[str] = None,
+            function_name_pattern: typing.Optional[str] = None,
+    ) -> FunctionResult:
+        """
+        Retrieves a description of the user-defined functions.
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
+        function_name_pattern : Optional[str]
+            The name of the function (can be either exact name or pattern)
+
+        Returns
+        -------
+        A tuple where each row is a function description: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_functions",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema_pattern': schema_pattern,
+                'function_name_pattern': function_name_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_functions,
+            self._metadataAPIPostProcessor.get_functions_post_processing,
+            None,
+            {'function_name_pattern': function_name_pattern}
+        )
+
+    def get_function_columns(
+            self: "Cursor",
+            catalog: typing.Optional[str] = None,
+            schema_pattern: typing.Optional[str] = None,
+            function_name_pattern: typing.Optional[str] = None,
+            column_name_pattern: typing.Optional[str] = None,
+    ) -> FunctionColumnResult:
+        """
+        Retrieves a description of the column for user-defined functions.
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
+        function_name_pattern : Optional[str]
+            The name of the function (can be either exact name or pattern)
+        column_name_pattern : Optional[str]
+            The name of the column (can be either exact name or pattern)
+
+        Returns
+        -------
+        A tuple where each row is a function column description: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_function_columns",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema_pattern': schema_pattern,
+                'function_name_pattern': function_name_pattern,
+                'column_name_pattern': column_name_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_function_columns,
+            self._metadataAPIPostProcessor.get_function_columns_post_processing,
+            None,
+            {
+                'function_name_pattern': function_name_pattern,
+                'column_name_pattern': column_name_pattern
+            }
+        )
+
+    def get_table_types(self) -> TableTypesResult:
+        """
+        Retrieves the table types available in the database
+        This method returns a predefined list of table types rather than
+        querying the server
+
+        Returns
+        -------
+        A tuple containing the available table types: tuple
+        """
+
+        self._check_connection()
+        table_types: typing.Tuple = self._metadataAPIPostProcessor.get_table_types_post_processing(self._TABLE_TYPE_LIST)
+
+        return table_types
+
+    def get_procedures_legacy_hardcoded_query(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema_pattern: typing.Optional[str] = None,
+        procedure_name_pattern: typing.Optional[str] = None,
+    ) -> typing.Tuple[str, str, str, None, None, None, str, int, str]:
         sql: str = (
             "SELECT current_database() AS PROCEDURE_CAT, n.nspname AS PROCEDURE_SCHEM, p.proname AS PROCEDURE_NAME, "
             "NULL, NULL, NULL, d.description AS REMARKS, "
@@ -705,9 +1162,7 @@ class Cursor:
 
         catalog_filter: str = ""
         if catalog is not None and catalog != "":
-            if (
-                self._c and self._c.is_single_database_metadata is True
-            ) or api_supported_only_for_connected_database is True:
+            if self._c.is_single_database_metadata is True or api_supported_only_for_connected_database is True:
                 catalog_filter += " AND current_database() = {catalog}".format(catalog=self.__escape_quotes(catalog))
             else:
                 if database_col_name is None or database_col_name == "":
@@ -719,35 +1174,40 @@ class Cursor:
 
     def get_schemas(
         self: "Cursor", catalog: typing.Optional[str] = None, schema_pattern: typing.Optional[str] = None
-    ) -> tuple:
-        if self._c is None:
-            raise InterfaceError("connection is closed")
+    ) -> SchemasResult:
+        """
+        Retrieves the schema names
 
-        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
-            _logger.debug(
-                "Support SHOW command. get_schemas with catalog = %s, schema_pattern = %s", catalog, schema_pattern
-            )
+        Parameters
+        ----------
+        catalog : Optional[str]
+           The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
 
-            # Commented out the following line since the Driver will temporarily accept empty string but will block in near future
-            # ret_empty: bool = self.is_empty(catalog) or self.is_empty(schema_pattern)
-            ret_empty: bool = False
-
-            schemas: typing.Tuple = self._metadataAPIPostProcessing.get_schema_post_processing(
-                self._metadataServerAPIHelper.get_schema_server_api(
-                    catalog, schema_pattern, ret_empty, self._c.is_single_database_metadata if self._c else False
-                )
-            )
-
-            return schemas
-        else:
-            return self.get_schemas_legacy_hardcoded_query(catalog, schema_pattern)
+        Returns
+        -------
+        A tuple where each row is a schema description: tuple
+        """
+        return self._process_metadata_request(
+            "get_schemas",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog':catalog,
+                'schema_pattern':schema_pattern,
+                'is_single_database_metadata':self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_schemas,
+            self._metadataAPIPostProcessor.get_schemas_post_processing,
+            self.get_schemas_legacy_hardcoded_query
+        )
 
     def get_schemas_legacy_hardcoded_query(
         self: "Cursor", catalog: typing.Optional[str] = None, schema_pattern: typing.Optional[str] = None
-    ) -> tuple:
+    ) -> typing.Tuple[str, str]:
         query_args: typing.List[str] = []
         sql: str = ""
-        if self._c and self._c.is_single_database_metadata is True:
+        if self._c.is_single_database_metadata is True:
             sql = (
                 "SELECT nspname AS TABLE_SCHEM, current_database() AS TABLE_CATALOG FROM pg_catalog.pg_namespace "
                 " WHERE nspname <> 'pg_toast' AND (nspname !~ '^pg_temp_' "
@@ -798,7 +1258,44 @@ class Cursor:
         catalog: typing.Optional[str] = None,
         schema: typing.Optional[str] = None,
         table: typing.Optional[str] = None,
-    ) -> tuple:
+    ) -> PrimaryKeysResult:
+        """
+        Retrieves a description of the primary key columns.
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema : Optional[str]
+            The name of the schema (doesn't accept pattern)
+        table : Optional[str]
+            The name of the table (doesn't accept pattern)
+
+        Returns
+        -------
+        A tuple where each row is a primary key column description: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_primary_keys",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema': schema,
+                'table': table,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_primary_keys,
+            self._metadataAPIPostProcessor.get_primary_keys_post_processing,
+            self.get_primary_keys_legacy_hardcoded_query
+        )
+
+    def get_primary_keys_legacy_hardcoded_query(
+            self: "Cursor",
+            catalog: typing.Optional[str] = None,
+            schema: typing.Optional[str] = None,
+            table: typing.Optional[str] = None,
+    ) -> typing.Tuple[str, str, str, str, int, str]:
         sql: str = (
             "SELECT "
             "current_database() AS TABLE_CAT, "
@@ -845,40 +1342,242 @@ class Cursor:
         keys: tuple = self.fetchall()
         return keys
 
-    def get_catalogs(self: "Cursor") -> typing.Tuple:
+    def get_imported_keys(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema: typing.Optional[str] = None,
+        table: typing.Optional[str] = None,
+    ) -> ForeignKeysResult:
         """
-        Redshift does not support multiple catalogs from a single connection, so to reduce confusion we only return the
-        current catalog.
+        Retrieves a description of the primary key columns that are referenced by the given table's foreign key columns (the primary keys imported by a table)
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema : Optional[str]
+            The name of the schema (doesn't accept pattern)
+        table : Optional[str]
+            The name of the table (doesn't accept pattern)
 
         Returns
         -------
-        A tuple containing the name of the current catalog: tuple
+        A tuple where each row is an imported key column description: tuple
         """
-        if self._c is None:
-            raise InterfaceError("connection is closed")
 
-        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
-            _logger.debug("Support SHOW command. get_catalogs")
+        return self._process_metadata_request(
+            "get_imported_keys",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema': schema,
+                'table': table,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_foreign_keys,
+            self._metadataAPIPostProcessor.get_foreign_keys_post_processing,
+            None,
+            {'table': table},
+            {'imported': True}
+        )
 
-            if self._c and self._c.is_single_database_metadata is True:
-                sql = "select current_database as TABLE_CAT FROM current_database() ORDER BY TABLE_CAT"
+    def get_exported_keys(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema: typing.Optional[str] = None,
+        table: typing.Optional[str] = None,
+    ) -> ForeignKeysResult:
+        """
+        Retrieves a description of the foreign key columns that reference the given table's primary key columns (the foreign keys exported by a table).
 
-                self.execute(sql)
-                result_catalogs: typing.Tuple = self.fetchall()
-                self._metadataAPIPostProcessing.set_row_description(self._metadataAPIPostProcessing._get_catalogs_col)
-                catalogs = result_catalogs
-            else:
-                catalogs = self._metadataAPIPostProcessing.get_catalog_post_processing(
-                    self._metadataServerAPIHelper.get_catalog_server_api()
-                )
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema : Optional[str]
+            The name of the schema (doesn't accept pattern)
+        table : Optional[str]
+            The name of the table (doesn't accept pattern)
 
+        Returns
+        -------
+        A tuple where each row is an exported key column description: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_exported_keys",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema': schema,
+                'table': table,
+                'is_single_database_metadata': self._c.is_single_database_metadata,
+                'get_imported':False
+            },
+            self._metadataServerProxy.get_foreign_keys,
+            self._metadataAPIPostProcessor.get_foreign_keys_post_processing,
+            None,
+            {'table': table},
+            {'imported': False}
+        )
+
+    def get_best_row_identifier(
+            self: "Cursor",
+            catalog: typing.Optional[str] = None,
+            schema: typing.Optional[str] = None,
+            table: typing.Optional[str] = None,
+            scope: typing.Optional[int] = None,
+            nullable: typing.Optional[bool] = None
+    ) -> BestRowIdentifierResult:
+        """
+        Retrieves a description of the columns that are the best identifier for rows in a table.
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema : Optional[str]
+            The name of the schema (doesn't accept pattern)
+        table : Optional[str]
+            The name of the table (doesn't accept pattern)
+        scope : Optional[int]
+            The scope of the row identifier
+        nullable : Optional[bool]
+            Whether NULL columns should be included
+
+        Returns
+        -------
+        A tuple where each row is a column description that best identifies a row: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_best_row_identifier",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema': schema,
+                'table': table,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_best_row_identifier,
+            self._metadataAPIPostProcessor.get_best_row_identifier_post_processing,
+            None,
+            {'table': table},
+            {'scope': scope}
+        )
+
+    def get_column_privileges(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema: typing.Optional[str] = None,
+        table: typing.Optional[str] = None,
+        column_name_pattern: typing.Optional[str] = None
+    ) -> ColumnPrivilegeResult:
+        """
+        Retrieves a description of the access rights for columns
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema : Optional[str]
+            The name of the schema (doesn't accept pattern)
+        table : Optional[str]
+            The name of the table (doesn't accept pattern)
+        column_name_pattern : Optional[str]
+            The name of the column (can be either exact name or pattern)
+
+        Returns
+        -------
+        A tuple where each row describes column privileges: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_column_privileges",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema': schema,
+                'table': table,
+                'column_name_pattern': column_name_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_column_privileges,
+            self._metadataAPIPostProcessor.get_column_privileges_post_processing,
+            None,
+            {
+                'table': table,
+                'column_name_pattern': column_name_pattern
+            }
+        )
+
+    def get_table_privileges(
+        self: "Cursor",
+        catalog: typing.Optional[str] = None,
+        schema_pattern: typing.Optional[str] = None,
+        table_name_pattern: typing.Optional[str] = None
+    ) -> TablePrivilegeResult:
+        """
+        Retrieves a description of the access rights for tables.
+
+        Parameters
+        ----------
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
+        table_name_pattern : Optional[str]
+            The name of the table (can be either exact name or pattern)
+
+        Returns
+        -------
+        A tuple where each row describes table privileges: tuple
+        """
+
+        return self._process_metadata_request(
+            "get_table_privileges",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema_pattern': schema_pattern,
+                'table_name_pattern': table_name_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_table_privileges,
+            self._metadataAPIPostProcessor.get_table_privileges_post_processing,
+            None,
+            {'table_name_pattern': table_name_pattern}
+        )
+
+    def get_catalogs(self: "Cursor") -> CatalogsResult:
+        """
+        Retrieves the catalog names. The return result is controlled by
+        connection parameter database_metadata_current_db_only
+
+        Returns
+        -------
+        A tuple containing the name of catalogs: tuple
+        """
+
+        if self._c.is_single_database_metadata is True:
+            self._check_connection()
+            sql = "select current_database as TABLE_CAT FROM current_database() ORDER BY TABLE_CAT"
+            self.execute(sql)
+            catalogs: typing.Tuple = self.fetchall()
+            self._metadataAPIPostProcessor.set_row_description(self._metadataAPIPostProcessor._get_catalogs_result_metadata._columns)
             return catalogs
-        else:
-            return self.get_catalogs_legacy_hardcoded_query()
+
+        return self._process_metadata_request(
+            "get_catalogs",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {},
+            self._metadataServerProxy.get_catalogs,
+            self._metadataAPIPostProcessor.get_catalogs_post_processing,
+            self.get_catalogs_legacy_hardcoded_query
+        )
 
     def get_catalogs_legacy_hardcoded_query(self: "Cursor") -> typing.Tuple:
         sql: str = ""
-        if self._c and self._c.is_single_database_metadata is True:
+        if self._c.is_single_database_metadata is True:
             sql = "select current_database as TABLE_CAT FROM current_database()"
         else:
             # Datasharing/federation support enable, so get databases using the new view.
@@ -895,52 +1594,43 @@ class Cursor:
         schema_pattern: typing.Optional[str] = None,
         table_name_pattern: typing.Optional[str] = None,
         types: list = [],
-    ) -> tuple:
+    ) -> TablesResult:
         """
-        Returns the unique public tables which are user-defined within the system.
+        Retrieves a description of the tables. Only table descriptions matching the catalog, schema, table name and type criteria are returned
 
         Parameters
         ----------
-        catalog : Optional[str] The name of the catalog
-        schema_pattern : Optional[str] A valid pattern for desired schemas
-        table_name_pattern : Optional[str] A valid pattern for desired table names
-        types : Optional[list[str]] A list of `str` containing table types. By default table types is not used as a filter.
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
+        table_name_pattern : Optional[str]
+            The name of the table (can be either exact name or pattern)
+        types : Optional[list[str]]
+            A list of `str` containing table types. By default table types is not used as a filter.
 
         Returns
         -------
-        A tuple containing unique public tables which are user-defined within the system: tuple
+        A tuple where each row is a table description: tuple
         """
-        if self._c is None:
-            raise InterfaceError("connection is closed")
-        elif types is None:
+        if types is None:
             types = []
 
-        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
-            _logger.debug(
-                "Support SHOW command. get_tables with catalog = %s, schema_pattern = %s, table_name_pattern = %s",
-                catalog,
-                schema_pattern,
-                table_name_pattern,
-            )
-
-            # Commented out the following line since the Driver will temporarily accept empty string but will block in near future
-            # ret_empty: bool = self.is_empty(catalog) or self.is_empty(schema_pattern) or self.is_empty(table_name_pattern)
-            ret_empty: bool = False
-
-            tables: typing.Tuple = self._metadataAPIPostProcessing.get_table_post_processing(
-                self._metadataServerAPIHelper.get_table_server_api(
-                    catalog,
-                    schema_pattern,
-                    table_name_pattern,
-                    ret_empty,
-                    self._c.is_single_database_metadata if self._c else False,
-                ),
-                types,
-            )
-
-            return tables
-        else:
-            return self.get_tables_legacy_hardcoded_query(catalog, schema_pattern, table_name_pattern, types)
+        return self._process_metadata_request(
+            "get_tables",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema_pattern': schema_pattern,
+                'table_name_pattern':table_name_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_tables,
+            self._metadataAPIPostProcessor.get_tables_post_processing,
+            self.get_tables_legacy_hardcoded_query,
+            None,
+            {'types': types}
+        )
 
     def get_tables_legacy_hardcoded_query(
         self: "Cursor",
@@ -948,14 +1638,14 @@ class Cursor:
         schema_pattern: typing.Optional[str] = None,
         table_name_pattern: typing.Optional[str] = None,
         types: list = [],
-    ) -> tuple:
+    ) -> typing.Tuple[str, str, str, str, str, str, str, str, str, str]:
         sql: str = ""
         sql_args: typing.Tuple[str, ...] = tuple()
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
             sql, sql_args = self.__build_local_schema_tables_query(catalog, schema_pattern, table_name_pattern, types)
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
-            if self._c and self._c.is_single_database_metadata is True:
+            if self._c.is_single_database_metadata is True:
                 sql, sql_args = self.__build_universal_schema_tables_query(
                     catalog, schema_pattern, table_name_pattern, types
                 )
@@ -1219,61 +1909,48 @@ class Cursor:
         schema_pattern: typing.Optional[str] = None,
         tablename_pattern: typing.Optional[str] = None,
         columnname_pattern: typing.Optional[str] = None,
-    ) -> tuple:
+    ) -> ColumnsResult:
         """
-        Returns a list of all columns in a specific table in Amazon Redshift database.
+        Retrieves a description of table columns.
 
         Parameters
         ----------
-        catalog : Optional[str] The name of the catalog
-        schema_pattern : Optional[str] A valid pattern for desired schemas
-        table_name_pattern : Optional[str] A valid pattern for desired table names
-        column_name_pattern : Optional[str] A valid pattern for desired column names
+        catalog : Optional[str]
+            The name of the catalog (doesn't accept pattern)
+        schema_pattern : Optional[str]
+            The name of the schema (can be either exact name or pattern)
+        tablename_pattern : Optional[str]
+            The name of the table (can be either exact name or pattern)
+        columnname_pattern : Optional[str]
+            The name of the column (can be either exact name or pattern)
 
         Returns
         -------
-        A tuple containing all columns in a specific table in Amazon Redshift database: tuple
+        A tuple where each row is a column description: tuple
         """
-        if self._c is None:
-            raise InterfaceError("connection is closed")
 
-        if self.supportSHOWDiscovery() >= self._MIN_SHOW_DISCOVERY_VERSION:
-            _logger.debug(
-                "Support SHOW command. get_columns with catalog = %s, schema_pattern = %s, table_name_pattern = %s, column_name_pattern = %s",
-                catalog,
-                schema_pattern,
-                tablename_pattern,
-                columnname_pattern,
-            )
-
-            # Commented out the following line since the Driver will temporarily accept empty string but will block in near future
-            # ret_empty: bool = self.is_empty(catalog) or self.is_empty(schema_pattern) or self.is_empty(tablename_pattern) or self.is_empty(columnname_pattern)
-            ret_empty: bool = False
-
-            columns: typing.Tuple = self._metadataAPIPostProcessing.get_column_post_processing(
-                self._metadataServerAPIHelper.get_column_server_api(
-                    catalog,
-                    schema_pattern,
-                    tablename_pattern,
-                    columnname_pattern,
-                    ret_empty,
-                    self._c.is_single_database_metadata if self._c else False,
-                )
-            )
-
-            return columns
-        else:
-            return self.get_columns_legacy_hardcoded_query(
-                catalog, schema_pattern, tablename_pattern, columnname_pattern
-            )
+        return self._process_metadata_request(
+            "get_columns",
+            self._MIN_SHOW_DISCOVERY_VERSION_V4,
+            {
+                'catalog': catalog,
+                'schema_pattern': schema_pattern,
+                'tablename_pattern': tablename_pattern,
+                'columnname_pattern':columnname_pattern,
+                'is_single_database_metadata': self._c.is_single_database_metadata
+            },
+            self._metadataServerProxy.get_columns,
+            self._metadataAPIPostProcessor.get_columns_post_processing,
+            self.get_columns_legacy_hardcoded_query
+        )
 
     def get_columns_legacy_hardcoded_query(
-        self: "Cursor",
-        catalog: typing.Optional[str] = None,
-        schema_pattern: typing.Optional[str] = None,
-        tablename_pattern: typing.Optional[str] = None,
-        columnname_pattern: typing.Optional[str] = None,
-    ) -> tuple:
+            self: "Cursor",
+            catalog: typing.Optional[str] = None,
+            schema_pattern: typing.Optional[str] = None,
+            tablename_pattern: typing.Optional[str] = None,
+            columnname_pattern: typing.Optional[str] = None,
+    ) -> typing.Tuple[str, str, str, str, int, str, int, None, int, int, int, str, str, int, int, int, int, str, str, str, str, int, str, str]:
         sql: str = ""
         schema_pattern_type: str = self.__schema_pattern_match(schema_pattern)
         if schema_pattern_type == "LOCAL_SCHEMA_QUERY":
@@ -1281,7 +1958,7 @@ class Cursor:
                 catalog, schema_pattern, tablename_pattern, columnname_pattern
             )
         elif schema_pattern_type == "NO_SCHEMA_UNIVERSAL_QUERY":
-            if self._c and self._c.is_single_database_metadata is True:
+            if self._c.is_single_database_metadata is True:
                 sql = self.__build_universal_schema_columns_query(
                     catalog, schema_pattern, tablename_pattern, columnname_pattern
                 )
@@ -2453,7 +3130,7 @@ class Cursor:
         if self._c is None:
             raise InterfaceError("connection is closed")
         if schema_pattern is not None and schema_pattern != "":
-            if self._c and self._c.is_single_database_metadata is True:
+            if self._c.is_single_database_metadata is True:
                 sql: str = "select 1 from svv_external_schemas where schemaname like {schema}".format(
                     schema=self.__escape_quotes(schema_pattern)
                 )
@@ -2474,9 +3151,7 @@ class Cursor:
     def __escape_quotes(self: "Cursor", s: str) -> str:
         return "'{s}'".format(s=self.__sanitize_str(s))
 
-    def supportSHOWDiscovery(self: "Cursor") -> int:
-        if self._c is None:
-            return 0
+    def get_show_discovery_version(self: "Cursor") -> int:
         for item in self._c.parameter_statuses:
             if item[0] == b"show_discovery":
                 try:
@@ -2487,6 +3162,14 @@ class Cursor:
                     return 0
         _logger.debug("Cluster doesn't support SHOW. Return version number as 0")
         return 0
+
+    def _check_show_discovery_support(self, min_show_discovery: int, metadata_api_name: str, has_legacy_fallback: bool = False) -> bool:
+        current_show_discovery_version: int = self.get_show_discovery_version()
+        if current_show_discovery_version < min_show_discovery:
+            if not has_legacy_fallback:
+                raise InterfaceError(f"{metadata_api_name} requires minimum show discovery version {min_show_discovery}, but found {current_show_discovery_version}")
+            return False
+        return True
 
     @staticmethod
     def is_empty(string: str) -> bool:
@@ -2506,3 +3189,21 @@ class Cursor:
             _logger.debug("current catalog: %s", self._cur_catalog)
 
         return self._cur_catalog
+
+    def _check_connection(self):
+        if self._c is None:
+            raise InterfaceError("connection is closed")
+
+    @staticmethod
+    def _validate_required_param(param: str, param_name: str, metadata_api_name: str):
+        if param is None:
+            raise ProgrammingError(f"{param_name} should be provided in {metadata_api_name}")
+        return True
+
+    def _check_empty_parameter(self, params: typing.Optional[typing.Dict[str, typing.Any]]) -> bool:
+        if params is None:
+            return False
+        for param in params.values():
+            if self.is_empty(param):
+                return True
+        return False

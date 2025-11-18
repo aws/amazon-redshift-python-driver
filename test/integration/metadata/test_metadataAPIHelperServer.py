@@ -15,7 +15,7 @@ conf.read(root_path + "/config.ini")
 def test_SHOW_DATABASES_col(db_kwargs) -> None:
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() >= 2:
+            if cursor.get_show_discovery_version() >= 2:
                 cursor.execute("SHOW DATABASES;")
 
                 column = cursor.description
@@ -33,7 +33,7 @@ def test_SHOW_DATABASES_col(db_kwargs) -> None:
 def test_SHOW_SCHEMAS_col(db_kwargs) -> None:
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() >= 2:
+            if cursor.get_show_discovery_version() >= 2:
                 cursor.execute("SHOW SCHEMAS FROM DATABASE test_catalog;")
 
                 column = cursor.description
@@ -52,7 +52,7 @@ def test_SHOW_SCHEMAS_col(db_kwargs) -> None:
 def test_SHOW_TABLES_col(db_kwargs) -> None:
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() >= 2:
+            if cursor.get_show_discovery_version() >= 2:
                 cursor.execute("SHOW TABLES FROM SCHEMA test_catalog.test_schema;")
 
                 column = cursor.description
@@ -74,7 +74,7 @@ def test_SHOW_TABLES_col(db_kwargs) -> None:
 def test_SHOW_COLUMNS_col(db_kwargs) -> None:
     with redshift_connector.connect(**db_kwargs) as conn:
         with conn.cursor() as cursor:
-            if cursor.supportSHOWDiscovery() >= 2:
+            if cursor.get_show_discovery_version() >= 2:
                 cursor.execute("SHOW COLUMNS FROM TABLE test_catalog.test_schema.test_table;")
 
                 column = cursor.description

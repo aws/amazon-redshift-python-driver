@@ -9,8 +9,12 @@ from unittest.mock import MagicMock, Mock, PropertyMock, mock_open, patch
 import pytest  # type: ignore
 
 from redshift_connector import Connection, Cursor, DataError, InterfaceError
+from redshift_connector.metadataAPIPostProcessor import MetadataAPIPostProcessor
+from redshift_connector.metadataServerProxy import MetadataServerProxy
 
 IS_SINGLE_DATABASE_METADATA_TOGGLE: typing.List[bool] = [True, False]
+
+SHOW_DISCOVERY_V4: int = 4
 
 
 description_warn_response_data: typing.List[typing.Tuple[bytes, str]] = [
@@ -85,20 +89,23 @@ get_procedure_arg_data: typing.List[typing.Tuple[typing.Optional[str], ...]] = [
 
 
 @pytest.mark.parametrize("_input", get_procedure_arg_data)
-def test_get_procedures_considers_args(_input, mocker) -> None:
+def test_get_procedures_legacy_considers_args(_input, mocker) -> None:
     catalog, schema_pattern, procedure_name_pattern = _input
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     mocker.patch("redshift_connector.Cursor.fetchall", return_value=None)
     mocker.patch("redshift_connector.Connection.is_single_database_metadata", return_value=True)
 
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_connection: Connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses = deque(maxlen=100)
+    mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
+    mock_cursor: Cursor = Cursor(mock_connection)
     mock_cursor._c = mock_connection
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = SHOW_DISCOVERY_V4
 
     mock_cursor.paramstyle = "mocked_val"
     spy = mocker.spy(mock_cursor, "execute")
 
-    mock_cursor.get_procedures(catalog, schema_pattern, procedure_name_pattern)
+    mock_cursor.get_procedures_legacy_hardcoded_query(catalog, schema_pattern, procedure_name_pattern)
     assert spy.called
     assert spy.call_count == 1
     assert catalog not in spy.call_args[0][1]
@@ -160,25 +167,25 @@ get_schemas_arg_data: typing.List[typing.Tuple[typing.Optional[str], ...]] = [
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 @pytest.mark.parametrize("_input", get_schemas_arg_data)
-def test_get_schemas_considers_args(_input, is_single_database_metadata_val, mocker) -> None:
+def test_get_schemas_legacy_considers_args(_input, is_single_database_metadata_val, mocker) -> None:
     catalog, schema_pattern = _input
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     mocker.patch("redshift_connector.Cursor.fetchall", return_value=None)
 
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
-    mock_cursor.paramstyle = "mocked"
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b"show_discovery", b"0"))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
+    mock_cursor: Cursor = Cursor(mock_connection)
+    mock_cursor.paramstyle = "mocked"
     mock_cursor._c = mock_connection
-    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = 2
     spy = mocker.spy(mock_cursor, "execute")
 
     with patch(
         "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
-        mock_cursor.get_schemas(catalog, schema_pattern)
+        mock_cursor.get_schemas_legacy_hardcoded_query(catalog, schema_pattern)
 
     assert spy.called
     assert spy.call_count == 1
@@ -189,67 +196,26 @@ def test_get_schemas_considers_args(_input, is_single_database_metadata_val, moc
     if catalog is not None:
         assert catalog in spy.call_args[0][0]
 
-
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
-def test_get_schemas_show_discovery(is_single_database_metadata_val, mocker) -> None:
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
-    mock_cursor.paramstyle = "mocked"
-
-    mock_connection: Connection = Connection.__new__(Connection)
-    mock_cursor._c = mock_connection
-    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
-
-    mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
-
-    from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
-
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_schema_server_api")
-    mock_metadataServerAPIHelper.return_value = "mock"
-    mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
-
-    spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_schema_server_api")
-
-    from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_schema_post_processing")
-    mock_metadataAPIPostProcessing.return_value = "mock"
-    mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
-
-    spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_schema_post_processing")
-
-    with patch(
-        "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
-    ) as mock_is_single_database_metadata:
-        mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
-        mock_cursor.get_schemas("apples", "oranges")
-
-    assert spy_metadataServerAPIHelper.called
-    assert spy_metadataServerAPIHelper.call_count == 1
-
-    assert spy_metadataAPIPostProcessing.called
-    assert spy_metadataAPIPostProcessing.call_count == 1
-
-
-@pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
-def test_get_catalogs_considers_args(is_single_database_metadata_val, mocker) -> None:
+def test_get_catalogs_legacy_considers_args(is_single_database_metadata_val, mocker) -> None:
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     mocker.patch("redshift_connector.Cursor.fetchall", return_value=None)
 
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
-    mock_cursor.paramstyle = "mocked"
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b"show_discovery", b"0"))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
+    mock_cursor: Cursor = Cursor(mock_connection)
+    mock_cursor.paramstyle = "mocked"
     mock_cursor._c = mock_connection
-    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = 2
+    mock_cursor.ps = {}
     spy = mocker.spy(mock_cursor, "execute")
 
     with patch(
         "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
-        mock_cursor.get_catalogs()
+        mock_cursor.get_catalogs_legacy_hardcoded_query()
 
     assert spy.called
     assert spy.call_count == 1
@@ -273,27 +239,23 @@ def test_get_catalogs_show_discovery(is_single_database_metadata_val, mocker) ->
 
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
-    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = SHOW_DISCOVERY_V4
     spy_execute = mocker.spy(mock_cursor, "execute")
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'4'))
 
-    from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
+    mock_metadataServerProxy = mocker.patch.object(MetadataServerProxy, 'get_catalogs')
+    mock_metadataServerProxy.return_value = "mock"
+    mock_cursor._metadataServerProxy = mock_metadataServerProxy
 
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_catalog_server_api")
-    mock_metadataServerAPIHelper.return_value = "mock"
-    mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
+    spy_metadataServerProxy = mocker.spy(mock_cursor._metadataServerProxy, "get_catalogs")
 
-    spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_catalog_server_api")
+    mock_metadataAPIPostProcessor = mocker.patch.object(MetadataAPIPostProcessor, 'get_catalogs_post_processing')
+    mock_metadataAPIPostProcessor.return_value = "mock"
+    mock_cursor._metadataAPIPostProcessor = mock_metadataAPIPostProcessor
 
-    from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_catalog_post_processing")
-    mock_metadataAPIPostProcessing.return_value = "mock"
-    mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
-
-    spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_catalog_post_processing")
+    spy_metadataAPIPostProcessor = mocker.spy(mock_cursor._metadataAPIPostProcessor, "get_catalogs_post_processing")
 
     with patch(
         "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
@@ -307,11 +269,11 @@ def test_get_catalogs_show_discovery(is_single_database_metadata_val, mocker) ->
 
         assert "select current_database as TABLE_CAT FROM current_database()" in spy_execute.call_args[0][0]
     else:
-        assert spy_metadataServerAPIHelper.called
-        assert spy_metadataServerAPIHelper.call_count == 1
+        assert spy_metadataServerProxy.called
+        assert spy_metadataServerProxy.call_count == 1
 
-        assert spy_metadataAPIPostProcessing.called
-        assert spy_metadataAPIPostProcessing.call_count == 1
+        assert spy_metadataAPIPostProcessor.called
+        assert spy_metadataAPIPostProcessor.call_count == 1
 
 
 get_tables_arg_data: typing.List[typing.Tuple[typing.Optional[str], ...]] = [
@@ -328,7 +290,7 @@ get_tables_arg_data: typing.List[typing.Tuple[typing.Optional[str], ...]] = [
 @pytest.mark.parametrize("schema_pattern_type", ["EXTERNAL_SCHEMA_QUERY", "LOCAL_SCHEMA_QUERY"])
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 @pytest.mark.parametrize("_input", get_tables_arg_data)
-def test_get_tables_considers_args(is_single_database_metadata_val, _input, schema_pattern_type, mocker) -> None:
+def test_get_tables_legacy_considers_args(is_single_database_metadata_val, _input, schema_pattern_type, mocker) -> None:
     catalog, schema_pattern, table_name_pattern = _input
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
     # mock the return value from __schema_pattern_match as it's return value is used in get_tables()
@@ -339,20 +301,20 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
         return_value=None if schema_pattern_type == "EXTERNAL_SCHEMA_QUERY" else tuple("mock"),
     )
 
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
-    mock_cursor.paramstyle = "mocked"
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b"show_discovery", b"0"))
+    mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
+    mock_cursor: Cursor = Cursor(mock_connection)
+    mock_cursor.paramstyle = "mocked"
     mock_cursor._c = mock_connection
-    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = 2
     spy = mocker.spy(mock_cursor, "execute")
 
     with patch(
         "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
-        mock_cursor.get_tables(catalog, schema_pattern, table_name_pattern)
+        mock_cursor.get_tables_legacy_hardcoded_query(catalog, schema_pattern, table_name_pattern)
 
     assert spy.called
 
@@ -368,87 +330,286 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
         if arg is not None:
             assert arg in spy.call_args[0][1]
 
-
+test_cases = [
+    (
+        "get_schemas",
+        SHOW_DISCOVERY_V4,
+        "get_schemas",
+        "get_schemas_post_processing",
+        lambda cursor: cursor.get_schemas("apples", "oranges"),
+    ),
+    (
+        "get_tables",
+        SHOW_DISCOVERY_V4,
+        "get_tables",
+        "get_tables_post_processing",
+        lambda cursor: cursor.get_tables("apples", "oranges", "peaches", "banana"),
+    ),
+    (
+        "get_columns",
+        SHOW_DISCOVERY_V4,
+        "get_columns",
+        "get_columns_post_processing",
+        lambda cursor: cursor.get_columns("apples", "oranges", "peaches", "banana"),
+    ),
+    (
+        "get_primary_keys",
+        SHOW_DISCOVERY_V4,
+        "get_primary_keys",
+        "get_primary_keys_post_processing",
+        lambda cursor: cursor.get_primary_keys("apples", "oranges", "peaches"),
+    ),
+    (
+        "get_imported_keys",
+        SHOW_DISCOVERY_V4,
+        "get_foreign_keys",
+        "get_foreign_keys_post_processing",
+        lambda cursor: cursor.get_imported_keys("apples", "oranges", "peaches"),
+    ),
+    (
+        "get_exported_keys",
+        SHOW_DISCOVERY_V4,
+        "get_foreign_keys",
+        "get_foreign_keys_post_processing",
+        lambda cursor: cursor.get_exported_keys("apples", "oranges", "peaches"),
+    ),
+    (
+        "get_best_row_identifier",
+        SHOW_DISCOVERY_V4,
+        "get_best_row_identifier",
+        "get_best_row_identifier_post_processing",
+        lambda cursor: cursor.get_best_row_identifier("apples", "oranges", "peaches"),
+    ),
+    (
+        "get_column_privileges",
+        SHOW_DISCOVERY_V4,
+        "get_column_privileges",
+        "get_column_privileges_post_processing",
+        lambda cursor: cursor.get_column_privileges("apples", "oranges", "peaches", "banana"),
+    ),
+    (
+        "get_table_privileges",
+        SHOW_DISCOVERY_V4,
+        "get_table_privileges",
+        "get_table_privileges_post_processing",
+        lambda cursor: cursor.get_table_privileges("apples", "oranges", "peaches"),
+    ),
+    (
+        "get_procedures",
+        SHOW_DISCOVERY_V4,
+        "get_procedures",
+        "get_procedures_post_processing",
+        lambda cursor: cursor.get_procedures("apples", "oranges", "peaches"),
+    ),
+    (
+        "get_procedure_columns",
+        SHOW_DISCOVERY_V4,
+        "get_procedure_columns",
+        "get_procedure_columns_post_processing",
+        lambda cursor: cursor.get_procedure_columns("apples", "oranges", "peaches", "banana"),
+    ),
+    (
+        "get_functions",
+        SHOW_DISCOVERY_V4,
+        "get_functions",
+        "get_functions_post_processing",
+        lambda cursor: cursor.get_functions("apples", "oranges", "peaches"),
+    ),
+    (
+        "get_function_columns",
+        SHOW_DISCOVERY_V4,
+        "get_function_columns",
+        "get_function_columns_post_processing",
+        lambda cursor: cursor.get_function_columns("apples", "oranges", "peaches", "banana"),
+    )
+]
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
-def test_get_tables_show_discovery(is_single_database_metadata_val, mocker) -> None:
+@pytest.mark.parametrize(
+    "test_name,min_version,proxy_method,post_processor_method,test_func",
+    test_cases
+)
+def test_metadata_show_discovery(
+    is_single_database_metadata_val,
+    test_name,
+    min_version,
+    proxy_method,
+    post_processor_method,
+    test_func,
+    mocker
+) -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
 
     mock_connection: Connection = Connection.__new__(Connection)
     mock_cursor._c = mock_connection
-    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = SHOW_DISCOVERY_V4
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
+    mock_connection.parameter_statuses.append((b'show_discovery', str(min_version).encode()))
 
-    from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
+    # Setup MetadataServerProxy
+    mock_metadataServerProxy = mocker.patch.object(MetadataServerProxy, proxy_method)
+    mock_metadataServerProxy.return_value = "mock"
+    mock_cursor._metadataServerProxy = mock_metadataServerProxy
+    spy_metadataServerProxy = mocker.spy(mock_cursor._metadataServerProxy, proxy_method)
 
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_table_server_api")
-    mock_metadataServerAPIHelper.return_value = "mock"
-    mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
-
-    spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_table_server_api")
-
-    from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_table_post_processing")
-    mock_metadataAPIPostProcessing.return_value = "mock"
-    mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
-
-    spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_table_post_processing")
+    # Setup MetadataAPIPostProcessor
+    mock_metadataAPIPostProcessor = mocker.patch.object(MetadataAPIPostProcessor, post_processor_method)
+    mock_metadataAPIPostProcessor.return_value = "mock"
+    mock_cursor._metadataAPIPostProcessor = mock_metadataAPIPostProcessor
+    spy_metadataAPIPostProcessor = mocker.spy(mock_cursor._metadataAPIPostProcessor, post_processor_method)
 
     with patch(
-        "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
+            "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
-        mock_cursor.get_tables("apples", "oranges", "peaches")
+        test_func(mock_cursor)
 
-    assert spy_metadataServerAPIHelper.called
-    assert spy_metadataServerAPIHelper.call_count == 1
+    assert spy_metadataServerProxy.called
+    assert spy_metadataServerProxy.call_count == 1
 
-    assert spy_metadataAPIPostProcessing.called
-    assert spy_metadataAPIPostProcessing.call_count == 1
+    assert spy_metadataAPIPostProcessor.called
+    assert spy_metadataAPIPostProcessor.call_count == 1
 
-
-@pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
-def test_get_columns_show_discovery(is_single_database_metadata_val, mocker) -> None:
-    mock_cursor: Cursor = Cursor.__new__(Cursor)
-    mock_cursor.paramstyle = "mocked"
+@pytest.mark.parametrize("test_case", [
+    {
+        "method_name": "get_catalogs",
+        "legacy_query_method": "get_catalogs_legacy_hardcoded_query",
+        "args": []
+    },
+    {
+        "method_name": "get_schemas",
+        "legacy_query_method": "get_schemas_legacy_hardcoded_query",
+        "args": ["apples", "oranges"]
+    },
+    {
+        "method_name": "get_tables",
+        "legacy_query_method": "get_tables_legacy_hardcoded_query",
+        "args": ["apples", "oranges", "peaches"]
+    },
+    {
+        "method_name": "get_columns",
+        "legacy_query_method": "get_columns_legacy_hardcoded_query",
+        "args": ["apples", "oranges", "peaches", "banana"]
+    },
+    {
+        "method_name": "get_primary_keys",
+        "legacy_query_method": "get_primary_keys_legacy_hardcoded_query",
+        "args": ["apples", "oranges", "peaches"]
+    },
+    {
+        "method_name": "get_procedures",
+        "legacy_query_method": "get_procedures_legacy_hardcoded_query",
+        "args": ["apples", "oranges", "peaches"]
+    }
+])
+def test_get_metadata_show_discovery_fall_back_to_hardcoded_query(mocker,test_case) -> None:
+    mocker.patch("redshift_connector.Cursor.execute", return_value=None)
+    mocker.patch("redshift_connector.Cursor.fetchall", return_value="catalog")
+    mocker.patch(
+        f"redshift_connector.Cursor.{test_case['legacy_query_method']}",
+        return_value=None
+    )
 
     mock_connection: Connection = Connection.__new__(Connection)
+    mock_cursor: Cursor = Cursor(mock_connection)
+    mock_cursor.paramstyle = "mocked"
     mock_cursor._c = mock_connection
-    mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = SHOW_DISCOVERY_V4
+    spy_execute = mocker.spy(mock_cursor, test_case['legacy_query_method'])
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
-
-    from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
-
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_column_server_api")
-    mock_metadataServerAPIHelper.return_value = "mock"
-    mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
-
-    spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_column_server_api")
-
-    from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_column_post_processing")
-    mock_metadataAPIPostProcessing.return_value = "mock"
-    mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
-
-    spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_column_post_processing")
+    mock_connection.parameter_statuses.append((b'show_discovery', b'1'))
 
     with patch(
         "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
-        mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
-        mock_cursor.get_columns("apples", "oranges", "peaches", "banana")
+        mock_is_single_database_metadata.__get__ = Mock(return_value=False)
 
-    assert spy_metadataServerAPIHelper.called
-    assert spy_metadataServerAPIHelper.call_count == 1
+        method = getattr(mock_cursor, test_case["method_name"])
+        method(*test_case["args"])
 
-    assert spy_metadataAPIPostProcessing.called
-    assert spy_metadataAPIPostProcessing.call_count == 1
+    assert spy_execute.called
+    assert spy_execute.call_count == 1
+    assert len(spy_execute.call_args[1]) == len(test_case["args"])
+    for arg_value, expected_value in zip(spy_execute.call_args[1].values(), test_case["args"]):
+        assert arg_value == expected_value
+
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "method_name": "get_imported_keys",
+        "method_args": ["apples", "oranges", "peaches"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    },
+    {
+        "method_name": "get_exported_keys",
+        "method_args": ["apples", "oranges", "peaches"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    },
+    {
+        "method_name": "get_best_row_identifier",
+        "method_args": ["apples", "oranges", "peaches"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    },
+    {
+        "method_name": "get_column_privileges",
+        "method_args": ["apples", "oranges", "peaches", "banana"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    },
+    {
+        "method_name": "get_table_privileges",
+        "method_args": ["apples", "oranges", "peaches"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    },
+    {
+        "method_name": "get_procedure_columns",
+        "method_args": ["apples", "oranges", "peaches", "banana"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    },
+    {
+        "method_name": "get_functions",
+        "method_args": ["apples", "oranges", "peaches"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    },
+    {
+        "method_name": "get_function_columns",
+        "method_args": ["apples", "oranges", "peaches", "banana"],
+        "show_discovery_version": 2,
+        "min_show_discovery_version": 4
+    }
+])
+def test_get_metadata_show_discovery_non_support(mocker, test_case) -> None:
+    mocker.patch("redshift_connector.Cursor.execute", return_value=None)
+    mocker.patch("redshift_connector.Cursor.fetchall", return_value="catalog")
+
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_cursor: Cursor = Cursor(mock_connection)
+    mock_cursor.paramstyle = "mocked"
+    mock_cursor._c = mock_connection
+    mock_cursor._c._database_metadata_current_db_only = True
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = SHOW_DISCOVERY_V4
+
+    mock_connection.parameter_statuses = deque(maxlen=100)
+    mock_connection.parameter_statuses.append((b'show_discovery', str(test_case["show_discovery_version"]).encode()))
+
+    mock_metadataAPIPostProcessor = mocker.patch.object(MetadataAPIPostProcessor, "set_row_description")
+    mock_metadataAPIPostProcessor.return_value = "mock"
+    mock_cursor._metadataAPIPostProcessor = mock_metadataAPIPostProcessor
+
+    method = getattr(mock_cursor, test_case["method_name"])
+
+    min_show_discovery = test_case["min_show_discovery_version"]
+    expected_error_msg: str = f"requires minimum show discovery version {min_show_discovery}"
+    with pytest.raises(InterfaceError, match=expected_error_msg):
+        method(*test_case["method_args"])
 
 
 @pytest.mark.parametrize("indexes, names", [([1], []), ([], ["c1"])])
@@ -759,3 +920,313 @@ def test_write_dataframe_handles_python_types(mocker, datatype, data, _type):
     assert isinstance(spy.mock_calls[1].args[1], list)
     assert len(spy.mock_calls[1].args[1]) == 1
     assert isinstance((spy.mock_calls[1].args[1][0]), _type)
+
+def test_process_metadata_request_basic():
+    """Test basic successful execution of _process_metadata_request"""
+    # Setup basic parameters
+    basic_params = {
+        'catalog': 'test_catalog',
+        'schema_pattern': 'test_pattern',
+        'is_single_database_metadata': False
+    }
+
+    # Create mock cursor
+    mock_cursor = Cursor.__new__(Cursor)
+
+    # Mock the methods and attributes directly
+    mock_cursor._check_connection = Mock()
+    mock_cursor._check_show_discovery_support = Mock(return_value=True)
+    mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = 2
+
+    # Create mock server proxy
+    mock_server_proxy = Mock()
+    mock_server_proxy.get_schemas = Mock(return_value=['schema1', 'schema2'])
+    mock_cursor._metadataServerProxy = mock_server_proxy
+
+    # Create mock post processor
+    mock_post_processor = Mock()
+    mock_post_processor.get_schemas_post_processing = Mock(return_value=[
+        ('schema1',), ('schema2',)
+    ])
+    mock_cursor._metadataAPIPostProcessor = mock_post_processor
+
+    # Mock _c attribute
+    mock_cursor._c = Mock()
+    type(mock_cursor._c).is_single_database_metadata = PropertyMock(return_value=False)
+
+    # Execute
+    result = mock_cursor._process_metadata_request(
+        metadata_api_name="get_schemas",
+        min_show_discovery_version=mock_cursor._MIN_SHOW_DISCOVERY_VERSION_V4,
+        params=basic_params,
+        api_method=mock_cursor._metadataServerProxy.get_schemas,
+        post_process_method=mock_cursor._metadataAPIPostProcessor.get_schemas_post_processing
+    )
+
+    # Assert
+    assert result == [('schema1',), ('schema2',)]
+    mock_cursor._check_connection.assert_called_once()
+    mock_cursor._check_show_discovery_support.assert_called_once()
+    mock_cursor._metadataServerProxy.get_schemas.assert_called_once_with(**basic_params)
+    mock_cursor._metadataAPIPostProcessor.get_schemas_post_processing.assert_called_once_with(['schema1', 'schema2'])
+
+
+@pytest.fixture
+def mock_cursor():
+    """Create a mock cursor with common attributes"""
+    cursor = Cursor.__new__(Cursor)
+    cursor._check_connection = Mock()
+    cursor._check_show_discovery_support = Mock(return_value=True)
+
+    # Mock version constants
+    cursor._MIN_SHOW_DISCOVERY_VERSION_V4 = SHOW_DISCOVERY_V4
+
+    # Mock _c attribute
+    cursor._c = Mock()
+    type(cursor._c).is_single_database_metadata = PropertyMock(return_value=False)
+
+    return cursor
+
+
+@pytest.fixture
+def mock_server_proxy():
+    """Create mock server proxy with all required methods"""
+    proxy = Mock()
+    # Define return values for each method
+    proxy.get_catalogs.return_value = (['cat1'], ['cat2'])
+    proxy.get_schemas.return_value = (['schema1'], ['schema2'])
+    proxy.get_tables.return_value = (['table1'], ['table2'])
+    proxy.get_columns.return_value = (['col1'], ['col2'])
+    proxy.get_primary_keys.return_value = (['pk1'], ['pk2'])
+    proxy.get_foreign_keys.return_value = (['fk1'], ['fk2'])
+    proxy.get_best_row_identifier.return_value = (['row1'], ['row2'])
+    proxy.get_column_privileges.return_value = (['priv1'], ['priv2'])
+    proxy.get_table_privileges.return_value = (['tpriv1'], ['tpriv2'])
+    proxy.get_procedures.return_value = (['proc1'], ['proc2'])
+    proxy.get_procedure_columns.return_value = (['proc1_col1'], ['proc1_col2'])
+    proxy.get_functions.return_value = (['func1'], ['func2'])
+    proxy.get_function_columns.return_value = (['func1_col1'], ['func1_col2'])
+    return proxy
+
+
+@pytest.fixture
+def mock_post_processor():
+    """Create mock post processor with all required methods"""
+    processor = Mock()
+    # Define return values for each post-processing method
+    processor.get_catalogs_post_processing.return_value = (['cat1'], ['cat2'])
+    processor.get_schemas_post_processing.return_value = (['schema1'], ['schema2'])
+    processor.get_tables_post_processing.return_value = (['table1'], ['table2'])
+    processor.get_columns_post_processing.return_value = (['col1'], ['col2'])
+    processor.get_primary_keys_post_processing.return_value = (['pk1'], ['pk2'])
+    processor.get_foreign_keys_post_processing.return_value = (['fk1'], ['fk2'])
+    processor.get_best_row_identifier_post_processing.return_value = (['row1'], ['row2'])
+    processor.get_column_privileges_post_processing.return_value = (['priv1'], ['priv2'])
+    processor.get_table_privileges_post_processing.return_value = (['tpriv1'], ['tpriv2'])
+    processor.get_procedures_post_processing.return_value = (['proc1'], ['proc2'])
+    processor.get_procedure_columns_post_processing.return_value = (['proc1_col1'], ['proc1_col2'])
+    processor.get_functions_post_processing.return_value = (['func1'], ['func2'])
+    processor.get_function_columns_post_processing.return_value = (['func1_col1'], ['func1_col2'])
+    return processor
+
+
+@pytest.mark.parametrize("test_case", [
+    {
+        "method_name": "get_catalogs",
+        "post_processor_name": "get_catalogs_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {},
+        "expected_result": (['cat1'], ['cat2']),
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_schemas",
+        "post_processor_name": "get_schemas_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema_pattern": "test_pattern",
+        },
+        "expected_result": (['schema1'], ['schema2']),
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_tables",
+        "post_processor_name": "get_tables_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema_pattern": "test_pattern",
+            "table_pattern": "test_pattern"
+        },
+        "expected_result": (['table1'], ['table2']),
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_columns",
+        "post_processor_name": "get_columns_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema_pattern": "test_pattern",
+            "table_pattern": "test_pattern",
+            "test_column": "test_pattern"
+        },
+        "expected_result": (['col1'], ['col2']),
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_primary_keys",
+        "post_processor_name": "get_primary_keys_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema": "test_schema",
+            "table": "test_table"
+        },
+        "expected_result": (['pk1'], ['pk2']),
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_imported_keys",
+        "post_processor_name": "get_foreign_keys_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema": "test_schema",
+            "table": "test_table"
+        },
+        "expected_result": (['fk1'], ['fk2']),
+        "additional_args": {'imported': True},
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_exported_keys",
+        "post_processor_name": "get_foreign_keys_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema": "test_schema",
+            "table": "test_table"
+        },
+        "expected_result": (['fk1'], ['fk2']),
+        "additional_args": {'imported': False},
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_best_row_identifier",
+        "post_processor_name": "get_best_row_identifier_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema": "test_schema",
+            "table": "test_table"
+        },
+        "expected_result": (['row1'], ['row2']),
+        "additional_args": {'scope': 1},
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_procedures",
+        "post_processor_name": "get_procedures_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema_pattern": "test_pattern",
+            "procedure_name_pattern": "test_proc"
+        },
+        "expected_result": (['proc1'], ['proc2']),
+        "additional_args": {'procedure_name_pattern': 'test_proc'},
+        "has_legacy": True
+    },
+    {
+        "method_name": "get_procedure_columns",
+        "post_processor_name": "get_procedure_columns_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema_pattern": "test_pattern",
+            "procedure_name_pattern": "test_proc",
+            "column_name_pattern": "test_col"
+        },
+        "expected_result": (['proc1_col1'], ['proc1_col2']),
+        "additional_args": {
+            'procedure_name_pattern': 'test_proc',
+            'column_name_pattern': 'test_col'
+        },
+        "has_legacy": False
+    },
+    {
+        "method_name": "get_functions",
+        "post_processor_name": "get_functions_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema_pattern": "test_pattern",
+            "function_name_pattern": "test_func"
+        },
+        "expected_result": (['func1'], ['func2']),
+        "additional_args": {'function_name_pattern': 'test_func'},
+        "has_legacy": False
+    },
+    {
+        "method_name": "get_function_columns",
+        "post_processor_name": "get_function_columns_post_processing",
+        "min_version": "_MIN_SHOW_DISCOVERY_VERSION_V4",
+        "params": {
+            "catalog": "test_catalog",
+            "schema_pattern": "test_pattern",
+            "function_name_pattern": "test_func",
+            "column_name_pattern": "test_col"
+        },
+        "expected_result": (['func1_col1'], ['func1_col2']),
+        "additional_args": {
+            'function_name_pattern': 'test_func',
+            'column_name_pattern': 'test_col'
+        },
+        "has_legacy": False
+    },
+
+])
+def test_metadata_requests(mock_cursor, mock_server_proxy, mock_post_processor, test_case):
+    """Parameterized test for metadata API requests"""
+    # Setup
+    mock_cursor._metadataServerProxy = mock_server_proxy
+    mock_cursor._metadataAPIPostProcessor = mock_post_processor
+
+    # Add is_single_database_metadata to params
+    params = test_case["params"].copy()
+    params['is_single_database_metadata'] = False
+
+    # Get the appropriate method names
+    server_method = getattr(mock_server_proxy, test_case["method_name"])
+    post_process_method = getattr(mock_post_processor, test_case["post_processor_name"])
+
+    # Setup legacy method if needed
+    legacy_method = None
+    if test_case.get("has_legacy"):
+        legacy_method = Mock(return_value=test_case["expected_result"])
+        setattr(mock_cursor, f"{test_case['method_name']}_legacy_hardcoded_query", legacy_method)
+
+    # Execute
+    result = mock_cursor._process_metadata_request(
+        metadata_api_name=test_case["method_name"],
+        min_show_discovery_version=getattr(mock_cursor, test_case["min_version"]),
+        params=params,
+        api_method=server_method,
+        post_process_method=post_process_method,
+        legacy_method=legacy_method,
+        additional_args=test_case.get("additional_args")
+    )
+
+    # Assert
+    assert result == test_case["expected_result"]
+    mock_cursor._check_connection.assert_called_once()
+    mock_cursor._check_show_discovery_support.assert_called_once()
+    server_method.assert_called_once_with(**params)
+
+    # Check post-processing call
+    if test_case.get("additional_args"):
+        post_process_method.assert_called_once_with(server_method.return_value, **test_case["additional_args"])
+    else:
+        post_process_method.assert_called_once_with(server_method.return_value)

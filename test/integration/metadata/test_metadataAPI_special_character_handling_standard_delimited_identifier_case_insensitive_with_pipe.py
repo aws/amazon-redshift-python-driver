@@ -1,17 +1,9 @@
-import configparser
-import os
 import typing
 
 import pytest  # type: ignore
-
 import redshift_connector
 from redshift_connector.metadataAPIHelper import MetadataAPIHelper
 
-cur_db_kwargs: typing.Dict[str, typing.Any] = {}
-
-conf: configparser.ConfigParser = configparser.ConfigParser()
-root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-conf.read(root_path + "/config.ini")
 
 # Manually set the following flag to False if we want to test cross-database metadata api call
 disable_cross_database_testing: bool = True
@@ -26,9 +18,9 @@ object_identifier: str = "təst_n𝒜m好e$123\\\\n\\\\t\\\\r\\\\0`~!@#$%^&*()_+
 object_identifier_mixed_case: str = "təst_N𝒜m好e$123\\\\n\\\\t\\\\r\\\\0`~!@#$%^&*()_+-={}|[]:\";,./<>?\\\\'' Delimited"
 
 startup_stmts: typing.Tuple[str, ...] = (
-    'DROP SCHEMA IF EXISTS "{}" CASCADE;'.format(object_sql_name),
-    'CREATE SCHEMA "{}";'.format(object_sql_name),
-    'create table "{}"."{}" ("{}" INT);'.format(object_sql_name, object_sql_name, object_sql_name),
+    "DROP SCHEMA IF EXISTS \"{}\" CASCADE;".format(object_sql_name),
+    "CREATE SCHEMA \"{}\";".format(object_sql_name),
+    "create table \"{}\".\"{}\" (\"{}\" INT);".format(object_sql_name, object_sql_name, object_sql_name),
 )
 
 test_cases = [
