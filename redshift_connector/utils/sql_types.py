@@ -1,4 +1,5 @@
-from enum import IntEnum, EnumMeta
+from enum import EnumMeta, IntEnum
+
 
 class SQLTypeMeta(EnumMeta):
     def __setattr__(self, name, value):
@@ -7,6 +8,7 @@ class SQLTypeMeta(EnumMeta):
             # throw error if any constant value defined in SQLType was modified
             # e.g. "Cannot modify SQL type constant 'SQL_VARCHAR'"
         super().__setattr__(name, value)
+
 
 class SQLType(IntEnum, metaclass=SQLTypeMeta):
     SQL_VARCHAR = 12

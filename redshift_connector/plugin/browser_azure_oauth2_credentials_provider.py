@@ -58,7 +58,7 @@ class BrowserAzureOAuth2CredentialsProvider(JwtCredentialsProvider):
         self.idp_tenant = info.idp_tenant
         self.client_id = info.client_id
         self.scope = info.scope
-        
+
         # Validate and set idp_partition
         self.idp_partition = validate_idp_partition(info.idp_partition)
 

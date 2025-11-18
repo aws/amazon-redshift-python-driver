@@ -336,6 +336,7 @@ def test_socket_timeout(db_kwargs) -> None:
     with pytest.raises(redshift_connector.InterfaceError):
         redshift_connector.connect(**db_kwargs)
 
+
 def test_tcp_keepalive(db_kwargs) -> None:
     """Test TCP keepalive configuration is properly applied"""
     db_kwargs["tcp_keepalive"] = True
@@ -351,20 +352,21 @@ def test_tcp_keepalive(db_kwargs) -> None:
         keepalive = sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE)
         assert keepalive > 0, "TCP keepalive should be enabled"
 
-        if hasattr(socket, 'TCP_KEEPIDLE'):
+        if hasattr(socket, "TCP_KEEPIDLE"):
             idle = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE)
             assert idle == 30, "TCP keepalive idle time should be 30"
-        elif hasattr(socket, 'TCP_KEEPALIVE'):
+        elif hasattr(socket, "TCP_KEEPALIVE"):
             idle = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE)
             assert idle == 30, "TCP keepalive idle time should be 30"
 
-        if hasattr(socket, 'TCP_KEEPINTVL'):
+        if hasattr(socket, "TCP_KEEPINTVL"):
             interval = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL)
             assert interval == 10, "TCP keepalive interval should be 10"
 
-        if hasattr(socket, 'TCP_KEEPCNT'):
+        if hasattr(socket, "TCP_KEEPCNT"):
             count = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT)
             assert count == 3, "TCP keepalive count should be 3"
+
 
 def test_tcp_keepalive_defaults(db_kwargs) -> None:
     """Test TCP keepalive with default values"""
@@ -382,25 +384,29 @@ def test_tcp_keepalive_defaults(db_kwargs) -> None:
             db_kwargs["tcp_keepalive"] = False
             sock2 = conn2._usock
 
-            if hasattr(socket, 'TCP_KEEPIDLE'):
+            if hasattr(socket, "TCP_KEEPIDLE"):
                 val1 = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE)
                 val2 = sock2.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE)
-                assert val1 == val2, "TCP_KEEPIDLE should match system default. Got {} but expected {}".format(val1,
-                                                                                                               val2)
-            elif hasattr(socket, 'TCP_KEEPALIVE'):
+                assert val1 == val2, "TCP_KEEPIDLE should match system default. Got {} but expected {}".format(
+                    val1, val2
+                )
+            elif hasattr(socket, "TCP_KEEPALIVE"):
                 val1 = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE)
                 val2 = sock2.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE)
-                assert val1 == val2, "TCP_KEEPALIVE should match system default. Got {} but expected {}".format(val1,
-                                                                                                                val2)
+                assert val1 == val2, "TCP_KEEPALIVE should match system default. Got {} but expected {}".format(
+                    val1, val2
+                )
 
-            if hasattr(socket, 'TCP_KEEPINTVL'):
+            if hasattr(socket, "TCP_KEEPINTVL"):
                 val1 = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL)
                 val2 = sock2.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL)
-                assert val1 == val2, "TCP_KEEPINTVL should match system default. Got {} but expected {}".format(val1,
-                                                                                                                val2)
+                assert val1 == val2, "TCP_KEEPINTVL should match system default. Got {} but expected {}".format(
+                    val1, val2
+                )
 
-            if hasattr(socket, 'TCP_KEEPCNT'):
+            if hasattr(socket, "TCP_KEEPCNT"):
                 val1 = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT)
                 val2 = sock2.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT)
-                assert val1 == val2, "TCP_KEEPCNT should match system default. Got {} but expected {}".format(val1,
-                                                                                                              val2)
+                assert val1 == val2, "TCP_KEEPCNT should match system default. Got {} but expected {}".format(
+                    val1, val2
+                )

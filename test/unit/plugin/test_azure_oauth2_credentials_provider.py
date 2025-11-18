@@ -1,5 +1,13 @@
 import typing
 
+# Import common Azure tests
+from test.unit.plugin.test_azure_common import (
+    test_get_microsoft_idp_host_china_partition,
+    test_get_microsoft_idp_host_empty_partition_returns_commercial_host,
+    test_get_microsoft_idp_host_invalid_partition_throws_error,
+    test_get_microsoft_idp_host_us_gov_partition,
+)
+
 import pytest
 from pytest_mock import mocker  # type: ignore
 
@@ -9,14 +17,6 @@ from redshift_connector.plugin.browser_azure_oauth2_credentials_provider import 
 )
 from redshift_connector.plugin.plugin_utils import get_microsoft_idp_host
 from redshift_connector.redshift_property import RedshiftProperty
-
-# Import common Azure tests
-from test.unit.plugin.test_azure_common import (
-    test_get_microsoft_idp_host_empty_partition_returns_commercial_host,
-    test_get_microsoft_idp_host_us_gov_partition,
-    test_get_microsoft_idp_host_china_partition,
-    test_get_microsoft_idp_host_invalid_partition_throws_error
-)
 
 
 def make_valid_azure_oauth2_provider() -> typing.Tuple[BrowserAzureOAuth2CredentialsProvider, RedshiftProperty]:
@@ -29,6 +29,7 @@ def make_valid_azure_oauth2_provider() -> typing.Tuple[BrowserAzureOAuth2Credent
     cp: BrowserAzureOAuth2CredentialsProvider = BrowserAzureOAuth2CredentialsProvider()
     cp.add_parameter(rp)
     return cp, rp
+
 
 def test_default_parameters_azure_oauth2_specific() -> None:
     acp, _ = make_valid_azure_oauth2_provider()
@@ -45,43 +46,46 @@ def test_add_parameter_sets_azure_oauth2_specific() -> None:
     assert acp.listen_port == rp.listen_port
 
 
-@pytest.mark.parametrize("partition, expected_host", [
-    (None, "login.microsoftonline.com"),
-    ("", "login.microsoftonline.com"),
-    ("us-gov", "login.microsoftonline.us"),
-    ("cn", "login.chinacloudapi.cn")
-])
+@pytest.mark.parametrize(
+    "partition, expected_host",
+    [
+        (None, "login.microsoftonline.com"),
+        ("", "login.microsoftonline.com"),
+        ("us-gov", "login.microsoftonline.us"),
+        ("cn", "login.chinacloudapi.cn"),
+    ],
+)
 def test_fetch_jwt_response_uses_correct_idp_host(mocker, partition, expected_host) -> None:
     """Test that fetch_jwt_response uses the correct IdP host based on partition"""
     from urllib.parse import urlparse
-    
+
     acp, _ = make_valid_azure_oauth2_provider()
     acp.idp_partition = partition
     acp.redirectUri = "http://localhost:7890/redshift/"  # Set required attribute
-    
+
     # Mock the requests.post call
     mock_response = mocker.Mock()
     mock_response.status_code = 200
     mock_response.json.return_value = {"access_token": "test_token"}
     mock_post = mocker.patch("requests.post", return_value=mock_response)
-    
+
     # Call the method
     acp.fetch_jwt_response("test_auth_code")
-    
+
     # Parse the URL and verify its components
     call_args = mock_post.call_args
     url = call_args[0][0]  # First positional argument is the URL
     parsed_url = urlparse(url)
     assert parsed_url.netloc == expected_host
-    assert parsed_url.scheme == 'https'
-    assert '/oauth2/' in parsed_url.path
+    assert parsed_url.scheme == "https"
+    assert "/oauth2/" in parsed_url.path
 
 
 def test_invalid_partition_handling() -> None:
     """Test error handling when an invalid partition is provided"""
     acp, _ = make_valid_azure_oauth2_provider()
     acp.idp_partition = "invalid-partition"
-    
+
     with pytest.raises(InterfaceError, match="idp_partition must be one of"):
         acp.fetch_jwt_response("test_auth_code")
 

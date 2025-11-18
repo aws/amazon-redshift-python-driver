@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 from packaging.version import Version
+
 from redshift_connector.idp_auth_helper import IdpAuthHelper
 
 

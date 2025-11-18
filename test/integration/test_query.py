@@ -448,36 +448,40 @@ def test_handle_COMMAND_COMPLETE_closed_ps(con, mocker) -> None:
         # Should be 7 statements total from all operations
         assert len(next(iter(cache_iter.values()))["statement"]) == 8  # should be 8 ps in this process
 
-@pytest.mark.parametrize("test_case", [
-    {
-        "name": "max_prepared_statements_zero",
-        "max_prepared_statements": 0,
-        "queries": ["SELECT 1", "SELECT 2"],
-        "expected_close_calls": 0,
-        "expected_cache_size": 0
-    },
-    {
-        "name": "max_prepared_statements_default",
-        "max_prepared_statements": 1000,
-        "queries": ["SELECT 1", "SELECT 2"],
-        "expected_close_calls": 0,
-        "expected_cache_size": 3
-    },
-    {
-        "name": "max_prepared_statements_limit_1",
-        "max_prepared_statements": 2,
-        "queries": ["SELECT 1", "SELECT 2", "SELECT 3"],
-        "expected_close_calls": 2,
-        "expected_cache_size": 2
-    },
-{
-        "name": "max_prepared_statements_limit_2",
-        "max_prepared_statements": 2,
-        "queries": ["SELECT 1", "SELECT 2"],
-        "expected_close_calls": 1,
-        "expected_cache_size": 2
-    }
-])
+
+@pytest.mark.parametrize(
+    "test_case",
+    [
+        {
+            "name": "max_prepared_statements_zero",
+            "max_prepared_statements": 0,
+            "queries": ["SELECT 1", "SELECT 2"],
+            "expected_close_calls": 0,
+            "expected_cache_size": 0,
+        },
+        {
+            "name": "max_prepared_statements_default",
+            "max_prepared_statements": 1000,
+            "queries": ["SELECT 1", "SELECT 2"],
+            "expected_close_calls": 0,
+            "expected_cache_size": 3,
+        },
+        {
+            "name": "max_prepared_statements_limit_1",
+            "max_prepared_statements": 2,
+            "queries": ["SELECT 1", "SELECT 2", "SELECT 3"],
+            "expected_close_calls": 2,
+            "expected_cache_size": 2,
+        },
+        {
+            "name": "max_prepared_statements_limit_2",
+            "max_prepared_statements": 2,
+            "queries": ["SELECT 1", "SELECT 2"],
+            "expected_close_calls": 1,
+            "expected_cache_size": 2,
+        },
+    ],
+)
 def test_max_prepared_statement(con, mocker, test_case) -> None:
     """
     Test the prepared statement cache management functionality.
@@ -508,6 +512,7 @@ def test_max_prepared_statement(con, mocker, test_case) -> None:
 
         # Verify the final cache size matches expected size
         assert len(next(iter(cache_iter.values()))["ps"]) == test_case["expected_cache_size"]
+
 
 @pytest.mark.parametrize("_input", ["NO_SCHEMA_UNIVERSAL_QUERY", "EXTERNAL_SCHEMA_QUERY", "LOCAL_SCHEMA_QUERY"])
 def test___get_table_filter_clause_return_empty_result(con, _input) -> None:

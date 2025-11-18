@@ -11,8 +11,7 @@ from wheel.bdist_wheel import bdist_wheel as BDistWheelCommandBase
 
 
 class BasePytestCommand(TestCommand):
-    user_options: typing.List = []
-    test_dir: typing.Optional[str] = None
+    user_options: typing.List = []  # type: ignore
 
     def initialize_options(self):
         TestCommand.initialize_options(self)
@@ -23,13 +22,19 @@ class BasePytestCommand(TestCommand):
         self.test_suite = True
 
     def run_tests(self):
+        # This method should be overridden by subclasses
+        raise NotImplementedError("Subclasses must implement run_tests method")
+
+
+class UnitTestCommand(BasePytestCommand):
+    def run_tests(self):
         import pytest
 
         src_dir = os.getenv("SRC_DIR", "")
         if src_dir:
             src_dir += "/"
         args = [
-            self.test_dir,
+            "test/unit",
             "--cov=redshift_connector",
             "--cov-report=xml",
             "--cov-report=html",
@@ -39,12 +44,22 @@ class BasePytestCommand(TestCommand):
         sys.exit(errno)
 
 
-class UnitTestCommand(BasePytestCommand):
-    test_dir: str = "test/unit"
-
-
 class IntegrationTestCommand(BasePytestCommand):
-    test_dir = "test/integration"
+    def run_tests(self):
+        import pytest
+
+        src_dir = os.getenv("SRC_DIR", "")
+        if src_dir:
+            src_dir += "/"
+        args = [
+            "test/integration",
+            "--cov=redshift_connector",
+            "--cov-report=xml",
+            "--cov-report=html",
+        ]
+
+        errno = pytest.main(args)
+        sys.exit(errno)
 
 
 class BinaryDistribution(Distribution):
@@ -130,5 +145,5 @@ setup(
     include_package_data=True,
     package_data={"redshift-connector": ["*.py", "*.crt", "LICENSE", "NOTICE", "py.typed"]},
     packages=find_packages(exclude=["test*"]),
-    cmdclass=custom_cmds,
+    cmdclass=custom_cmds,  # type: ignore
 )

@@ -43,7 +43,7 @@ class IdpAuthHelper:
         try:
             from importlib.metadata import version as version
         except ModuleNotFoundError:  # if importlib is not present, fallback to pkg_resources
-            import pkg_resources
+            import pkg_resources  # type: ignore
 
             return Version(pkg_resources.get_distribution(module_name).version)
 
@@ -52,6 +52,7 @@ class IdpAuthHelper:
             return Version(pkg_version)
 
         import importlib
+
         imported_module = importlib.import_module(module_name)
         return Version(imported_module.__version__)
 

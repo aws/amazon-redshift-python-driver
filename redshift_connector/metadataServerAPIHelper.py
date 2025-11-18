@@ -1,6 +1,8 @@
 import logging
 import typing
+from typing import Optional
 
+from redshift_connector.error import InterfaceError
 from redshift_connector.metadataAPIHelper import MetadataAPIHelper
 
 _logger: logging.Logger = logging.getLogger(__name__)
@@ -35,7 +37,13 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
 
         return catalogs
 
-    def get_schema_server_api(self, catalog: str = None, schema_pattern: str = None, ret_empty: bool = False, isSingleDatabaseMetaData: bool = True) -> typing.List[typing.Tuple]:
+    def get_schema_server_api(
+        self,
+        catalog: Optional[str] = None,
+        schema_pattern: Optional[str] = None,
+        ret_empty: bool = False,
+        isSingleDatabaseMetaData: bool = True,
+    ) -> typing.List[typing.Tuple]:
         """
         Helper function for metadata API get_schemas to return intermediate result for post-processing
 
@@ -63,11 +71,20 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
                 if self._cursor._SHOW_SCHEMAS_Col_index is None:
                     self._cursor._SHOW_SCHEMAS_Col_index = self.build_column_name_index_map()
 
-            _logger.debug("Successfully executed SHOW SCHEMAS for catalog = %s, schemaPattern = %s", catalog, schema_pattern)
+            _logger.debug(
+                "Successfully executed SHOW SCHEMAS for catalog = %s, schemaPattern = %s", catalog, schema_pattern
+            )
 
         return intermediate_rs
 
-    def get_table_server_api(self, catalog: str = None, schema_pattern: str = None, table_name_pattern: str = None, ret_empty: bool = False, isSingleDatabaseMetaData: bool = True) -> typing.List[typing.Tuple]:
+    def get_table_server_api(
+        self,
+        catalog: Optional[str] = None,
+        schema_pattern: Optional[str] = None,
+        table_name_pattern: Optional[str] = None,
+        ret_empty: bool = False,
+        isSingleDatabaseMetaData: bool = True,
+    ) -> typing.List[typing.Tuple]:
         """
         Helper function for metadata API get_tables to return intermediate result for post-processing
 
@@ -91,7 +108,7 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
             catalog_list: typing.List = self.call_get_catalog_list(catalog, isSingleDatabaseMetaData)
 
             for cur_catalog in catalog_list:
-                #Get schema list
+                # Get schema list
                 show_schemas_rs: typing.Tuple = self.call_show_schema(cur_catalog, schema_pattern)
 
                 # Create Column name / Column Index mapping for SHOW SCHEMAS
@@ -99,18 +116,42 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
                     self._cursor._SHOW_SCHEMAS_Col_index = self.build_column_name_index_map()
 
                 for cur_schema in show_schemas_rs:
-                    intermediate_rs.append(self.call_show_table(cur_catalog, cur_schema[self._cursor._SHOW_SCHEMAS_Col_index[self._SHOW_SCHEMA_schema_name]], table_name_pattern))
+                    schema_name_index = self._cursor._SHOW_SCHEMAS_Col_index.get(self._SHOW_SCHEMA_schema_name)
+                    if schema_name_index is None:
+                        raise InterfaceError(
+                            f"Required key '{self._SHOW_SCHEMA_schema_name}' not found in _SHOW_SCHEMAS_Col_index"
+                        )
+
+                    intermediate_rs.append(
+                        self.call_show_table(
+                            cur_catalog,
+                            cur_schema[schema_name_index],
+                            table_name_pattern,
+                        )
+                    )
 
                     # Create Column name / Column Index mapping for SHOW TABLES
                     if self._cursor._SHOW_TABLES_Col_index is None:
                         self._cursor._SHOW_TABLES_Col_index = self.build_column_name_index_map()
 
-            _logger.debug("Successfully executed SHOW TABLES for catalog = %s, schemaPattern = %s, tableNamePattern = %s", catalog, schema_pattern, table_name_pattern)
+            _logger.debug(
+                "Successfully executed SHOW TABLES for catalog = %s, schemaPattern = %s, tableNamePattern = %s",
+                catalog,
+                schema_pattern,
+                table_name_pattern,
+            )
 
         return intermediate_rs
 
-
-    def get_column_server_api(self, catalog: str = None, schema_pattern: str = None, table_name_pattern: str = None, column_name_pattern: str = None, ret_empty: bool = False, isSingleDatabaseMetaData: bool = True) -> typing.List[typing.Tuple]:
+    def get_column_server_api(
+        self,
+        catalog: Optional[str] = None,
+        schema_pattern: Optional[str] = None,
+        table_name_pattern: Optional[str] = None,
+        column_name_pattern: Optional[str] = None,
+        ret_empty: bool = False,
+        isSingleDatabaseMetaData: bool = True,
+    ) -> typing.List[typing.Tuple]:
         """
         Helper function for metadata API get_columns to return intermediate result for post-processing
 
@@ -144,25 +185,54 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
 
                 for cur_schema in show_schemas_rs:
                     # Get table list
-                    cur_schema_name: str = cur_schema[self._cursor._SHOW_SCHEMAS_Col_index[self._SHOW_SCHEMA_schema_name]]
-                    show_tables_rs: typing.Tuple = self.call_show_table(cur_catalog, cur_schema_name, table_name_pattern)
+                    schema_name_index = self._cursor._SHOW_SCHEMAS_Col_index.get(self._SHOW_SCHEMA_schema_name)
+                    if schema_name_index is None:
+                        raise InterfaceError(
+                            f"Required key '{self._SHOW_SCHEMA_schema_name}' not found in _SHOW_SCHEMAS_Col_index"
+                        )
+
+                    cur_schema_name: str = cur_schema[schema_name_index]
+                    show_tables_rs: typing.Tuple = self.call_show_table(
+                        cur_catalog, cur_schema_name, table_name_pattern
+                    )
 
                     # Create Column name / Column Index mapping for SHOW TABLES
                     if self._cursor._SHOW_TABLES_Col_index is None:
                         self._cursor._SHOW_TABLES_Col_index = self.build_column_name_index_map()
 
                     for cur_table in show_tables_rs:
-                        intermediate_rs.append(self.call_show_column(cur_catalog, cur_schema_name, cur_table[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_name]], column_name_pattern))
+                        table_name_index = self._cursor._SHOW_TABLES_Col_index.get(self._SHOW_TABLES_table_name)
+                        if table_name_index is None:
+                            raise InterfaceError(
+                                f"Required key '{self._SHOW_TABLES_table_name}' not found in _SHOW_TABLES_Col_index"
+                            )
+
+                        intermediate_rs.append(
+                            self.call_show_column(
+                                cur_catalog,
+                                cur_schema_name,
+                                cur_table[table_name_index],
+                                column_name_pattern,
+                            )
+                        )
 
                         # Create Column name / Column Index mapping for SHOW COLUMNS
                         if self._cursor._SHOW_COLUMNS_Col_index is None:
                             self._cursor._SHOW_COLUMNS_Col_index = self.build_column_name_index_map()
 
-            _logger.debug("Successfully executed SHOW COLUMNS for catalog = %s, schema = %s, tableName = %s, columnNamePattern = %s", catalog, schema_pattern, table_name_pattern, column_name_pattern)
+            _logger.debug(
+                "Successfully executed SHOW COLUMNS for catalog = %s, schema = %s, tableName = %s, columnNamePattern = %s",
+                catalog,
+                schema_pattern,
+                table_name_pattern,
+                column_name_pattern,
+            )
 
         return intermediate_rs
 
-    def call_get_catalog_list(self, catalog: str, isSingleDatabaseMetaData: bool) -> typing.List[typing.Tuple]:
+    def call_get_catalog_list(
+        self, catalog: Optional[str], isSingleDatabaseMetaData: bool
+    ) -> typing.List[typing.Tuple]:
         """
         Helper function to get a list of catalog name
 
@@ -204,15 +274,21 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         cur_catalog: str = self._cursor.cur_catalog()
 
         for rs in catalog_rs:
+            db_name_index = self._cursor._SHOW_DATABASES_Col_index.get(self._SHOW_DATABASES_database_name)
+            if db_name_index is None:
+                raise InterfaceError(
+                    f"Required key '{self._SHOW_DATABASES_database_name}' not found in _SHOW_DATABASES_Col_index"
+                )
+
             if isSingleDatabaseMetaData is True:
-                if rs[self._cursor._SHOW_DATABASES_Col_index[self._SHOW_DATABASES_database_name]] == cur_catalog:
-                    catalog_list.append(rs[self._cursor._SHOW_DATABASES_Col_index[self._SHOW_DATABASES_database_name]])
+                if rs[db_name_index] == cur_catalog:
+                    catalog_list.append(rs[db_name_index])
             else:
-                catalog_list.append(rs[self._cursor._SHOW_DATABASES_Col_index[self._SHOW_DATABASES_database_name]])
+                catalog_list.append(rs[db_name_index])
 
         return catalog_list
 
-    def call_show_schema(self, catalog: str, schema: str) -> typing.Tuple:
+    def call_show_schema(self, catalog: Optional[str], schema: Optional[str]) -> typing.Tuple:
         """
         Helper function to determine whether calling SHOW SCHEMAS with LIKE or not
 
@@ -230,7 +306,7 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         else:
             return self.call_show_schema_with_like(catalog, schema)
 
-    def call_show_schema_with_like(self, catalog: str, schema: str) -> typing.Tuple:
+    def call_show_schema_with_like(self, catalog: Optional[str], schema: Optional[str]) -> typing.Tuple:
         """
         Helper function to call SHOW SCHEMAS with LIKE
 
@@ -243,7 +319,7 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         -------
         A tuple containing result set for SHOW SCHEMAS: tuple
         """
-        sql: str = self._sql_show_schemas_like.format(self.quote_ident(catalog), self.quote_literal(schema))
+        sql: str = self._sql_show_schemas_like.format(self.quote_ident(catalog or ""), self.quote_literal(schema or ""))
         _logger.debug("Calling Server API: %s", sql)
 
         # Execute SHOW SCHEMAS
@@ -251,7 +327,7 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
-    def call_show_schema_without_like(self, catalog: str) -> typing.Tuple:
+    def call_show_schema_without_like(self, catalog: Optional[str]) -> typing.Tuple:
         """
         Helper function to call SHOW SCHEMAS
 
@@ -263,7 +339,7 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         -------
         A tuple containing result set for SHOW SCHEMAS: tuple
         """
-        sql: str = self._sql_show_schemas.format(self.quote_ident(catalog))
+        sql: str = self._sql_show_schemas.format(self.quote_ident(catalog or ""))
         _logger.debug("Calling Server API: %s", sql)
 
         # Execute SHOW SCHEMAS
@@ -271,7 +347,7 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         return self._cursor.fetchall()
 
     # Helper function to call SHOW TABLES
-    def call_show_table(self, catalog: str, schema: str, table: str) -> typing.Tuple:
+    def call_show_table(self, catalog: Optional[str], schema: Optional[str], table: Optional[str]) -> typing.Tuple:
         """
         Helper function to determine whether calling SHOW TABLES with LIKE or not
 
@@ -290,7 +366,9 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         else:
             return self.call_show_table_with_like(catalog, schema, table)
 
-    def call_show_table_with_like(self, catalog: str, schema: str, table: str) -> typing.Tuple:
+    def call_show_table_with_like(
+        self, catalog: Optional[str], schema: Optional[str], table: Optional[str]
+    ) -> typing.Tuple:
         """
         Helper function to call SHOW TABLES with LIKE
 
@@ -304,14 +382,16 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         -------
         A tuple containing result set for SHOW TABLES: tuple
         """
-        sql: str = self._sql_show_tables_like.format(self.quote_ident(catalog), self.quote_ident(schema), self.quote_literal(table))
+        sql: str = self._sql_show_tables_like.format(
+            self.quote_ident(catalog or ""), self.quote_ident(schema or ""), self.quote_literal(table or "")
+        )
         _logger.debug("Calling Server API: %s", sql)
 
         # Execute SHOW TABLES
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
-    def call_show_table_without_like(self, catalog: str, schema: str) -> typing.Tuple:
+    def call_show_table_without_like(self, catalog: Optional[str], schema: Optional[str]) -> typing.Tuple:
         """
         Helper function to call SHOW TABLE
 
@@ -324,7 +404,7 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         -------
         A tuple containing result set for SHOW TABLES: tuple
         """
-        sql: str = self._sql_show_tables.format(self.quote_ident(catalog), self.quote_ident(schema))
+        sql: str = self._sql_show_tables.format(self.quote_ident(catalog or ""), self.quote_ident(schema or ""))
         _logger.debug("Calling Server API: %s", sql)
 
         # Execute SHOW TABLES
@@ -332,7 +412,9 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         return self._cursor.fetchall()
 
     # Helper function to call SHOW COLUMNS
-    def call_show_column(self, catalog: str, schema: str, table: str, column: str) -> typing.Tuple:
+    def call_show_column(
+        self, catalog: Optional[str], schema: Optional[str], table: Optional[str], column: Optional[str]
+    ) -> typing.Tuple:
         """
         Helper function to determine whether calling SHOW COLUMNS with LIKE or not
 
@@ -352,7 +434,9 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         else:
             return self.call_show_column_with_like(catalog, schema, table, column)
 
-    def call_show_column_with_like(self, catalog: str, schema: str, table: str, column: str) -> typing.Tuple:
+    def call_show_column_with_like(
+        self, catalog: Optional[str], schema: Optional[str], table: Optional[str], column: Optional[str]
+    ) -> typing.Tuple:
         """
         Helper function to call SHOW COLUMNS with LIKE
 
@@ -367,14 +451,21 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         -------
         A tuple containing result set for SHOW COLUMNS: tuple
         """
-        sql: str = self._sql_show_columns_like.format(self.quote_ident(catalog), self.quote_ident(schema), self.quote_ident(table), self.quote_literal(column))
+        sql: str = self._sql_show_columns_like.format(
+            self.quote_ident(catalog or ""),
+            self.quote_ident(schema or ""),
+            self.quote_ident(table or ""),
+            self.quote_literal(column or ""),
+        )
         _logger.debug("Calling Server API: %s", sql)
 
         # Execute SHOW COLUMNS
         self._cursor.execute(sql)
         return self._cursor.fetchall()
 
-    def call_show_column_without_like(self, catalog: str, schema: str, table: str) -> typing.Tuple:
+    def call_show_column_without_like(
+        self, catalog: Optional[str], schema: Optional[str], table: Optional[str]
+    ) -> typing.Tuple:
         """
         Helper function to call SHOW COLUMNS
 
@@ -388,7 +479,9 @@ class MetadataServerAPIHelper(MetadataAPIHelper):
         -------
         A tuple containing result set for SHOW COLUMNS: tuple
         """
-        sql: str = self._sql_show_columns.format(self.quote_ident(catalog), self.quote_ident(schema), self.quote_ident(table))
+        sql: str = self._sql_show_columns.format(
+            self.quote_ident(catalog or ""), self.quote_ident(schema or ""), self.quote_ident(table or "")
+        )
         _logger.debug("Calling Server API: %s", sql)
 
         # Execute SHOW COLUMNS

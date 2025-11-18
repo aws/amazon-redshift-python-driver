@@ -2,7 +2,7 @@ import logging
 import os
 import socket
 import typing
-from collections import deque, OrderedDict
+from collections import OrderedDict, deque
 from copy import deepcopy
 from datetime import datetime as Datetime
 from datetime import timedelta as Timedelta
@@ -18,8 +18,8 @@ from packaging import version
 from scramp import ScramClient  # type: ignore
 
 from redshift_connector.config import (
-    DEFAULT_PROTOCOL_VERSION,
     DEFAULT_MAX_PREPARED_STATEMENTS,
+    DEFAULT_PROTOCOL_VERSION,
     ClientProtocolVersion,
     DbApiParamstyle,
     _client_encoding,
@@ -358,6 +358,7 @@ IDLE_IN_FAILED_TRANSACTION: bytes = b"E"
 
 arr_trans: typing.Mapping[int, typing.Optional[str]] = dict(zip(map(ord, "[] 'u"), ["{", "}", None, None, None]))
 
+
 class Connection:
     # DBAPI Extension: supply exceptions as attributes on the connection
     Warning = property(lambda self: self._getError(Warning))
@@ -569,9 +570,7 @@ class Connection:
                 "BrowserIdcAuthPlugin",
             ):
                 redshift_native_auth = True
-                self.set_idc_plugins_params(
-                    init_params, credentials_provider, identity_namespace, token_type
-                )
+                self.set_idc_plugins_params(init_params, credentials_provider, identity_namespace, token_type)
 
             if redshift_native_auth and provider_name:
                 init_params["provider_name"] = provider_name
@@ -688,24 +687,24 @@ class Connection:
                 # Set TCP keepalive parameters if supported by platform and values are defined
                 if tcp_keepalive_idle is not None:
                     # Mac OS X uses TCP_KEEPALIVE instead of TCP_KEEPIDLE
-                    if hasattr(socket, 'TCP_KEEPIDLE'):
+                    if hasattr(socket, "TCP_KEEPIDLE"):
                         self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, tcp_keepalive_idle)
                         _logger.debug(f"Set TCP_KEEPIDLE to {tcp_keepalive_idle}")
-                    elif hasattr(socket, 'TCP_KEEPALIVE'):  # macOS/BSD
+                    elif hasattr(socket, "TCP_KEEPALIVE"):  # macOS/BSD
                         self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPALIVE, tcp_keepalive_idle)
                         _logger.debug(f"Set TCP_KEEPALIVE to {tcp_keepalive_idle}")
                     else:
                         _logger.warning("Neither TCP_KEEPIDLE nor TCP_KEEPALIVE supported on this platform")
 
                 if tcp_keepalive_interval is not None:
-                    if hasattr(socket, 'TCP_KEEPINTVL'):
+                    if hasattr(socket, "TCP_KEEPINTVL"):
                         self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, tcp_keepalive_interval)
                         _logger.debug(f"Set TCP_KEEPINTVL to {tcp_keepalive_interval}")
                     else:
                         _logger.warning("TCP_KEEPINTVL not supported on this platform")
 
                 if tcp_keepalive_count is not None:
-                    if hasattr(socket, 'TCP_KEEPCNT'):
+                    if hasattr(socket, "TCP_KEEPCNT"):
                         self._usock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, tcp_keepalive_count)
                         _logger.debug(f"Set TCP_KEEPCNT to {tcp_keepalive_count}")
                     else:
@@ -1686,7 +1685,7 @@ class Connection:
                 cache = param_cache[pid] = {
                     "statement": {},
                     "ps": {},
-                    "statement_dict": OrderedDict() if self.max_prepared_statements > 0 else None
+                    "statement_dict": OrderedDict() if self.max_prepared_statements > 0 else None,
                 }
 
         try:
@@ -1709,7 +1708,7 @@ class Connection:
         try:
             ps = cache["ps"][key]
             # If statement exists, move it to end of ordered dict (most recently used)
-            if self.max_prepared_statements > 0 and 'statement_dict' in cache and key in cache["statement_dict"]:
+            if self.max_prepared_statements > 0 and "statement_dict" in cache and key in cache["statement_dict"]:
                 cache["statement_dict"].move_to_end(key)
             _logger.debug("Using cached prepared statement")
             cursor.ps = ps
@@ -2543,6 +2542,8 @@ class Connection:
 
     def get_max_prepared_statement(self, max_prepared_statements: int) -> int:
         if max_prepared_statements < 0:
-            _logger.error("Parameter max_prepared_statements must >= 0. Using default value %d", DEFAULT_MAX_PREPARED_STATEMENTS)
+            _logger.error(
+                "Parameter max_prepared_statements must >= 0. Using default value %d", DEFAULT_MAX_PREPARED_STATEMENTS
+            )
             return DEFAULT_MAX_PREPARED_STATEMENTS
         return max_prepared_statements

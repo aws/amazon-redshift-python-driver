@@ -1,4 +1,5 @@
-from enum import IntEnum, EnumMeta
+from enum import EnumMeta, IntEnum
+
 
 class RedshiftOIDMeta(EnumMeta):
     def __setattr__(self, name, value):

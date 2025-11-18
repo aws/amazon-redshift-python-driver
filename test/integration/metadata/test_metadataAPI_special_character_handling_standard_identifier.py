@@ -1,10 +1,13 @@
 import configparser
 import os
 import typing
+
 import pytest  # type: ignore
 
 import redshift_connector
 from redshift_connector.metadataAPIHelper import MetadataAPIHelper
+
+cur_db_kwargs: typing.Dict[str, typing.Any] = {}
 
 conf: configparser.ConfigParser = configparser.ConfigParser()
 root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,17 +28,13 @@ startup_stmts: typing.Tuple[str, ...] = (
 
 test_cases = [
     # Standard identifier with lower case
-    ([current_catalog, object_name], 1,
-     [object_name]),
-
+    ([current_catalog, object_name], 1, [object_name]),
     # Standard identifier with mixed case
-    ([current_catalog, "təst_N𝒜m好e$123Standard"], 0,
-     []),
-
+    ([current_catalog, "təst_N𝒜m好e$123Standard"], 0, []),
     # Standard identifier with lower case + illegal special character
-    ([current_catalog, "təst_n𝒜m好e$123!standard"], 0,
-     []),
+    ([current_catalog, "təst_n𝒜m好e$123!standard"], 0, []),
 ]
+
 
 @pytest.fixture(scope="class", autouse=True)
 def test_metadataAPI_config(request, db_kwargs):
@@ -60,6 +59,7 @@ def test_metadataAPI_config(request, db_kwargs):
                 cursor.execute(stmt)
 
             con.commit()
+
     def fin():
         try:
             with redshift_connector.connect(**db_kwargs) as con:
@@ -71,6 +71,7 @@ def test_metadataAPI_config(request, db_kwargs):
             pass
 
     request.addfinalizer(fin)
+
 
 @pytest.mark.parametrize("test_case, expected_row_count, expected_result", test_cases)
 def test_get_schemas_special_character(db_kwargs, test_case, expected_row_count, expected_result) -> None:
@@ -89,6 +90,7 @@ def test_get_schemas_special_character(db_kwargs, test_case, expected_row_count,
                 assert actual_row[0] == expected_schema
                 assert actual_row[1] == current_catalog
 
+
 @pytest.mark.parametrize("test_case, expected_row_count, expected_result", test_cases)
 def test_get_tables_special_character(db_kwargs, test_case, expected_row_count, expected_result) -> None:
     global cur_db_kwargs
@@ -100,12 +102,13 @@ def test_get_tables_special_character(db_kwargs, test_case, expected_row_count, 
 
     with redshift_connector.connect(**test_db_kwargs) as conn:
         with conn.cursor() as cursor:
-            result: tuple = cursor.get_tables(test_case[0], test_case[1], test_case[1], None)
+            result: tuple = cursor.get_tables(test_case[0], test_case[1], test_case[1], [])
             assert len(result) == expected_row_count
             for actual_row, expected_name in zip(result, expected_result):
                 assert actual_row[0] == current_catalog
                 assert actual_row[1] == expected_name
                 assert actual_row[2] == expected_name
+
 
 @pytest.mark.parametrize("test_case, expected_row_count, expected_result", test_cases)
 def test_get_columns_special_character(db_kwargs, test_case, expected_row_count, expected_result) -> None:
@@ -125,4 +128,3 @@ def test_get_columns_special_character(db_kwargs, test_case, expected_row_count,
                 assert actual_row[1] == expected_name
                 assert actual_row[2] == expected_name
                 assert actual_row[3] == expected_name
-

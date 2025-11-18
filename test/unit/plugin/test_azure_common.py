@@ -1,5 +1,6 @@
 """Common test utilities for Azure credential providers."""
 import pytest
+
 from redshift_connector import InterfaceError
 from redshift_connector.plugin.azure_utils import validate_idp_partition
 from redshift_connector.plugin.plugin_utils import get_microsoft_idp_host
@@ -39,7 +40,7 @@ def test_validate_idp_partition_valid_values(partition) -> None:
 def test_validate_idp_partition_invalid_type() -> None:
     """Test that non-string partition values raise InterfaceError."""
     with pytest.raises(InterfaceError, match="idp_partition must be a string"):
-        validate_idp_partition(123)
+        validate_idp_partition(123)  # type: ignore
 
 
 def test_validate_idp_partition_invalid_value() -> None:

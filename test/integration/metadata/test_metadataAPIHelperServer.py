@@ -1,6 +1,7 @@
 import configparser
 import os
 import typing
+
 import pytest  # type: ignore
 
 import redshift_connector
@@ -97,5 +98,3 @@ def test_SHOW_COLUMNS_col(db_kwargs) -> None:
                 assert mock_metadataAPIHelper._SHOW_COLUMNS_numeric_precision in col_set
                 assert mock_metadataAPIHelper._SHOW_COLUMNS_numeric_scale in col_set
                 assert mock_metadataAPIHelper._SHOW_COLUMNS_remarks in col_set
-
-

@@ -103,6 +103,7 @@ IDC_OR_NATIVE_IDP_PLUGINS_LIST = (
 
 __author__ = "Mathieu Fenniak"
 
+
 def validate_keepalive_values(idle, interval, count):
     if idle is not None:
         if idle <= 0:
@@ -115,6 +116,7 @@ def validate_keepalive_values(idle, interval, count):
     if count is not None:
         if count <= 0:
             raise ValueError("tcp_keepalive_count must be positive")
+
 
 def connect(
     user: typing.Optional[str] = None,
@@ -420,11 +422,7 @@ def connect(
 
     if info.tcp_keepalive:
         try:
-            validate_keepalive_values(
-                info.tcp_keepalive_idle,
-                info.tcp_keepalive_interval,
-                info.tcp_keepalive_count
-            )
+            validate_keepalive_values(info.tcp_keepalive_idle, info.tcp_keepalive_interval, info.tcp_keepalive_count)
         except ValueError as e:
             raise InterfaceError(str(e))
 

@@ -45,9 +45,11 @@ if "java" in sys.platform:
     # at a later time
     DEFAULT_CONTEXT = SSLContext.getDefault()
 
+
 def skip_if_okta(idp_arg):
     if "OktaCredentialsProvider" == idp_arg["credentials_provider"]:
         pytest.skip("Temporarily disable the test due to expired Okta credential (Redshift-115253)")
+
 
 @pytest.mark.parametrize("idp_arg", NON_BROWSER_IDP, indirect=True)
 def test_idp_password(idp_arg):

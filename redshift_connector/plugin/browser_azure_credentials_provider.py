@@ -51,7 +51,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         self.idp_tenant = info.idp_tenant
         # The value of parameter client_id.
         self.client_id = info.client_id
-        
+
         # Validate and set idp_partition
         self.idp_partition = validate_idp_partition(info.idp_partition)
 
@@ -117,8 +117,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         import requests
 
         url: str = "https://{host}/{tenant}/oauth2/token".format(
-            host=get_microsoft_idp_host(self.idp_partition), 
-            tenant=self.idp_tenant
+            host=get_microsoft_idp_host(self.idp_partition), tenant=self.idp_tenant
         )
         # headers to pass with POST request
         headers: typing.Dict[str, str] = azure_headers
@@ -250,17 +249,15 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
 
         # For query parameters, use urlencode for the entire query string
         query_params = {
-            'scope': 'openid',
-            'response_type': 'code',
-            'response_mode': 'form_post',
-            'client_id': self.client_id,
-            'redirect_uri': self.redirectUri,
-            'state': state
+            "scope": "openid",
+            "response_type": "code",
+            "response_mode": "form_post",
+            "client_id": self.client_id,
+            "redirect_uri": self.redirectUri,
+            "state": state,
         }
         url: str = "https://{host}/{tenant}/oauth2/authorize?{query}".format(
-            host=get_microsoft_idp_host(self.idp_partition), 
-            tenant=self.idp_tenant,
-            query=urlencode(query_params)
+            host=get_microsoft_idp_host(self.idp_partition), tenant=self.idp_tenant, query=urlencode(query_params)
         )
         self.validate_url(url)
         webbrowser.open(url)

@@ -37,7 +37,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
         self.client_secret = info.client_secret
         # The value of parameter client_id.
         self.client_id = info.client_id
-        
+
         # Validate and set idp_partition
         self.idp_partition = validate_idp_partition(info.idp_partition)
 
@@ -70,8 +70,7 @@ class AzureCredentialsProvider(SamlCredentialsProvider):
 
         # endpoint to connect with Microsoft Azure to get SAML Assertion token
         url: str = "https://{host}/{tenant}/oauth2/token".format(
-            host=get_microsoft_idp_host(self.idp_partition), 
-            tenant=self.idp_tenant
+            host=get_microsoft_idp_host(self.idp_partition), tenant=self.idp_tenant
         )
         _logger.debug("Uri: %s", url)
         self.validate_url(url)

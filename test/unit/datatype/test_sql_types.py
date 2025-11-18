@@ -22,6 +22,7 @@ def test_get_datatype_name_invalid_oid_raises() -> None:
     with pytest.raises(ValueError, match="not a valid SQLType"):
         get_sql_type_name(3000)
 
+
 def test_modify_sql_type() -> None:
     with pytest.raises(AttributeError, match="Cannot modify SQL type constant 'SQL_VARCHAR'"):
-        SQLType.SQL_VARCHAR = 0
+        SQLType.SQL_VARCHAR = 0  # type: ignore

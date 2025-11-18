@@ -143,6 +143,7 @@ def ds_consumer_db_kwargs() -> typing.Dict[str, str]:
 
     return db_connect
 
+
 @pytest.fixture(scope="class")
 def ds_consumer_dsdb_kwargs() -> typing.Dict[str, str]:
     dsdb_connect = {

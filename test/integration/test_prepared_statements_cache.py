@@ -1,5 +1,7 @@
 import pytest
+
 import redshift_connector
+
 
 def test_lru_prepared_statements_cache(db_kwargs):
     """
@@ -9,7 +11,7 @@ def test_lru_prepared_statements_cache(db_kwargs):
     3. Verifies LRU eviction policy
     4. Verifies statement reuse behavior
     """
-    db_kwargs['max_prepared_statements'] = 5
+    db_kwargs["max_prepared_statements"] = 5
     conn = redshift_connector.connect(**db_kwargs)
     cursor = conn.cursor()
 
@@ -24,18 +26,17 @@ def test_lru_prepared_statements_cache(db_kwargs):
             executed_statements.append(query)
 
         # Get cache and statement queue
-        cache = conn._caches[cursor.paramstyle][cursor.ps['pid']]
-        statement_dict = cache['statement_dict']
+        cache = conn._caches[cursor.paramstyle][cursor.ps["pid"]]
+        statement_dict = cache["statement_dict"]
 
         # Basic cache size verification
-        assert len(cache['ps']) == 5, f"Cache size should be 5, but was {len(cache['ps'])}"
+        assert len(cache["ps"]) == 5, f"Cache size should be 5, but was {len(cache['ps'])}"
         assert len(statement_dict) == 5, f"Statement dict size should be 5, but was {len(statement_dict)}"
 
         # Verify the most recent statements are in the queue
         cached_statements = [key[0] for key in statement_dict.keys()]
         last_five_statements = executed_statements[-5:]
-        assert all(stmt in cached_statements for stmt in last_five_statements), \
-            "Last 5 statements should be in cache"
+        assert all(stmt in cached_statements for stmt in last_five_statements), "Last 5 statements should be in cache"
 
         # Verify the first two statements were evicted
         first_two_statements = executed_statements[:2]
@@ -56,14 +57,15 @@ def test_lru_prepared_statements_cache(db_kwargs):
         cursor.execute(new_stmt, (999, 1000))
 
         # Verify cache size and new statement presence
-        assert len(cache['ps']) == 5, f"Cache size should still be 5, but was {len(cache['ps'])}"
+        assert len(cache["ps"]) == 5, f"Cache size should still be 5, but was {len(cache['ps'])}"
         assert list(statement_dict.keys())[-1][0] == new_stmt, "New statement should be most recent"
 
         # Verify LRU eviction - the least recently used statement should be gone
         current_statements = [key[0] for key in statement_dict]
         lru_statement = statements_before_new[0]  # First statement in queue before adding new one
-        assert lru_statement not in current_statements, \
-            f"Least recently used statement should have been evicted: {lru_statement}"
+        assert (
+            lru_statement not in current_statements
+        ), f"Least recently used statement should have been evicted: {lru_statement}"
 
     finally:
         cursor.close()

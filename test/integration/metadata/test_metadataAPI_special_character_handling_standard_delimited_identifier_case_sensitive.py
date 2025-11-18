@@ -1,10 +1,13 @@
 import configparser
 import os
 import typing
+
 import pytest  # type: ignore
 
 import redshift_connector
 from redshift_connector.metadataAPIHelper import MetadataAPIHelper
+
+cur_db_kwargs: typing.Dict[str, typing.Any] = {}
 
 conf: configparser.ConfigParser = configparser.ConfigParser()
 root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,24 +29,20 @@ object_identifier_mixed_case: str = "təst_N𝒜m好e$123\\\\n\\\\t\\\\r\\\\0`~!
 
 startup_stmts: typing.Tuple[str, ...] = (
     enable_case_sensitive,
-    "DROP SCHEMA IF EXISTS \"{}\" CASCADE;".format(object_sql_name),
-    "CREATE SCHEMA \"{}\";".format(object_sql_name),
-    "create table \"{}\".\"{}\" (\"{}\" INT);".format(object_sql_name, object_sql_name, object_sql_name),
+    'DROP SCHEMA IF EXISTS "{}" CASCADE;'.format(object_sql_name),
+    'CREATE SCHEMA "{}";'.format(object_sql_name),
+    'create table "{}"."{}" ("{}" INT);'.format(object_sql_name, object_sql_name, object_sql_name),
 )
 
 test_cases = [
     # Delimited identifier with lower case
-    ([catalog_identifier, object_identifier], 0,
-     []),
-
+    ([catalog_identifier, object_identifier], 0, []),
     # Delimited identifier with mixed case
-    ([catalog_identifier, object_identifier_mixed_case], 1,
-     [object_name]),
-
+    ([catalog_identifier, object_identifier_mixed_case], 1, [object_name]),
     # Delimited identifier with mixed case + non-printable UTF8 (control character)
-    ([catalog_identifier, "təst_N𝒜m好e$123\n\t\r\0`~!@#$%^&*()_+-={}[]:\";,./<>?\\\\'' Delimited"], 0,
-     []),
+    ([catalog_identifier, "təst_N𝒜m好e$123\n\t\r\0`~!@#$%^&*()_+-={}[]:\";,./<>?\\\\'' Delimited"], 0, []),
 ]
+
 
 @pytest.fixture(scope="class", autouse=True)
 def test_metadataAPI_config(request, db_kwargs):
@@ -56,11 +55,11 @@ def test_metadataAPI_config(request, db_kwargs):
         with con.cursor() as cursor:
             try:
                 cursor.execute(enable_case_sensitive)
-                cursor.execute("drop database \"{}\";".format(catalogs_sql_name))
+                cursor.execute('drop database "{}";'.format(catalogs_sql_name))
             except redshift_connector.ProgrammingError:
                 pass
             cursor.execute(enable_case_sensitive)
-            cursor.execute("create database \"{}\";".format(catalogs_sql_name))
+            cursor.execute('create database "{}";'.format(catalogs_sql_name))
     cur_db_kwargs["database"] = catalog_name
     with redshift_connector.connect(**cur_db_kwargs) as con:
         con.paramstyle = "format"
@@ -69,6 +68,7 @@ def test_metadataAPI_config(request, db_kwargs):
                 cursor.execute(stmt)
 
             con.commit()
+
     def fin():
         try:
             with redshift_connector.connect(**db_kwargs) as con:
@@ -76,12 +76,13 @@ def test_metadataAPI_config(request, db_kwargs):
                 con.autocommit = True
                 with con.cursor() as cursor:
                     cursor.execute(enable_case_sensitive)
-                    cursor.execute("drop database \"{}\";".format(catalogs_sql_name))
+                    cursor.execute('drop database "{}";'.format(catalogs_sql_name))
                     cursor.execute("select 1;")
         except redshift_connector.ProgrammingError:
             pass
 
     request.addfinalizer(fin)
+
 
 @pytest.mark.parametrize("test_case, expected_row_count, expected_result", test_cases)
 def test_get_schemas_special_character(db_kwargs, test_case, expected_row_count, expected_result) -> None:
@@ -103,6 +104,7 @@ def test_get_schemas_special_character(db_kwargs, test_case, expected_row_count,
                 assert actual_row[0] == expected_schema
                 assert actual_row[1] == catalog_name
 
+
 @pytest.mark.parametrize("test_case, expected_row_count, expected_result", test_cases)
 def test_get_tables_special_character(db_kwargs, test_case, expected_row_count, expected_result) -> None:
     global cur_db_kwargs
@@ -115,12 +117,13 @@ def test_get_tables_special_character(db_kwargs, test_case, expected_row_count, 
     with redshift_connector.connect(**test_db_kwargs) as conn:
         with conn.cursor() as cursor:
             cursor.execute(enable_case_sensitive)
-            result: tuple = cursor.get_tables(test_case[0], test_case[1], test_case[1], None)
+            result: tuple = cursor.get_tables(test_case[0], test_case[1], test_case[1], [])
             assert len(result) == expected_row_count
             for actual_row, expected_name in zip(result, expected_result):
                 assert actual_row[0] == catalog_name
                 assert actual_row[1] == expected_name
                 assert actual_row[2] == expected_name
+
 
 @pytest.mark.parametrize("test_case, expected_row_count, expected_result", test_cases)
 def test_get_columns_special_character(db_kwargs, test_case, expected_row_count, expected_result) -> None:
@@ -141,4 +144,3 @@ def test_get_columns_special_character(db_kwargs, test_case, expected_row_count,
                 assert actual_row[1] == expected_name
                 assert actual_row[2] == expected_name
                 assert actual_row[3] == expected_name
-

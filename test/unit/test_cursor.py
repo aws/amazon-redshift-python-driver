@@ -3,9 +3,8 @@ import typing
 from collections import deque
 from io import StringIO
 from math import ceil
-
 from test.utils import pandas_only
-from unittest.mock import Mock, PropertyMock, mock_open, patch, MagicMock
+from unittest.mock import MagicMock, Mock, PropertyMock, mock_open, patch
 
 import pytest  # type: ignore
 
@@ -17,6 +16,7 @@ IS_SINGLE_DATABASE_METADATA_TOGGLE: typing.List[bool] = [True, False]
 description_warn_response_data: typing.List[typing.Tuple[bytes, str]] = [
     (b"ab\xffcd", "failed to decode column name"),
 ]
+
 
 @pytest.mark.parametrize("_input", description_warn_response_data)
 def test_get_description_warns_user(_input) -> None:
@@ -169,7 +169,7 @@ def test_get_schemas_considers_args(_input, is_single_database_metadata_val, moc
     mock_cursor.paramstyle = "mocked"
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
+    mock_connection.parameter_statuses.append((b"show_discovery", b"0"))
     mock_cursor._c = mock_connection
     mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
     spy = mocker.spy(mock_cursor, "execute")
@@ -200,24 +200,26 @@ def test_get_schemas_show_discovery(is_single_database_metadata_val, mocker) -> 
     mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
+    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_schema_server_api')
+
+    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_schema_server_api")
     mock_metadataServerAPIHelper.return_value = "mock"
     mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
 
     spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_schema_server_api")
 
     from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, 'get_schema_post_processing')
+
+    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_schema_post_processing")
     mock_metadataAPIPostProcessing.return_value = "mock"
     mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
 
     spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_schema_post_processing")
 
     with patch(
-            "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
+        "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
         mock_cursor.get_schemas("apples", "oranges")
@@ -228,6 +230,7 @@ def test_get_schemas_show_discovery(is_single_database_metadata_val, mocker) -> 
     assert spy_metadataAPIPostProcessing.called
     assert spy_metadataAPIPostProcessing.call_count == 1
 
+
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 def test_get_catalogs_considers_args(is_single_database_metadata_val, mocker) -> None:
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
@@ -237,7 +240,7 @@ def test_get_catalogs_considers_args(is_single_database_metadata_val, mocker) ->
     mock_cursor.paramstyle = "mocked"
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
+    mock_connection.parameter_statuses.append((b"show_discovery", b"0"))
     mock_cursor._c = mock_connection
     mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
     spy = mocker.spy(mock_cursor, "execute")
@@ -259,6 +262,7 @@ def test_get_catalogs_considers_args(is_single_database_metadata_val, mocker) ->
             in spy.call_args[0][0]
         )
 
+
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
 def test_get_catalogs_show_discovery(is_single_database_metadata_val, mocker) -> None:
     mocker.patch("redshift_connector.Cursor.execute", return_value=None)
@@ -273,24 +277,26 @@ def test_get_catalogs_show_discovery(is_single_database_metadata_val, mocker) ->
     spy_execute = mocker.spy(mock_cursor, "execute")
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
+    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_catalog_server_api')
+
+    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_catalog_server_api")
     mock_metadataServerAPIHelper.return_value = "mock"
     mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
 
     spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_catalog_server_api")
 
     from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, 'get_catalog_post_processing')
+
+    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_catalog_post_processing")
     mock_metadataAPIPostProcessing.return_value = "mock"
     mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
 
     spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_catalog_post_processing")
 
     with patch(
-            "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
+        "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
         mock_cursor.get_catalogs()
@@ -337,7 +343,7 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
     mock_cursor.paramstyle = "mocked"
     mock_connection: Connection = Connection.__new__(Connection)
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'0'))
+    mock_connection.parameter_statuses.append((b"show_discovery", b"0"))
     mock_cursor._c = mock_connection
     mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
     spy = mocker.spy(mock_cursor, "execute")
@@ -362,8 +368,9 @@ def test_get_tables_considers_args(is_single_database_metadata_val, _input, sche
         if arg is not None:
             assert arg in spy.call_args[0][1]
 
+
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
-def test_get_tables_show_discovery(is_single_database_metadata_val,mocker) -> None:
+def test_get_tables_show_discovery(is_single_database_metadata_val, mocker) -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
 
@@ -372,22 +379,23 @@ def test_get_tables_show_discovery(is_single_database_metadata_val,mocker) -> No
     mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
+    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_table_server_api')
+
+    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_table_server_api")
     mock_metadataServerAPIHelper.return_value = "mock"
     mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
 
     spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_table_server_api")
 
     from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing,'get_table_post_processing')
+
+    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_table_post_processing")
     mock_metadataAPIPostProcessing.return_value = "mock"
     mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
 
     spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_table_post_processing")
-
 
     with patch(
         "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
@@ -395,7 +403,6 @@ def test_get_tables_show_discovery(is_single_database_metadata_val,mocker) -> No
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
         mock_cursor.get_tables("apples", "oranges", "peaches")
 
-
     assert spy_metadataServerAPIHelper.called
     assert spy_metadataServerAPIHelper.call_count == 1
 
@@ -404,7 +411,7 @@ def test_get_tables_show_discovery(is_single_database_metadata_val,mocker) -> No
 
 
 @pytest.mark.parametrize("is_single_database_metadata_val", IS_SINGLE_DATABASE_METADATA_TOGGLE)
-def test_get_columns_show_discovery(is_single_database_metadata_val,mocker) -> None:
+def test_get_columns_show_discovery(is_single_database_metadata_val, mocker) -> None:
     mock_cursor: Cursor = Cursor.__new__(Cursor)
     mock_cursor.paramstyle = "mocked"
 
@@ -413,35 +420,36 @@ def test_get_columns_show_discovery(is_single_database_metadata_val,mocker) -> N
     mock_cursor._MIN_SHOW_DISCOVERY_VERSION = 2
 
     mock_connection.parameter_statuses = deque(maxlen=100)
-    mock_connection.parameter_statuses.append((b'show_discovery', b'2'))
+    mock_connection.parameter_statuses.append((b"show_discovery", b"2"))
 
     from redshift_connector.metadataServerAPIHelper import MetadataServerAPIHelper
-    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, 'get_column_server_api')
+
+    mock_metadataServerAPIHelper = mocker.patch.object(MetadataServerAPIHelper, "get_column_server_api")
     mock_metadataServerAPIHelper.return_value = "mock"
     mock_cursor._metadataServerAPIHelper = mock_metadataServerAPIHelper
 
     spy_metadataServerAPIHelper = mocker.spy(mock_cursor._metadataServerAPIHelper, "get_column_server_api")
 
     from redshift_connector.metadataAPIPostProcessing import MetadataAPIPostProcessing
-    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing,'get_column_post_processing')
+
+    mock_metadataAPIPostProcessing = mocker.patch.object(MetadataAPIPostProcessing, "get_column_post_processing")
     mock_metadataAPIPostProcessing.return_value = "mock"
     mock_cursor._metadataAPIPostProcessing = mock_metadataAPIPostProcessing
 
     spy_metadataAPIPostProcessing = mocker.spy(mock_cursor._metadataAPIPostProcessing, "get_column_post_processing")
 
-
     with patch(
         "redshift_connector.Connection.is_single_database_metadata", new_callable=PropertyMock()
     ) as mock_is_single_database_metadata:
         mock_is_single_database_metadata.__get__ = Mock(return_value=is_single_database_metadata_val)
-        mock_cursor.get_columns("apples", "oranges", "peaches","banana")
-
+        mock_cursor.get_columns("apples", "oranges", "peaches", "banana")
 
     assert spy_metadataServerAPIHelper.called
     assert spy_metadataServerAPIHelper.call_count == 1
 
     assert spy_metadataAPIPostProcessing.called
     assert spy_metadataAPIPostProcessing.call_count == 1
+
 
 @pytest.mark.parametrize("indexes, names", [([1], []), ([], ["c1"])])
 def test_insert_data_column_names_indexes_mismatch_raises(indexes, names, mocker) -> None:
