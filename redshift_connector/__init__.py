@@ -133,7 +133,6 @@ def connect(
     tcp_keepalive_interval: typing.Optional[int] = None,
     tcp_keepalive_count: typing.Optional[int] = None,
     application_name: typing.Optional[str] = None,
-    replication: typing.Optional[str] = None,
     idp_host: typing.Optional[str] = None,
     db_user: typing.Optional[str] = None,
     app_id: typing.Optional[str] = None,
@@ -218,8 +217,6 @@ def connect(
         Number of failed probes before connection is considered dead. Defaults to None (system default).
     application_name : Optional[str]
         Sets the application name. The default value is None.
-    replication : Optional[str]
-        Used to run in `streaming replication mode <https://www.postgresql.org/docs/12/protocol-replication.html>`_.
     idp_host : Optional[str]
         The hostname of the IdP.
     db_user : Optional[str]
@@ -353,7 +350,6 @@ def connect(
     info.put("profile", profile)
     info.put("provider_name", provider_name)
     info.put("region", region)
-    info.put("replication", replication)
     info.put("role_arn", role_arn)
     info.put("role_session_name", role_session_name)
     info.put("scope", scope)
@@ -455,7 +451,6 @@ def connect(
         tcp_keepalive_interval=info.tcp_keepalive_interval,
         tcp_keepalive_count=info.tcp_keepalive_count,
         application_name=info.application_name,
-        replication=info.replication,
         client_protocol_version=info.client_protocol_version,
         database_metadata_current_db_only=info.database_metadata_current_db_only,
         credentials_provider=info.credentials_provider,

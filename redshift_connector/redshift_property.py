@@ -94,9 +94,6 @@ class RedshiftProperty:
             self.profile: typing.Optional[str] = None
             # The AWS region where the cluster specified by cluster_identifier is located.
             self.region: typing.Optional[str] = None
-            # Used to run in streaming replication mode. If your server character encoding is not ascii or utf8,
-            # then you need to provide values as bytes
-            self.replication: typing.Optional[str] = None
             self.role_arn: typing.Optional[str] = None
             self.role_session_name: typing.Optional[str] = None
             # The secret access key for the IAM role or IAM user configured for IAM database authentication

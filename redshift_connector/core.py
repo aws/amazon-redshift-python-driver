@@ -422,7 +422,6 @@ class Connection:
         tcp_keepalive_interval: typing.Optional[int] = None,
         tcp_keepalive_count: typing.Optional[int] = None,
         application_name: typing.Optional[str] = None,
-        replication: typing.Optional[str] = None,
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
         database_metadata_current_db_only: bool = True,
         credentials_provider: typing.Optional[str] = None,
@@ -468,8 +467,6 @@ class Connection:
             Maximum number of TCP keepalive probes to send before dropping the connection if no response is received.  Defaults to None (system default).
         application_name : Optional[str]
             Sets the application name. The default value is None.
-        replication : Optional[str]
-            Used to run in `streaming replication mode <https://www.postgresql.org/docs/12/protocol-replication.html>`_.
         client_protocol_version : int
             The requested server protocol version. The default value is 1 representing `EXTENDED_RESULT_METADATA`. If the requested server protocol cannot be satisfied, a warning will be displayed to the user.
         database_metadata_current_db_only : bool
@@ -552,7 +549,6 @@ class Connection:
             "user": "",
             "database": database,
             "application_name": application_name,
-            "replication": replication,
             "client_protocol_version": str(self._client_protocol_version),
             "driver_version": DriverInfo.driver_full_name(),
             "os_version": self.client_os_version,
@@ -774,7 +770,7 @@ class Connection:
         protocol: int = 196608
         val: bytearray = bytearray(i_pack(protocol))
 
-        # Message include parameters name and value (user, database, application_name, replication)
+        # Message include parameters name and value (user, database, application_name)
         for k, v in init_params.items():
             val.extend(k.encode("ascii") + NULL_BYTE + typing.cast(bytes, v) + NULL_BYTE)
         val.append(0)

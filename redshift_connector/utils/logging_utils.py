@@ -58,7 +58,6 @@ def mask_secure_info_in_props(info: "RedshiftProperty") -> "RedshiftProperty":
         "profile",
         "provider_name",
         "region",
-        "replication",
         "role_arn",
         "role_session_name",
         "scope",
