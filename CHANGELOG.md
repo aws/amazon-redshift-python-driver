@@ -1,6 +1,16 @@
 Changelog
 =========
 
+v2.1.10 (2025-11-18)
+-------------------
+- Added the idp_partition parameter which allows users to authenticate against Azure Active Directory across different Microsoft cloud environments (e.g., Global, US Gov, China)
+- Added warning messages when DEBUG or TRACE log levels are enabled
+- Enhanced database metadata retrieval logic in get_catalogs, get_schemas, get_tables, get_columns, get_primary_keys, get_procedures API methods to enable data sharing capabilities 
+- Added database metadata API’s get_imported_keys, get_exported_keys, get_best_row_identifier, get_column_privileges, get_table_privileges, get_procedure_columns, get_functions, get_function_columns metadata APIs to enable data sharing capabilities
+- Removed unsupported PostgreSQL replication features
+- Fixed IDC authentication redirect URL for China regions
+
+
 v2.1.9 (2025-10-14)
 -------------------
 - Removed unsupported client/stdin COPY protocol implementation that was no longer maintained or supported
