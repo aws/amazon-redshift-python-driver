@@ -112,7 +112,7 @@ Enabling autocommit
 Configuring paramstyle
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Paramstyle can be set on both a module and cursor level. When paramstyle is set on a module level e.g. ``redshift_connector.paramstyle = 'qmark'``, the user specified paramstyle is used for all subsequent cursors unless set on the cursor.
-When paramstyle is set on the cursor e.g. ```cursor.paramstyle = 'qmark'`` the user specified paramstyle is only used for that cursor object.
+When paramstyle is set on the cursor e.g. ``cursor.paramstyle = 'qmark'`` the user specified paramstyle is only used for that cursor object.
 
 .. code-block:: python
 
@@ -375,7 +375,7 @@ Connection Parameters
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------+----------+
 | role_session_name                 | str  | An identifier for the assumed role session. Typically, you pass the name or identifier that is associated with the user who is using your application. That way, the temporary security credentials that your application will use are associated with that user. This parameter is used by JwtCredentialsProvider. For this provider, this is an optional parameter.                                     | jwt_redshift_session   | No       |
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------+----------+
-| scope                             | str  | Scope for BrowserAzureOauth2CredentialsProvider authentication.                                                                                                                                                                                                                                                                                                                                           | ""                     | No       |
+| scope                             | str  | Scope for BrowserAzureOauth2CredentialsProvider authentication.                                                                                                                                                                                                                                                                                                                                           | Empty string           | No       |
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------+----------+
 | secret_access_key_id              | str  | The secret access key for the IAM role or IAM user configured for IAM database authentication                                                                                                                                                                                                                                                                                                             | None                   | No       |
 +-----------------------------------+------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+------------------------+----------+
@@ -476,8 +476,8 @@ Getting Help
 - Open a support ticket with `AWS Support <https://console.aws.amazon.com/support/home#/>`_
 - If you may have found a bug, please `open an issue <https://github.com/aws/amazon-redshift-python-driver/issues/new>`_
 
-Contributing
-~~~~~~~~~~~~
+Contributing Guidelines
+~~~~~~~~~~~~~~~~~~~~~~~
 We look forward to collaborating with you! Please read through  `CONTRIBUTING <https://github.com/aws/amazon-redshift-python-driver/blob/master/CONTRIBUTING.md#Reporting-Bugs/Feature-Requests>`_ before submitting any issues or pull requests.
 
 Changelog Generation
