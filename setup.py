@@ -3,23 +3,23 @@ import os
 import sys
 import typing
 
-from setuptools import find_packages, setup
+from setuptools import Command, find_packages, setup
 from setuptools.command.install import install as InstallCommandBase
-from setuptools.command.test import test as TestCommand
 from setuptools.dist import Distribution
 from wheel.bdist_wheel import bdist_wheel as BDistWheelCommandBase
 
 
-class BasePytestCommand(TestCommand):
+class BasePytestCommand(Command):
     user_options: typing.List = []  # type: ignore
 
     def initialize_options(self):
-        TestCommand.initialize_options(self)
+        pass
 
     def finalize_options(self):
-        TestCommand.finalize_options(self)
-        self.test_args = []
-        self.test_suite = True
+        pass
+
+    def run(self):
+        self.run_tests()
 
     def run_tests(self):
         # This method should be overridden by subclasses
