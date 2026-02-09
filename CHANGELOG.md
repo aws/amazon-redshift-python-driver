@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v2.1.11 (2026-02-09)
+-------------------
+- Fixed build failure when using setuptools version 72 or later by replacing deprecated TestCommand with generic Command base class
+
+
 v2.1.10 (2025-11-18)
 -------------------
 - Added the idp_partition parameter which allows users to authenticate against Azure Active Directory across different Microsoft cloud environments (e.g., Global, US Gov, China)
