@@ -432,6 +432,9 @@ class Connection:
         identity_namespace: typing.Optional[str] = None,
         token_type: typing.Optional[str] = None,
         idc_client_display_name: typing.Optional[str] = None,
+        access_key_id: typing.Optional[str] = None,
+        secret_access_key: typing.Optional[str] = None,
+        session_token: typing.Optional[str] = None,
     ):
         """
         Creates a :class:`Connection` to an Amazon Redshift cluster. For more information on establishing a connection to an Amazon Redshift cluster using `federated API access <https://aws.amazon.com/blogs/big-data/federated-api-access-to-amazon-redshift-using-an-amazon-redshift-connector-for-python/>`_ see our examples page.
@@ -486,6 +489,12 @@ class Connection:
             The token type to be used for authentication using IdP Token auth plugin
         idc_client_display_name: Optional[str]
             The client display name to be used for user consent in IdC browser auth plugin.
+        access_key_id: Optional[str]
+            The AWS access key ID for identity-enhanced credentials flow with IdpTokenAuthPlugin.
+        secret_access_key: Optional[str]
+            The AWS secret access key for identity-enhanced credentials flow with IdpTokenAuthPlugin.
+        session_token: Optional[str]
+            The AWS session token for identity-enhanced credentials flow with IdpTokenAuthPlugin.
         """
         self.merge_socket_read = True
 
@@ -570,7 +579,10 @@ class Connection:
                 "BrowserIdcAuthPlugin",
             ):
                 redshift_native_auth = True
-                self.set_idc_plugins_params(init_params, credentials_provider, identity_namespace, token_type)
+                self.set_idc_plugins_params(init_params, credentials_provider,
+                    identity_namespace, token_type, idc_client_display_name,
+                    access_key_id, secret_access_key, session_token
+                )
 
             if redshift_native_auth and provider_name:
                 init_params["provider_name"] = provider_name
@@ -2520,6 +2532,9 @@ class Connection:
         identity_namespace: typing.Optional[str] = None,
         token_type: typing.Optional[str] = None,
         idc_client_display_name: typing.Optional[str] = None,
+        access_key_id: typing.Optional[str] = None,
+        secret_access_key: typing.Optional[str] = None,
+        session_token: typing.Optional[str] = None,
     ) -> None:
         plugin_name = typing.cast(str, credentials_provider).split(".")[-1]
         init_params["idp_type"] = "AwsIdc"
@@ -2529,6 +2544,9 @@ class Connection:
 
         if plugin_name == "BrowserIdcAuthPlugin":
             init_params["token_type"] = "ACCESS_TOKEN"
+        elif plugin_name == "IdpTokenAuthPlugin" and access_key_id and secret_access_key and session_token:
+            # Check if using identity-enhanced credentials flow with IdPTokenAuthPlugin
+            init_params["token_type"] = "SUBJECT_TOKEN"
         elif token_type:
             init_params["token_type"] = token_type
 

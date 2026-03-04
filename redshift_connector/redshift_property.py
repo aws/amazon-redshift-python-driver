@@ -231,11 +231,11 @@ class RedshiftProperty:
         import re
 
         for serverless_pattern in (SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, SERVERLESS_HOST_PATTERN):
-            m2 = re.fullmatch(pattern=serverless_pattern, string=self.host)
+            match = re.fullmatch(pattern=serverless_pattern, string=self.host)
 
-            if m2:
+            if match:
                 _logger.debug("host matches serverless pattern %s", serverless_pattern)
-                self.put(key="serverless_acct_id", value=m2.group(typing.cast(int, m2.lastindex) - 1))
+                self.put(key="serverless_acct_id", value=match.group(typing.cast(int, match.lastindex) - 1))
                 _logger.debug("serverless_acct_id set to %s", self.region)
                 break
 
@@ -252,11 +252,11 @@ class RedshiftProperty:
             patterns = (PROVISIONED_HOST_PATTERN,)
 
         for host_pattern in patterns:
-            m2 = re.fullmatch(pattern=host_pattern, string=self.host)
+            match = re.fullmatch(pattern=host_pattern, string=self.host)
 
-            if m2:
+            if match:
                 _logger.debug("host matches pattern %s", host_pattern)
-                self.put(key="region", value=m2.group(typing.cast(int, m2.lastindex)))
+                self.put(key="region", value=match.group(typing.cast(int, match.lastindex)))
                 _logger.debug("region set to %s", self.region)
                 break
 
@@ -304,9 +304,35 @@ class RedshiftProperty:
         _logger.debug("RedshiftProperty.set_serverless_work_group_from_host")
         import re
 
-        m2 = re.fullmatch(pattern=SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, string=self.host)
+        serverless_match = re.fullmatch(pattern=SERVERLESS_WITH_WORKGROUP_HOST_PATTERN, string=self.host)
 
-        if m2:
-            _logger.debug("host matches serverless pattern %s", m2)
-            self.put(key="serverless_work_group", value=m2.group(1))
+        if serverless_match:
+            _logger.debug("host matches serverless pattern %s", serverless_match)
+            self.put(key="serverless_work_group", value=serverless_match.group(1))
             _logger.debug("serverless_work_group set to %s", self.region)
+        else:
+            _logger.debug("serverless host did not match host pattern , %s", self.host)
+
+    def set_cluster_identifier_from_host(self: "RedshiftProperty") -> None:
+        """
+        Sets the cluster_identifier as parsed from the Redshift provisioned cluster endpoint.
+        Only sets if cluster_identifier is not already set (user-provided takes precedence).
+        """
+        _logger.debug("RedshiftProperty.set_cluster_identifier_from_host")
+        import re
+
+        # Only extract from host if not already set by user
+        if self.cluster_identifier is not None:
+            _logger.debug("cluster_identifier already set, skipping extraction from host")
+            return
+
+        if not self.is_provisioned_host:
+            _logger.debug("host is not a provisioned cluster endpoint, skipping")
+            return
+
+        match = re.fullmatch(pattern=PROVISIONED_HOST_PATTERN, string=self.host)
+
+        if match:
+            _logger.debug("host matches provisioned pattern %s", match)
+            self.put(key="cluster_identifier", value=match.group(1))
+            _logger.debug("cluster_identifier set to %s", self.cluster_identifier)

@@ -303,6 +303,12 @@ def connect(
         The access token to be used with IdC basic credentials provider plugin. Default value is None.
     token_type: Optional[str]
         The token type to be used for authentication using IdP token auth plugin. Default value is None.
+    access_key_id : Optional[str]
+        The access key for the user configured for IAM database authentication. Can also be used with IdpTokenAuthPlugin for identity-enhanced credentials flow.
+    secret_access_key : Optional[str]
+        The secret access key for the IAM role or IAM user configured for IAM database authentication. Can also be used with IdpTokenAuthPlugin for identity-enhanced credentials flow.
+    session_token : Optional[str]
+        The session token for temporary AWS credentials. Required when using temporary credentials with IAM authentication or IdpTokenAuthPlugin identity-enhanced credentials flow.
     Returns
     -------
     A Connection object associated with the specified Amazon Redshift cluster: :class:`Connection`
@@ -458,6 +464,9 @@ def connect(
         identity_namespace=info.identity_namespace,
         token_type=info.token_type,
         idc_client_display_name=info.idc_client_display_name,
+        access_key_id=info.access_key_id,
+        secret_access_key=info.secret_access_key,
+        session_token=info.session_token,
     )
 
 

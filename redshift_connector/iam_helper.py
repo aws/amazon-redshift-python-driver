@@ -137,6 +137,11 @@ class IamHelper(IdpAuthHelper):
         if not info.region:
             info.set_region_from_host()
 
+        # Extract cluster_identifier from host for provisioned clusters if not already set
+        # This is needed for IDC plugins (like IdpTokenAuthPlugin) which don't use iam=True
+        if info.iam is not True and info.cluster_identifier is None and info.is_provisioned_host:
+            info.set_cluster_identifier_from_host()
+
         if info.iam is True:
             if info.region is None:
                 _logger.debug("Setting region via DNS lookup as region was not provided in connection parameters")

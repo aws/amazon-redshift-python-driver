@@ -65,6 +65,38 @@ def test_set_serverless_work_group_from_host(host, exp_work_group) -> None:
 
 
 @pytest.mark.parametrize(
+    "host, exp_cluster_identifier",
+    [
+        ("my-cluster.abc123.us-west-2.redshift.amazonaws.com", "my-cluster"),
+        ("mylongredshiftclustername.aaaaaaaaaaaa.ap-northeast-1.redshift.amazonaws.com", "mylongredshiftclustername"),
+        ("redshift-cluster-1.aaaaaaaaaaaa.us-east-1-dev.redshift.amazonaws.com", "redshift-cluster-1"),
+    ],
+)
+def test_set_cluster_identifier_from_host(host, exp_cluster_identifier) -> None:
+    info: RedshiftProperty = RedshiftProperty()
+    info.host = host
+    info.set_cluster_identifier_from_host()
+    assert info.cluster_identifier == exp_cluster_identifier
+
+
+def test_set_cluster_identifier_from_host_does_not_override_user_provided() -> None:
+    """Verify that user-provided cluster_identifier is not overridden by hostname extraction"""
+    info: RedshiftProperty = RedshiftProperty()
+    info.host = "redshift-cluster-1.aaaaaaaaaaaa.us-east-2.redshift.amazonaws.com"
+    info.cluster_identifier = "user-provided-cluster"
+    info.set_cluster_identifier_from_host()
+    assert info.cluster_identifier == "user-provided-cluster"
+
+
+def test_set_cluster_identifier_from_host_skips_serverless() -> None:
+    """Verify that serverless hosts don't extract cluster_identifier"""
+    info: RedshiftProperty = RedshiftProperty()
+    info.host = "testwg1.012345678901.us-east-2.redshift-serverless.amazonaws.com"
+    info.set_cluster_identifier_from_host()
+    assert info.cluster_identifier is None
+
+
+@pytest.mark.parametrize(
     "host, exp_is_provisioned",
     [
         # serverless
