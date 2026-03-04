@@ -1,6 +1,12 @@
 Changelog
 =========
 
+v2.1.12 (2026-03-04)
+-------------------
+- Added support for Identity Enhanced Credentials authentication
+- Fixed metadata retrieval to sanitize invalid negative and None values in metadataAPIHelper
+
+
 v2.1.11 (2026-02-09)
 -------------------
 - Fixed build failure when using setuptools version 72 or later by replacing deprecated TestCommand with generic Command base class
