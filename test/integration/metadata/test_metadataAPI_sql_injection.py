@@ -39,7 +39,7 @@ startup_stmts: typing.Tuple[str, ...] = (
     "GRANT SELECT ON \"{}\".\"{}\" TO {};".format(schema_name, table_name, user),
     "GRANT SELECT (\"{}\") ON \"{}\".\"{}\" TO {};".format(col_name, schema_name, table_name, user2),
     "CREATE OR REPLACE PROCEDURE \"{}\".\"{}\"(\"{}\" OUT int) AS $$ BEGIN NULL; END; $$ LANGUAGE plpgsql;".format(schema_name, proc_name, proc_col_name),
-    "CREATE OR REPLACE FUNCTION \"{}\".\"{}\"(\"{}\" int) RETURNS int stable AS $$ return 1 $$ LANGUAGE plpythonu;".format(schema_name, func_name, func_col_name),
+    "CREATE OR REPLACE FUNCTION \"{}\".\"{}\"(\"{}\" int) RETURNS int stable AS $$ select 1 $$ LANGUAGE sql;".format(schema_name, func_name, func_col_name),
 )
 
 test_cases = [

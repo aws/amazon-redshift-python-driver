@@ -123,10 +123,10 @@ startup_stmts: typing.Tuple[str, ...] = (
     "DROP SCHEMA IF EXISTS {} cascade;".format(test_schema_2),
     "CREATE SCHEMA {}".format(test_schema_1),
     "CREATE SCHEMA {}".format(test_schema_2),
-    "CREATE OR REPLACE FUNCTION {}.{}(test_column_smallint smallint, test_column_integer integer, test_column_bigint bigint, test_column_numeric numeric(10,5), test_column_real real, test_column_double double precision, test_column_boolean boolean, test_column_char char(20), test_column_varchar varchar(256), test_column_date date, test_column_timestamp timestamp) RETURNS int stable AS $$ return 1 $$ LANGUAGE plpythonu;".format(test_schema_1, test_func_1),
-    "CREATE OR REPLACE FUNCTION {}.{}() RETURNS int stable AS $$ return 1 $$ LANGUAGE plpythonu;".format(test_schema_1, test_func_2),
-    "CREATE OR REPLACE FUNCTION {}.{}() RETURNS int stable AS $$ return 1 $$ LANGUAGE plpythonu;".format(test_schema_2, test_func_3),
-    "CREATE OR REPLACE FUNCTION {}.{}() RETURNS int stable AS $$ return 1 $$ LANGUAGE plpythonu;".format(test_schema_2, test_func_4)
+    "CREATE OR REPLACE FUNCTION {}.{}(test_column_smallint smallint, test_column_integer integer, test_column_bigint bigint, test_column_numeric numeric(10,5), test_column_real real, test_column_double double precision, test_column_boolean boolean, test_column_char char(20), test_column_varchar varchar(256), test_column_date date, test_column_timestamp timestamp) RETURNS int stable AS $$ select 1 $$ LANGUAGE sql;".format(test_schema_1, test_func_1),
+    "CREATE OR REPLACE FUNCTION {}.{}() RETURNS int stable AS $$ select 1 $$ LANGUAGE sql;".format(test_schema_1, test_func_2),
+    "CREATE OR REPLACE FUNCTION {}.{}() RETURNS int stable AS $$ select 1 $$ LANGUAGE sql;".format(test_schema_2, test_func_3),
+    "CREATE OR REPLACE FUNCTION {}.{}() RETURNS int stable AS $$ select 1 $$ LANGUAGE sql;".format(test_schema_2, test_func_4)
 )
 
 

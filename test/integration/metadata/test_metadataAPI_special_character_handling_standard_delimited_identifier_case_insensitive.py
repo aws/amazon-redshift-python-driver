@@ -51,7 +51,7 @@ startup_stmts: typing.Tuple[str, ...] = (
     "GRANT SELECT ON \"{}\".\"{}\" TO \"{}\";".format(tem_object_sql_name, tem_object_sql_name+" child", user2_sql_name),
     "CREATE OR REPLACE PROCEDURE \"{}\".\"{}\"(\"{}\" OUT int) AS $$ BEGIN \"{}\" := 1; END; $$ LANGUAGE plpgsql;".format(tem_object_sql_name, tem_object_sql_name, tem_object_sql_name, tem_object_sql_name),
     # Hit error when create function with special character
-    "CREATE OR REPLACE FUNCTION \"{}\".\"{}\"(\"{}\" int) RETURNS int stable AS $$ return 1 $$ LANGUAGE plpythonu;".format(tem_object_sql_name, tem_object_sql_name, function_col_name)
+    "CREATE OR REPLACE FUNCTION \"{}\".\"{}\"(\"{}\" int) RETURNS int stable AS $$ select 1 $$ LANGUAGE sql;".format(tem_object_sql_name, tem_object_sql_name, function_col_name)
 )
 
 
