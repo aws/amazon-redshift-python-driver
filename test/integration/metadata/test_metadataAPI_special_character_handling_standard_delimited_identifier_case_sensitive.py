@@ -498,6 +498,7 @@ class TestDelimitedIdentifierCaseSensitive:
         ([catalog_identifier, "təst_Nam好e$123\n\t\r\0`~!@#$%^&*()_+-={}[]:\";,./<>?\\\\'' Delimited", tem_object_identifier_mixed_case, tem_object_identifier_mixed_case], 0,
          []),
     ]
+    @pytest.mark.skip(reason="temporarily disable due to known QP issue https://sim.amazon.com/issues/RedCat-2434")
     @pytest.mark.parametrize("test_case, expected_row_count, expected_result", function_columns_test_cases)
     @pytest.mark.parametrize("is_single_database_metadata", is_single_database_metadata_case)
     def test_get_function_columns_special_character(self, db_kwargs, test_case, expected_row_count, expected_result, is_single_database_metadata) -> None:

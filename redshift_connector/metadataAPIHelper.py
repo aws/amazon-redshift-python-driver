@@ -498,6 +498,7 @@ class MetadataAPIHelper:
         "character varying": "varchar",
         '"char"': "char",
         "character": "char",
+        "bpchar": "char",
         "smallint": "int2",
         "integer": "int4",
         "bigint": "int8",
@@ -615,7 +616,8 @@ class MetadataAPIHelper:
 
     def get_column_size(self, rs_type: str, numeric_precision: int, character_maximum_length: int) -> Optional[int]:
         if rs_type == "numeric" or rs_type == "decimal":
-            return int(numeric_precision)
+            numeric_precision = max(int(numeric_precision) if numeric_precision is not None else 0, 0)
+            return numeric_precision
         elif (
             rs_type == "varchar"
             or rs_type == "character varying"
@@ -623,7 +625,8 @@ class MetadataAPIHelper:
             or rs_type == "character"
             or rs_type == "bpchar"
         ):
-            return int(character_maximum_length)
+            character_maximum_length = max(int(character_maximum_length) if character_maximum_length is not None else 0, 0)
+            return character_maximum_length
         elif rs_type == "super" or rs_type == "geometry" or rs_type == "geography" or rs_type == "varbyte":
             return None
         else:
@@ -639,7 +642,8 @@ class MetadataAPIHelper:
         elif rs_type == "float8" or rs_type == "double precision":
             return 17
         elif rs_type == "numeric" or rs_type == "decimal":
-            return int(numeric_scale)
+            numeric_scale = max(int(numeric_scale) if numeric_scale is not None else 0, 0)
+            return numeric_scale
         elif (
             rs_type == "time"
             or rs_type == "timetz"
