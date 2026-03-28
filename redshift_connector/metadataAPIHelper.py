@@ -108,7 +108,7 @@ class RedshiftDataTypes:
         return data_type.lower() in cls.VALID_TYPES
 
     @classmethod
-    def validate_types(cls, data_types: typing.List[str]) -> tuple[bool, typing.List[str]]:
+    def validate_types(cls, data_types: typing.List[str]) -> typing.Tuple[bool, typing.List[str]]:
         """
         Validate a list of Redshift data types against the predefined valid types.
 
@@ -706,7 +706,7 @@ class MetadataAPIHelper:
         argument_list = "" if argument_list is None else argument_list
         return name + "(" + argument_list + ")"
 
-    def create_parameterized_query_string(self, argument_list: str, sql_base: str, column_name_pattern: str) -> typing.Tuple[str, list[str]]:
+    def create_parameterized_query_string(self, argument_list: str, sql_base: str, column_name_pattern: str) -> typing.Tuple[str, typing.List[str]]:
         """
         Creates a parameterized SQL query string based on the argument list and base SQL statement.
         Appends either a semicolon or LIKE clause depending on whether column_name_pattern is provided.
@@ -720,7 +720,7 @@ class MetadataAPIHelper:
                                      If provided, adds LIKE clause instead of semicolon
 
         Returns:
-            tuple[str, list[str]]: A tuple containing:
+            Tuple[str, List[str]]: A tuple containing:
             - str: Complete SQL query with appropriate placeholders and termination
                   (e.g. "SHOW PARAMETERS OF PROCEDURE %s.%s.%s(%s, %s, %s);" or
                         "SHOW PARAMETERS OF PROCEDURE %s.%s.%s(%s, %s, %s) LIKE %s;")
