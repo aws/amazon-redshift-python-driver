@@ -1,6 +1,7 @@
 import typing
 from unittest.mock import MagicMock, Mock, patch
 
+import bs4  # type: ignore
 import pytest  # type: ignore
 import requests
 
@@ -219,3 +220,78 @@ def test_form_based_authentication_empty_saml_response_should_fail(mocker) -> No
 
     with pytest.raises(InterfaceError, match="Failed to find ADFS access_token in authentication response payload"):
         acp.form_based_authentication()
+
+
+class TestLxmlCurlyBraceCompatibility:
+    """
+    Regression tests for lxml 6.0 + bs4 compatibility.
+    """
+
+    # This HTML triggers the actual lxml 6.0 + bs4 < 4.13.5 bug.
+    # lxml 6.0 recovers {currency: as an HTML attribute, and bs4 < 4.13.5
+    # fails to handle it in _getNsTag(), raising ValueError.
+    MALFORMED_HTML_WITH_CURLY_BRACE_ATTR = (
+        '<!DOCTYPE html><html lang="id"><head><noscript>'
+        '<img height="1" width="1" style="display:none" '
+        'src="https://www.example.com/tr?id=123&ev=PageView&noscript=1" '
+        'fbq("track", "Purchase" , {currency: "IDR" , value: 20000.00}); />'
+        '</noscript></head><body></body>'
+    )
+
+    ADFS_HTML_WITH_CURLY_BRACES = """
+    <html>
+    <head>
+        <style>
+            .illustrationClass {background-image:url(/adfs/portal/illustration/illustration.png);}
+            .f_circleG { position: absolute; height: 22px; width: 22px; }
+        </style>
+    </head>
+    <body>
+        <form method="post" id="loginForm" action="/adfs/ls/IdpInitiatedSignOn.aspx?loginToRp=urn:amazon:webservices">
+            <input id="userNameInput" name="UserName" type="email" value="" />
+            <input id="passwordInput" name="Password" type="password" />
+            <input id="optionForms" type="hidden" name="AuthMethod" value="FormsAuthentication"/>
+        </form>
+    </body>
+    </html>
+    """
+
+    ADFS_SAML_RESPONSE_WITH_CURLY_BRACES = """
+    <html>
+    <head><title>Working...</title></head>
+    <body>
+        <form method="POST" name="hiddenform" action="https://signin.aws.amazon.com:443/saml">
+            <input type="hidden" name="SAMLResponse" value="dummy_value"/>
+        </form>
+    </body>
+    </html>
+    """
+
+    def test_lxml6_curly_brace_attribute_bug(self):
+        # This must not raise. With the old bs4, it throws ValueError.
+        soup = bs4.BeautifulSoup(self.MALFORMED_HTML_WITH_CURLY_BRACE_ATTR, features="lxml")
+        assert soup is not None
+
+    def test_parse_adfs_sign_in_page_with_curly_braces(self):
+        soup = bs4.BeautifulSoup(self.ADFS_HTML_WITH_CURLY_BRACES, features="lxml")
+        username_input = soup.find("input", {"name": "UserName"})
+        assert username_input is not None
+        assert username_input.get("type") == "email"
+
+        password_input = soup.find("input", {"name": "Password"})
+        assert password_input is not None
+
+    def test_form_based_auth_with_curly_brace_html(self, mocker):
+        acp, _ = make_valid_adfs_credentials_provider()
+
+        mock_auth_form = MagicMock()
+        mock_auth_form.text = self.ADFS_HTML_WITH_CURLY_BRACES
+
+        mock_saml_response = MagicMock()
+        mock_saml_response.text = self.ADFS_SAML_RESPONSE_WITH_CURLY_BRACES
+
+        mocker.patch("requests.get", return_value=mock_auth_form)
+        mocker.patch("requests.post", return_value=mock_saml_response)
+
+        result = acp.form_based_authentication()
+        assert result == "dummy_value"

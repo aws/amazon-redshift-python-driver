@@ -1838,16 +1838,61 @@ class Connection:
             ps["bind_2"] = h_pack(len(output_fc)) + pack("!" + "h" * len(output_fc), *output_fc)
 
             if self.max_prepared_statements > 0:
-                # Ensure consistency between ps and statement_dict
+                # Ensure consistency between ps and statement_dict.
+                # A length mismatch indicates stale keys in statement_dict
+                # (e.g. after DDL/ROLLBACK clears ps but not statement_dict).
+                # We do a full rebuild: clear statement_dict first, then
+                # re-add only keys that exist in ps. This loses the original
+                # LRU ordering, but that's acceptable because the mismatch
+                # only occurs after DDL/ROLLBACK which invalidated all prior
+                # entries anyway — the surviving keys get fresh ordering.
                 if len(cache["ps"]) != len(cache["statement_dict"]):
+                    _logger.debug(
+                        "Consistency repair: rebuilding statement_dict from ps (%d -> %d entries)",
+                        len(cache["statement_dict"]),
+                        len(cache["ps"]),
+                    )
+                    cache["statement_dict"].clear()
                     for existing_key in cache["ps"]:
                         cache["statement_dict"][existing_key] = None
 
-                # If cache is full, remove oldest statement
+                # If cache is full, evict the least recently used statement.
+                # We use a while loop instead of a single pop as a
+                # defense-in-depth measure: if statement_dict contains
+                # stale keys not present in ps (e.g. after DDL/ROLLBACK
+                # clears ps but not statement_dict), we discard them
+                # lazily here rather than crashing with a KeyError.
+                # In normal operation the first pop always finds a valid
+                # key, so this behaves identically to a single-pop eviction
+                # with zero overhead on the happy path.
                 if len(cache["ps"]) >= self.max_prepared_statements:
-                    oldest_key, _ = cache["statement_dict"].popitem(last=False)
-                    statements_to_close.append(cache["ps"][oldest_key]["statement_name_bin"])
-                    del cache["ps"][oldest_key]
+                    while cache["statement_dict"]:
+                        oldest_key, _ = cache["statement_dict"].popitem(last=False)
+                        if oldest_key in cache["ps"]:
+                            statements_to_close.append(cache["ps"][oldest_key]["statement_name_bin"])
+                            del cache["ps"][oldest_key]
+                            break
+                        else:
+                            _logger.debug("Eviction discarded stale key from statement_dict: %s", oldest_key)
+                    else:
+                        # statement_dict exhausted — all entries were stale, none
+                        # matched a key in ps. At this point len(statement_dict) == 0
+                        # and no eviction occurred, so the new entry added below will
+                        # temporarily grow ps to max_prepared_statements + 1.
+                        #
+                        # We intentionally do NOT rebuild statement_dict here because
+                        # the next execute() call will detect the length mismatch
+                        # (len(ps) != len(statement_dict)) in the consistency-repair
+                        # check above and rebuild statement_dict from ps automatically.
+                        # That rebuild restores full sync, and the subsequent eviction
+                        # will succeed normally.
+                        _logger.warning(
+                            "Eviction failed: statement_dict exhausted without finding a valid key in ps. "
+                            "ps has %d entries (max_prepared_statements=%d). "
+                            "The next execute() will trigger consistency-repair to restore sync.",
+                            len(cache["ps"]),
+                            self.max_prepared_statements,
+                        )
 
                 # Add new statement to cache and queue
                 cache["ps"][key] = ps
@@ -2027,11 +2072,20 @@ class Connection:
             cursor._redshift_row_count = len(cursor._cached_rows)
 
         if command in (b"ALTER", b"CREATE", b"DROP", b"ROLLBACK"):
+            # DDL and ROLLBACK invalidate all server-side prepared
+            # statements. Close each one explicitly, then clear both
+            # the metadata cache (ps) and the LRU tracking dict
+            # (statement_dict) together to keep them synchronized.
+            # Clearing only ps without statement_dict would leave
+            # stale keys that cause a KeyError crash during eviction
+            # when the cache later refills.
             for scache in self._caches.values():
                 for pcache in scache.values():
                     for ps in pcache["ps"].values():
                         self.close_prepared_statement(ps["statement_name_bin"])
                     pcache["ps"].clear()
+                    if pcache.get("statement_dict") is not None:
+                        pcache["statement_dict"].clear()
 
     def handle_DATA_ROW(self: "Connection", data: bytes, cursor: Cursor) -> None:
         """

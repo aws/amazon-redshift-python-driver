@@ -11,6 +11,8 @@ if typing.TYPE_CHECKING:
     from redshift_connector import Connection
 
 SCHEMA_NAME: str = "datatype_integration"
+# toggle precision between 18 and 38 to test 8 & 16 byte. scale must be >= 8
+NUMERIC_PRECISION: str = "(18, 8)"
 CREATE_FILE_PATH: str = "{}/datatype_test_stmts.sql".format(pathlib.Path().absolute())
 TEARDOWN_FILE_PATH: str = "{}/datatype_teardown_stmts.sql".format(pathlib.Path().absolute())
 """
@@ -200,7 +202,7 @@ class Datatypes(Enum):
     int2 = auto()
     int4 = auto()
     int8 = auto()
-    numeric = "(18, 8)"  # toggle precision between 18 and 38 to test 8 & 16  byte. scale must be >= 8
+    numeric = auto()
     float4 = auto()
     float8 = auto()
     bool = auto()
@@ -460,7 +462,7 @@ def _build_table_stmts(dt: Datatypes) -> None:
 
     col_type: str = dt.name
     if dt.name == Datatypes.numeric.name:
-        col_type += dt.value
+        col_type += NUMERIC_PRECISION
 
     create_stmt: str = "create table {schema}.test_{datatype} (c1 varchar, c2 {col_type});".format(
         schema=SCHEMA_NAME, datatype=dt.name, col_type=col_type
