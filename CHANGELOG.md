@@ -1,6 +1,15 @@
 Changelog
 =========
 
+v2.1.13 (2026-03-30)
+-------------------
+- Raised minimum supported Python version from 3.6 to 3.7
+- Fixed prepared statement cache desync causing KeyError after DDL/ROLLBACK
+- Raised lxml upper bound from <6.0.0 to <=6.0.2 to unblock Python 3.14 support
+- Bumped beautifulsoup4 minimum version from 4.7.0 to 4.13.5 to fix lxml 6.0 parsing bug with curly braces
+- Fixed Python 3.7/3.8 type hint compatibility in Metadata API
+
+
 v2.1.12 (2026-03-04)
 -------------------
 - Added support for Identity Enhanced Credentials authentication
