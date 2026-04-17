@@ -257,7 +257,7 @@ def test_fetch_saml_response(mocked_post) -> None:
     mocked_post.return_value = mock_get_resp()
 
     saml_assertion: str = bacp.fetch_saml_response(token="blah")
-    assert str(browser_azure_data.saml_response) == saml_assertion
+    assert browser_azure_data.saml_response == saml_assertion
 
 
 malformed_json_responses: typing.List[typing.Tuple[typing.Optional[typing.Dict], str]] = [

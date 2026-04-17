@@ -184,7 +184,7 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
         if missing_padding:
             saml_assertion += "=" * missing_padding
 
-        return str(base64.urlsafe_b64decode(saml_assertion))
+        return base64.urlsafe_b64decode(saml_assertion).decode("utf-8")
 
     # SAML Response is required to be sent to base class. We need to provide a minimum of:
     # samlp:Response XML tag with xmlns:samlp protocol value
@@ -197,10 +197,10 @@ class BrowserAzureCredentialsProvider(SamlCredentialsProvider):
             '<samlp:StatusCode Value="urn:oasis:names:tc:SAML:2.0:status:Success"/>'
             "</samlp:Status>"
             "{saml_assertion}"
-            "</samlp:Response>".format(saml_assertion=saml_assertion[2:-1])
+            "</samlp:Response>".format(saml_assertion=saml_assertion)
         )
 
-        return str(base64.b64encode(saml_response.encode("utf-8")))[2:-1]
+        return base64.b64encode(saml_response.encode("utf-8")).decode("utf-8")
 
     def run_server(
         self: "BrowserAzureCredentialsProvider", listen_socket: socket.socket, idp_response_timeout: int, state: str
