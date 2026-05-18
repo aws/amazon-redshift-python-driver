@@ -3,6 +3,7 @@ Changelog
 
 v2.1.14 (2026-05-18)
 -------------------
+- Raised minimum supported Python version from 3.7 to 3.8
 - Added support for pg_catalog internal data types in the getFunctionColumns and getProcedureColumns metadata APIs.
 - Addressed security issue as detailed in CVE-2026-41066
 - Addressed security issue as detailed in CVE-2026-8838
