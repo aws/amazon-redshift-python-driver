@@ -102,11 +102,13 @@ get_function_columns_result: typing.List[FunctionColumnInfo] = [
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_smallint", FunctionColumnType.IN, 5, "int2", 5, 2, 0, 10, 2, "", None, 1, "", test_func_1_specific_name),
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_integer", FunctionColumnType.IN, 4, "int4", 10, 4, 0, 10, 2, "", None, 2, "", test_func_1_specific_name),
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_bigint", FunctionColumnType.IN, -5, "int8", 19, 20, 0, 10, 2, "", None, 3, "", test_func_1_specific_name),
+    # RedCat-2542
     # SQL UDF has an issue where precision and scale was not stored and returned properly for numeric data type
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_numeric", FunctionColumnType.IN, 2, "numeric", 0, None, 0, 10, 2, "", None, 4, "", test_func_1_specific_name),
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_real", FunctionColumnType.IN, 7, "float4", 8, 4, 8, 10, 2, "", None, 5, "", test_func_1_specific_name),
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_double", FunctionColumnType.IN, 8, "float8", 17, 8, 17, 10, 2, "", None, 6, "", test_func_1_specific_name),
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_boolean", FunctionColumnType.IN, -7, "bool", 1, 1, 0, 10, 2, "", None, 7, "", test_func_1_specific_name),
+    # RedCat-2542
     # SQL UDF has an issue where character_maximum_length was not stored and returned properly for char/varchar data type
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_char", FunctionColumnType.IN, 1, "char", 0, None, 0, 10, 2, "", None, 8, "", test_func_1_specific_name),
     FunctionColumnInfo(current_catalog, test_schema_1, test_func_1, "test_column_varchar", FunctionColumnType.IN, 12, "varchar", 0, None, 0, 10, 2, "", None, 9, "", test_func_1_specific_name),
