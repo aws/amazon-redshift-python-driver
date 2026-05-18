@@ -74,7 +74,7 @@ class RedshiftDataTypes:
         'double precision', 'float8', 'float',
 
         # Character types
-        'char', 'character', 'nchar', 'bpchar',
+        'char', '"char"', 'character', 'nchar', 'bpchar',
         'varchar', 'character varying', 'nvarchar', 'text',
 
         # Date/Time types
@@ -85,6 +85,7 @@ class RedshiftDataTypes:
         'timestamptz', 'timestamp with time zone',
         'intervaly2m', 'interval year to month',
         'intervald2s', 'interval day to second',
+        'interval',
 
         # Other types
         'boolean', 'bool',
@@ -99,7 +100,39 @@ class RedshiftDataTypes:
         'smallint[]',
         'pg_attribute',
         'pg_type',
-        'refcursor'
+        'refcursor',
+
+        # pg_catalog pseudo-types
+        '"any"', '"trigger"', '"unknown"', 'anyelement', 'anyarray',
+        'record', 'void', 'opaque', 'language_handler',
+
+        # pg_catalog network/address types
+        'inet', 'cidr', 'macaddr',
+
+        # pg_catalog legacy time types
+        'abstime', 'reltime', 'tinterval',
+
+        # pg_catalog ACL and system catalog types
+        'aclitem', 'aclitem[]', 'oid[]', 'oidvector', 'int2vector',
+
+        # pg_catalog registration types
+        'regproc', 'regprocedure', 'regoper', 'regoperator', 'regclass', 'regtype',
+
+        # pg_catalog system/internal types
+        'smgr', 'tid', 'xid', 'cid', 'cstring',
+
+        # pg_catalog geometric types
+        'box', 'circle', 'line', 'lseg', '"path"', 'point', 'polygon',
+
+        # pg_catalog monetary/binary/misc types
+        'money', 'bit', 'bit varying', 'bytea', 'name',
+
+        # Redshift-specific internal types
+        'pyobject', 'roleitem', 'useritem',
+
+        # pg_catalog array types
+        'bigint[]', 'double precision[]', 'numeric[]',
+        'interval[]', 'intervaly2m[]', 'intervald2s[]',
     }
 
     @classmethod

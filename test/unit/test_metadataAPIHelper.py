@@ -769,3 +769,131 @@ def test_consecutive_wildcards(metadata_helper):
     assert metadata_helper.pattern_match("hello", "h%_%o")
     assert metadata_helper.pattern_match("hello", "h_%_%o")
     assert metadata_helper.pattern_match("hello", "h%_%_%o")
+
+
+# -------------------------------------------------------------------------
+# pg_catalog internal data type tests
+# -------------------------------------------------------------------------
+
+PG_CATALOG_TYPES = [
+    # Pseudo-types (quoted reserved words)
+    '"any"', '"trigger"', '"unknown"', 'anyelement', 'anyarray',
+    'record', 'void', 'opaque', 'language_handler',
+    # Network/address types
+    'inet', 'cidr', 'macaddr',
+    # Legacy time types
+    'abstime', 'reltime', 'tinterval',
+    # ACL and system catalog types
+    'aclitem', 'aclitem[]', 'oid[]', 'oidvector', 'int2vector',
+    # Registration types
+    'regproc', 'regprocedure', 'regoper', 'regoperator', 'regclass', 'regtype',
+    # System/internal types
+    'smgr', 'tid', 'xid', 'cid', 'cstring',
+    # Geometric types
+    'box', 'circle', 'line', 'lseg', '"path"', 'point', 'polygon',
+    # Monetary/binary/misc types
+    'money', 'bit', 'bit varying', 'bytea', 'name',
+    # Redshift-specific internal types
+    'pyobject', 'roleitem', 'useritem',
+    # Array types
+    'bigint[]', 'double precision[]', 'numeric[]',
+    'interval[]', 'intervaly2m[]', 'intervald2s[]',
+]
+
+
+from redshift_connector.metadataAPIHelper import RedshiftDataTypes
+
+
+@pytest.mark.parametrize("data_type", PG_CATALOG_TYPES)
+def test_pg_catalog_type_is_valid(data_type: str):
+    """Each pg_catalog internal type should be accepted by is_valid_type."""
+    assert RedshiftDataTypes.is_valid_type(data_type), f"Type should be valid: {data_type}"
+
+
+@pytest.mark.parametrize("data_type", sorted(RedshiftDataTypes.VALID_TYPES))
+def test_all_valid_types_accepted(data_type: str):
+    """Every type in VALID_TYPES should be accepted by is_valid_type."""
+    assert RedshiftDataTypes.is_valid_type(data_type), f"Type from VALID_TYPES should be valid: {data_type}"
+
+
+@pytest.mark.parametrize("data_type", sorted(RedshiftDataTypes.VALID_TYPES))
+def test_all_valid_types_parameterized_query(metadata_helper, data_type: str):
+    """createParameterizedQueryString should accept every type in VALID_TYPES."""
+    sql, args = metadata_helper.create_parameterized_query_string(
+        data_type, "SHOW PARAMETERS OF FUNCTION %s.%s.%s", None
+    )
+    assert len(args) == 1, f"Should have 1 arg for type: {data_type}"
+    assert "%s" in sql, f"Query should contain placeholder for type: {data_type}"
+
+
+@pytest.mark.parametrize("data_type", PG_CATALOG_TYPES)
+def test_pg_catalog_type_parameterized_query(metadata_helper, data_type: str):
+    """createParameterizedQueryString should accept each pg_catalog type without raising."""
+    sql, args = metadata_helper.create_parameterized_query_string(
+        data_type, "SHOW PARAMETERS OF FUNCTION %s.%s.%s", None
+    )
+    assert len(args) == 1
+    assert "%s" in sql
+
+
+def test_pg_catalog_mixed_types_parameterized_query(metadata_helper):
+    """createParameterizedQueryString should accept a mix of pg_catalog types."""
+    arg_list = "inet, cstring, aclitem[], regproc, \"any\""
+    sql, args = metadata_helper.create_parameterized_query_string(
+        arg_list, "SHOW PARAMETERS OF FUNCTION %s.%s.%s", None
+    )
+    assert len(args) == 5
+
+
+def test_pg_catalog_with_standard_types(metadata_helper):
+    """createParameterizedQueryString should accept pg_catalog types mixed with standard types."""
+    arg_list = "integer, inet, varchar, cstring"
+    sql, args = metadata_helper.create_parameterized_query_string(
+        arg_list, "SHOW PARAMETERS OF FUNCTION %s.%s.%s", None
+    )
+    assert len(args) == 4
+
+
+def test_standard_types_still_valid():
+    """Standard Redshift types should still be accepted after the fix."""
+    for t in ["integer", "varchar", "boolean", "double precision", "timestamp", "date", "numeric"]:
+        assert RedshiftDataTypes.is_valid_type(t), f"Standard type should be valid: {t}"
+
+
+def test_legacy_types_still_valid():
+    """Legacy types should still be accepted after the fix."""
+    for t in ["oid", "smallint[]", "pg_attribute", "pg_type", "refcursor"]:
+        assert RedshiftDataTypes.is_valid_type(t), f"Legacy type should be valid: {t}"
+
+
+def test_invalid_types_still_rejected():
+    """Invalid/malicious types should still be rejected."""
+    for t in ["not_a_real_type", "integer; DROP TABLE", "' OR 1=1 --", "faketype"]:
+        assert not RedshiftDataTypes.is_valid_type(t), f"Invalid type should be rejected: {t}"
+
+
+def test_invalid_type_raises(metadata_helper):
+    """createParameterizedQueryString should raise for invalid types."""
+    with pytest.raises(ValueError):
+        metadata_helper.create_parameterized_query_string(
+            "integer, not_a_real_type", "SHOW PARAMETERS OF FUNCTION %s.%s.%s", None
+        )
+
+
+def test_case_insensitive_validation():
+    """Type validation should be case-insensitive."""
+    assert RedshiftDataTypes.is_valid_type("INET")
+    assert RedshiftDataTypes.is_valid_type("Cstring")
+    assert RedshiftDataTypes.is_valid_type("MACADDR")
+    assert RedshiftDataTypes.is_valid_type("Regproc")
+
+
+def test_quoted_char_type_valid():
+    """Both quoted and unquoted char should be valid."""
+    assert RedshiftDataTypes.is_valid_type('"char"')
+    assert RedshiftDataTypes.is_valid_type('char')
+
+
+def test_standalone_interval_valid():
+    """Standalone 'interval' should be valid (was previously missing)."""
+    assert RedshiftDataTypes.is_valid_type('interval')

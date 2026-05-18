@@ -207,3 +207,41 @@ class TestMetadataAPIFunctions:
                     (pattern_matches(column, func_col_info.column_name))):
                 result.append(func_col_info)
         return result
+
+
+class TestMetadataAPIFunctionsPgCatalog:
+    """
+    Tests that get_functions and get_function_columns support
+    pg_catalog functions whose argument lists contain internal PostgreSQL
+    data types (e.g., inet, cstring, aclitem[], pyobject).
+
+    We only verify the metadata API does not error out for pg_catalog schema.
+    No result validation is performed since the server blocks system function
+    column discovery (SHOW PARAMETERS OF FUNCTION returns empty for system functions).
+    """
+
+    @pytest.mark.skip(reason="Server currently hide pg_catalog in SHOW SCHEMAS result")
+    def test_get_functions_pg_catalog(self, db_kwargs) -> None:
+        """get_functions for pg_catalog schema should succeed and return rows."""
+        with redshift_connector.connect(**db_kwargs) as conn:
+            cursor = conn.cursor()
+            result: tuple = cursor.get_functions(None, "pg_catalog", None)
+            assert len(result) > 0, "Expected at least one function from pg_catalog"
+
+    def test_get_function_columns_pg_catalog(self, db_kwargs) -> None:
+        """get_function_columns for pg_catalog schema should not throw.
+        Just iterate results to confirm no error during processing."""
+        with redshift_connector.connect(**db_kwargs) as conn:
+            cursor = conn.cursor()
+            # This should not raise even though pg_catalog functions use
+            # internal types like inet, cstring, aclitem[], pyobject, etc.
+            result: tuple = cursor.get_function_columns(None, "pg_catalog", None, None)
+            # no-op: we only care that no exception is thrown
+
+    @pytest.mark.skip(reason="Server currently blocks system function column discovery for pg_catalog")
+    def test_get_function_columns_pg_catalog_abbrev(self, db_kwargs) -> None:
+        """get_function_columns for pg_catalog.abbrev (inet arg) should return rows."""
+        with redshift_connector.connect(**db_kwargs) as conn:
+            cursor = conn.cursor()
+            result: tuple = cursor.get_function_columns(None, "pg_catalog", "abbrev", None)
+            assert len(result) > 0, "Expected at least one column row for pg_catalog.abbrev"
