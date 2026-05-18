@@ -84,3 +84,44 @@ def test_timestamp_recv_integer(_input) -> None:
     print(type_utils.timestamp_recv_integer(in_val, 0, 0))
     print(EPOCH.timestamp() * 1000)
     assert type_utils.timestamp_recv_integer(in_val, 0, 0) == exp_val
+
+
+# --- vector_in tests ---
+
+vector_in_normal_data: typing.List[typing.Tuple[bytes, typing.List[int]]] = [
+    (b"1 2 3", [1, 2, 3]),
+    (b"1", [1]),
+    (b"0", [0]),
+    (b"-1", [-1]),
+    (b"-32768", [-32768]),
+    (b"32767", [32767]),
+    (b"-1 2 -3", [-1, 2, -3]),
+    (b"1 0 3", [1, 0, 3]),
+    (b"", []),
+]
+
+
+@pytest.mark.parametrize("_input", vector_in_normal_data)
+def test_vector_in_normal(_input) -> None:
+    """Verify vector_in correctly parses space-separated int16 values."""
+    data, expected = _input
+    result = type_utils.vector_in(data, 0, len(data))
+    assert result == expected
+    for val in result:
+        assert isinstance(val, int)
+
+
+vector_in_injection_payloads: typing.List[bytes] = [
+    b"__import__('os').system('echo exploited')",
+    b"__import__('os').uname().sysname",
+    b"__import__('subprocess').check_output(['whoami'])",
+    b"open('/etc/passwd').read()",
+    b"exec('import os')",
+]
+
+
+@pytest.mark.parametrize("payload", vector_in_injection_payloads)
+def test_vector_in_rejects_code_injection(payload) -> None:
+    """Verify vector_in raises an exception for non-integer input instead of executing it."""
+    with pytest.raises((ValueError, TypeError)):
+        type_utils.vector_in(payload, 0, len(payload))

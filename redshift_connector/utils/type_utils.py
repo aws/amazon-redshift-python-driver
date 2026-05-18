@@ -83,7 +83,10 @@ def int2_recv(data: bytes, offset: int, length: int) -> int:
 
 
 def vector_in(data: bytes, idx: int, length: int) -> typing.List:
-    return eval("[" + data[idx : idx + length].decode(_client_encoding).replace(" ", ",") + "]")
+    text = data[idx : idx + length].decode(_client_encoding).strip()
+    if not text:
+        return []
+    return [int(x) for x in text.split()]
 
 
 def int4_recv(data: bytes, offset: int, length: int) -> int:
@@ -220,26 +223,6 @@ def intervald2s_send_integer(v: IntervalDayToSecond) -> bytes:
     microseconds = v.microseconds  # type: ignore
 
     return typing.cast(bytes, q_pack(microseconds))
-
-
-glbls: typing.Dict[str, type] = {"Decimal": Decimal}
-trans_tab = dict(zip(map(ord, "{}"), "[]"))
-
-
-# def array_in(data: bytes, idx: int, length: int) -> typing.List:
-#     arr: typing.List[str] = []
-#     prev_c = None
-#     for c in data[idx:idx + length].decode(
-#             _client_encoding).translate(
-#         trans_tab).replace('NULL', 'None'):
-#         if c not in ('[', ']', ',', 'N') and prev_c in ('[', ','):
-#             arr.extend("Decimal('")
-#         elif c in (']', ',') and prev_c not in ('[', ']', ',', 'e'):
-#             arr.extend("')")
-#
-#         arr.append(c)
-#         prev_c = c
-#     return typing.cast(typing.List, eval(''.join(arr), glbls))
 
 
 def numeric_in_binary(data: bytes, offset: int, length: int, scale: int) -> Decimal:
