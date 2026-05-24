@@ -106,7 +106,7 @@ class SamlCredentialsProvider(IdpCredentialsProvider):
         _logger.debug("decoded SAML assertion into xml format")
         soup = bs4.BeautifulSoup(doc, "xml")
         attrs = soup.findAll("Attribute")
-        # extract RoleArn adn PrincipleArn from SAML assertion
+        # extract RoleArn and PrincipleArn from SAML assertion
         role_pattern = re.compile(r"arn:aws:iam::\d*:role/\S+")
         provider_pattern = re.compile(r"arn:aws:iam::\d*:saml-provider/\S+")
         roles: typing.Dict[str, str] = {}
