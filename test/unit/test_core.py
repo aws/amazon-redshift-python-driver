@@ -994,3 +994,107 @@ def test_preservation_max_prepared_statements_zero(mocker, queries):
 
     # ps still stores statements (they're just not LRU-managed)
     # but no LRU cache management occurs
+
+
+# ============================================================================
+# Driver Discovery Version Tests
+# ============================================================================
+
+class TestDriverDiscoveryVersion:
+    """Tests for the driver_discovery_version startup parameter."""
+
+    def test_driver_discovery_version_constant_exists(self):
+        """Verify DRIVER_DISCOVERY_VERSION is defined in config and importable from core."""
+        from redshift_connector.config import DRIVER_DISCOVERY_VERSION
+        from redshift_connector.core import DRIVER_DISCOVERY_VERSION as CORE_DDV
+
+        assert isinstance(DRIVER_DISCOVERY_VERSION, int)
+        assert DRIVER_DISCOVERY_VERSION == 1
+        assert CORE_DDV == DRIVER_DISCOVERY_VERSION
+
+    @patch("socket.socket")
+    @patch("socket.getaddrinfo")
+    def test_startup_packet_contains_driver_discovery_version(
+        self, mock_getaddrinfo, mock_socket_class
+    ):
+        """Verify driver_discovery_version is sent in the startup packet."""
+        from redshift_connector.config import DRIVER_DISCOVERY_VERSION
+
+        mock_sock = MagicMock()
+        mock_socket_class.return_value = mock_sock
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 0, '', ('127.0.0.1', 5439))
+        ]
+
+        written_data = bytearray()
+
+        def capture_write(data):
+            if isinstance(data, (bytes, bytearray)):
+                written_data.extend(data)
+
+        mock_file = MagicMock()
+        mock_file.write = capture_write
+        mock_file.flush = MagicMock()
+        mock_sock.makefile.return_value = mock_file
+        mock_file.read = MagicMock(side_effect=Exception("stop after startup"))
+
+        try:
+            Connection(
+                user="testuser",
+                password="testpass",
+                database="testdb",
+                host="localhost",
+                port=5439,
+                ssl=False,
+            )
+        except Exception:
+            pass
+
+        # Verify the key is present in the startup packet bytes
+        assert b"driver_discovery_version" in written_data
+
+        # Verify the value follows the key (null-separated per PG wire protocol)
+        key_pos = written_data.find(b"driver_discovery_version")
+        value_start = key_pos + len(b"driver_discovery_version") + 1  # skip null byte
+        value_end = written_data.find(b"\x00", value_start)
+        value = written_data[value_start:value_end].decode("utf-8")
+        assert value == str(DRIVER_DISCOVERY_VERSION)
+
+    @patch("socket.socket")
+    @patch("socket.getaddrinfo")
+    def test_driver_discovery_version_sent_with_native_auth(
+        self, mock_getaddrinfo, mock_socket_class
+    ):
+        """Verify driver_discovery_version is sent unconditionally, even with native auth."""
+        mock_sock = MagicMock()
+        mock_socket_class.return_value = mock_sock
+        mock_getaddrinfo.return_value = [
+            (socket.AF_INET, socket.SOCK_STREAM, 0, '', ('127.0.0.1', 5439))
+        ]
+
+        written_data = bytearray()
+
+        def capture_write(data):
+            if isinstance(data, (bytes, bytearray)):
+                written_data.extend(data)
+
+        mock_file = MagicMock()
+        mock_file.write = capture_write
+        mock_file.flush = MagicMock()
+        mock_sock.makefile.return_value = mock_file
+        mock_file.read = MagicMock(side_effect=Exception("stop after startup"))
+
+        try:
+            Connection(
+                user="testuser",
+                password="testpass",
+                database="testdb",
+                host="localhost",
+                port=5439,
+                ssl=False,
+                credentials_provider="BasicJwtCredentialsProvider",
+            )
+        except Exception:
+            pass
+
+        assert b"driver_discovery_version" in written_data

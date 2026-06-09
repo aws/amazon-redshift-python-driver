@@ -20,6 +20,7 @@ from scramp import ScramClient  # type: ignore
 from redshift_connector.config import (
     DEFAULT_MAX_PREPARED_STATEMENTS,
     DEFAULT_PROTOCOL_VERSION,
+    DRIVER_DISCOVERY_VERSION,
     ClientProtocolVersion,
     DbApiParamstyle,
     _client_encoding,
@@ -562,6 +563,7 @@ class Connection:
             "client_protocol_version": str(self._client_protocol_version),
             "driver_version": DriverInfo.driver_full_name(),
             "os_version": self.client_os_version,
+            "driver_discovery_version": str(DRIVER_DISCOVERY_VERSION),
         }
 
         if credentials_provider:
