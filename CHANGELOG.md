@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v2.1.15 (2026-06-09)
+-------------------
+- Hardened identifier sanitization in callproc, write_dataframe, and metadata APIs to strip additional whitespace characters
+- Added driver_discovery_version parameter to the startup packet, enabling SHOW SCHEMAS to return pg_catalog in its results
+
 v2.1.14 (2026-05-18)
 -------------------
 - Raised minimum supported Python version from 3.7 to 3.8
