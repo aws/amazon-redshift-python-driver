@@ -3146,7 +3146,7 @@ class Cursor:
             return "NO_SCHEMA_UNIVERSAL_QUERY"
 
     def __sanitize_str(self: "Cursor", s: str) -> str:
-        return re.sub(r"[-;/'\"\n\r ]", "", s)
+        return re.sub(r"[-;/'\"\s]", "", s)
 
     def __escape_quotes(self: "Cursor", s: str) -> str:
         return "'{s}'".format(s=self.__sanitize_str(s))
