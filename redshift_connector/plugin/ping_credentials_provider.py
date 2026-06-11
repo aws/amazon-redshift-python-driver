@@ -68,11 +68,11 @@ class PingCredentialsProvider(SamlCredentialsProvider):
                 _logger.debug(exec_msg)
                 raise InterfaceError(exec_msg) from e
             except requests.exceptions.TooManyRedirects as e:
-                exec_msg = "A error occurred when requesting Ping IdP login page. Please verify connection properties are correct."
+                exec_msg = "An error occurred when requesting Ping IdP login page. Please verify connection properties are correct."
                 _logger.debug(exec_msg)
                 raise InterfaceError(exec_msg) from e
             except requests.exceptions.RequestException as e:
-                exec_msg = "A unknown error occurred when requesting Ping IdP login page. Please verify connection properties are correct."
+                exec_msg = "An unknown error occurred when requesting Ping IdP login page. Please verify connection properties are correct."
                 _logger.debug(exec_msg)
                 raise InterfaceError(exec_msg) from e
 
@@ -180,7 +180,7 @@ class PingCredentialsProvider(SamlCredentialsProvider):
                     assertion = inputtag.get("value")
 
             if assertion == "":
-                exec_msg = "Failed to retrieve SAMLAssertion. A input tag named SAMLResponse was not identified in the Ping IdP authentication response"
+                exec_msg = "Failed to retrieve SAMLAssertion. An input tag named SAMLResponse was not identified in the Ping IdP authentication response"
                 _logger.debug(exec_msg)
                 raise InterfaceError(exec_msg)
 
