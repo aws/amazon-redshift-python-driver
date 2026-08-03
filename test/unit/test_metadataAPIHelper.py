@@ -10,6 +10,7 @@ from redshift_connector.metadataAPIHelper import (
     ProcedureType,
 )
 from redshift_connector.utils.oids import RedshiftOID
+from redshift_connector.utils.sql_types import SQLType
 from redshift_connector.error import (
     ProgrammingError
 )
@@ -260,6 +261,48 @@ def test_get_column_size() -> None:
     assert None == mock_metadataAPIHelper.get_column_size("geometry", numeric_precision, character_maximum_length)
     assert None == mock_metadataAPIHelper.get_column_size("geography", numeric_precision, character_maximum_length)
     assert None == mock_metadataAPIHelper.get_column_size("varbyte", numeric_precision, character_maximum_length)
+
+
+def test_get_sql_type_text() -> None:
+    mock_metadataAPIHelper: MetadataAPIHelper = MetadataAPIHelper.__new__(MetadataAPIHelper)
+
+    # text maps to SQL_VARCHAR, never the SQL_OTHER fallback
+    assert int(SQLType.SQL_VARCHAR) == mock_metadataAPIHelper.get_sql_type("text")
+    assert int(SQLType.SQL_OTHER) != mock_metadataAPIHelper.get_sql_type("text")
+
+
+def test_get_column_size_text() -> None:
+    mock_metadataAPIHelper: MetadataAPIHelper = MetadataAPIHelper.__new__(MetadataAPIHelper)
+
+    # text carries no length: 256 when the server provides no positive length
+    assert 256 == mock_metadataAPIHelper.get_column_size("text", None, None)
+    assert 256 == mock_metadataAPIHelper.get_column_size("text", None, 0)
+    assert 256 == mock_metadataAPIHelper.get_column_size("text", None, -1)
+    # a genuine server supplied length is honored
+    assert 100 == mock_metadataAPIHelper.get_column_size("text", None, 100)
+    # never the unknown size sentinel
+    assert 2147483647 != mock_metadataAPIHelper.get_column_size("text", None, None)
+
+
+def test_resolve_text_char_max_length() -> None:
+    mock_metadataAPIHelper: MetadataAPIHelper = MetadataAPIHelper.__new__(MetadataAPIHelper)
+
+    # a genuine positive length is honored; anything else defaults to 256
+    assert 42 == mock_metadataAPIHelper.resolve_text_char_max_length(42)
+    assert 256 == mock_metadataAPIHelper.resolve_text_char_max_length(None)
+    assert 256 == mock_metadataAPIHelper.resolve_text_char_max_length(0)
+    assert 256 == mock_metadataAPIHelper.resolve_text_char_max_length(-1)
+
+
+def test_get_column_type_name() -> None:
+    mock_metadataAPIHelper: MetadataAPIHelper = MetadataAPIHelper.__new__(MetadataAPIHelper)
+
+    # text reports varchar; every other type passes through unchanged
+    assert "varchar" == mock_metadataAPIHelper.get_column_type_name("text")
+    assert "varchar" == mock_metadataAPIHelper.get_column_type_name("varchar")
+    assert "char" == mock_metadataAPIHelper.get_column_type_name("char")
+    assert "int4" == mock_metadataAPIHelper.get_column_type_name("int4")
+    assert "super" == mock_metadataAPIHelper.get_column_type_name("super")
 
 
 def test_get_decimal_digits() -> None:

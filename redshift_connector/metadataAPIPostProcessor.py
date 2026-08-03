@@ -181,7 +181,7 @@ class MetadataAPIPostProcessor(MetadataAPIHelper):
                     row[self._cursor._SHOW_COLUMNS_Col_index[self._SHOW_COLUMNS_table_name]],
                     row[self._cursor._SHOW_COLUMNS_Col_index[self._SHOW_COLUMNS_column_name]],
                     sql_type,
-                    rs_type,
+                    self.get_column_type_name(rs_type),
                     self.get_column_size(
                         rs_type,
                         row[self._cursor._SHOW_COLUMNS_Col_index[self._SHOW_COLUMNS_numeric_precision]],

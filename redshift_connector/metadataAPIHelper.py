@@ -581,6 +581,13 @@ class MetadataAPIHelper:
     __sql_type_mapping = {
         "varchar": int(SQLType.SQL_VARCHAR),
         "char": int(SQLType.SQL_CHAR),
+        # text carries no length modifier on the server; it is reported as a
+        # varchar sized at _TEXT_COLUMN_SIZE (256), matching the documented
+        # Redshift conversion of TEXT to VARCHAR(256). Once the server types
+        # these columns as character varying(256) directly, this entry acts
+        # as defense in depth for older clusters and may no longer be
+        # exercised on new ones.
+        "text": int(SQLType.SQL_VARCHAR),
         "int2": int(SQLType.SQL_SMALLINT),
         "int4": int(SQLType.SQL_INTEGER),
         "int8": int(SQLType.SQL_BIGINT),
@@ -674,6 +681,31 @@ class MetadataAPIHelper:
     def get_sql_type(self, rs_type: str) -> int:
         return self.__sql_type_mapping.get(rs_type, int(SQLType.SQL_OTHER))
 
+    # Column size reported for a text column when the server provides no
+    # character maximum length. See the text entry in __sql_type_mapping.
+    _TEXT_COLUMN_SIZE = 256
+
+    def resolve_text_char_max_length(self, character_maximum_length: typing.Optional[int]) -> typing.Optional[int]:
+        """
+        Resolves the effective character maximum length for a text column.
+        Returns _TEXT_COLUMN_SIZE when the server supplies no positive
+        length; otherwise the server supplied value unchanged.
+        """
+        try:
+            if character_maximum_length is None or int(character_maximum_length) <= 0:
+                return self._TEXT_COLUMN_SIZE
+        except (TypeError, ValueError):
+            return self._TEXT_COLUMN_SIZE
+        return character_maximum_length
+
+    def get_column_type_name(self, rs_type: str) -> str:
+        """
+        Resolves the type name reported for a column. Returns varchar for a
+        text column, since text is represented as a character type sized at
+        _TEXT_COLUMN_SIZE; otherwise rs_type unchanged.
+        """
+        return "varchar" if rs_type == "text" else rs_type
+
     def get_column_size(self, rs_type: str, numeric_precision: int, character_maximum_length: int) -> Optional[int]:
         if rs_type == "numeric" or rs_type == "decimal":
             numeric_precision = max(int(numeric_precision) if numeric_precision is not None else 0, 0)
@@ -687,6 +719,8 @@ class MetadataAPIHelper:
         ):
             character_maximum_length = max(int(character_maximum_length) if character_maximum_length is not None else 0, 0)
             return character_maximum_length
+        elif rs_type == "text":
+            return self.resolve_text_char_max_length(character_maximum_length)
         elif rs_type == "super" or rs_type == "geometry" or rs_type == "geography" or rs_type == "varbyte":
             return None
         else:
