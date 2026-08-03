@@ -15,7 +15,10 @@ Python Driver Prod account. We have also created test_user_azure user in identit
 """
 
 import json
+import os
 from typing import Any, Dict, Optional
+from unittest.mock import patch
+
 import pytest
 import requests
 import boto3
@@ -449,8 +452,8 @@ class TestIdpTokenAuthPlugin:
 
         This test validates that IdpTokenAuthPlugin properly fails when
         AccessKeyId is omitted from connection parameters. Without all three
-        identity-enhanced credential params, and without direct token params,
-        the plugin raises an error indicating neither auth flow is satisfied.
+        identity-enhanced credential params, the plugin raises an error
+        indicating incomplete IAM credentials.
 
         """
         # Build params without access_key_id - use dummy values for other params
@@ -465,7 +468,7 @@ class TestIdpTokenAuthPlugin:
 
         with pytest.raises(
             redshift_connector.InterfaceError,
-            match="Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided"
+            match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."
         ):
             redshift_connector.connect(**params)
 
@@ -474,8 +477,8 @@ class TestIdpTokenAuthPlugin:
 
         This test validates that IdpTokenAuthPlugin properly fails when
         SecretAccessKey is omitted from connection parameters. Without all three
-        identity-enhanced credential params, and without direct token params,
-        the plugin raises an error indicating neither auth flow is satisfied.
+        identity-enhanced credential params, the plugin raises an error
+        indicating incomplete IAM credentials.
 
         """
         # Build params without secret_access_key - use dummy values for other params
@@ -490,7 +493,7 @@ class TestIdpTokenAuthPlugin:
 
         with pytest.raises(
             redshift_connector.InterfaceError,
-            match="Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided"
+            match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."
         ):
             redshift_connector.connect(**params)
 
@@ -499,8 +502,8 @@ class TestIdpTokenAuthPlugin:
 
         This test validates that IdpTokenAuthPlugin properly fails when
         SessionToken is omitted from connection parameters. Without all three
-        identity-enhanced credential params, and without direct token params,
-        the plugin raises an error indicating neither auth flow is satisfied.
+        identity-enhanced credential params, the plugin raises an error
+        indicating incomplete IAM credentials.
 
         """
         # Build params without session_token - use dummy values for other params
@@ -515,7 +518,7 @@ class TestIdpTokenAuthPlugin:
 
         with pytest.raises(
             redshift_connector.InterfaceError,
-            match="Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided"
+            match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."
         ):
             redshift_connector.connect(**params)
 
@@ -549,6 +552,217 @@ class TestIdpTokenAuthPlugin:
 
         with pytest.raises(
             redshift_connector.InterfaceError,
-            match="Cannot provide both direct token parameters \\(token, token_type\\) and \\(AccessKeyID, SecretAccessKey, SessionToken\\)"
+            match=r"IdC authentication failed: Cannot provide both direct token parameters \(token, token_type\) and \(AccessKeyID, SecretAccessKey, SessionToken\)."
         ):
             redshift_connector.connect(**params)
+
+
+# Default Credentials Flow Integration Tests
+
+
+class TestIdpTokenAuthPluginDefaultCredentials:
+    """Integration tests for default credentials fallback flow.
+
+    Tests the third authentication flow where no explicit token or IAM params
+    are provided, and the plugin uses boto3's default credential chain.
+    """
+
+    DATABASE = "dev"
+    REGION = "us-east-1"
+
+    _setup: Optional["DefaultCredentialsSetup"] = None
+    _setup_failed: bool = False
+
+    @classmethod
+    def _ensure_setup(cls):
+        if cls._setup is not None:
+            return
+        if cls._setup_failed:
+            pytest.skip("Setup failed - secrets not accessible")
+        try:
+            cls._setup = DefaultCredentialsSetup()
+        except Exception as e:
+            cls._setup_failed = True
+            pytest.skip(f"Setup failed: {e}")
+
+    def _get_default_creds_params(self, host: str) -> Dict:
+        return {
+            "host": host,
+            "database": self.DATABASE,
+            "credentials_provider": "IdpTokenAuthPlugin",
+        }
+
+    def test_provisioned_cluster_default_credentials(self):
+        """Connect to provisioned cluster using default credentials from environment."""
+        self._ensure_setup()
+        env_creds = self._setup.get_env_credentials()
+
+        with patch.dict(os.environ, env_creds, clear=False):
+            conn = redshift_connector.connect(
+                **self._get_default_creds_params(self._setup.provisioned_endpoint)
+            )
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                assert cursor.fetchone()[0] == 1
+                cursor.close()
+            finally:
+                conn.close()
+
+    def test_serverless_workgroup_default_credentials(self):
+        """Connect to serverless workgroup using default credentials from environment."""
+        self._ensure_setup()
+        env_creds = self._setup.get_env_credentials()
+
+        with patch.dict(os.environ, env_creds, clear=False):
+            conn = redshift_connector.connect(
+                **self._get_default_creds_params(self._setup.serverless_endpoint)
+            )
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                assert cursor.fetchone()[0] == 1
+                cursor.close()
+            finally:
+                conn.close()
+
+    def test_no_credentials_available_raises(self):
+        """When no credentials are available in the environment, raises error."""
+        clean_env = {
+            "AWS_ACCESS_KEY_ID": "",
+            "AWS_SECRET_ACCESS_KEY": "",
+            "AWS_SESSION_TOKEN": "",
+            "AWS_SHARED_CREDENTIALS_FILE": "/nonexistent/path",
+            "AWS_CONFIG_FILE": "/nonexistent/path",
+            "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI": "",
+            "AWS_CONTAINER_CREDENTIALS_FULL_URI": "",
+            "AWS_EC2_METADATA_DISABLED": "true",
+        }
+
+        with patch.dict(os.environ, clean_env, clear=False):
+            params = {
+                "host": "test-cluster.abc123.us-east-1.redshift.amazonaws.com",
+                "database": self.DATABASE,
+                "credentials_provider": "IdpTokenAuthPlugin",
+            }
+            with pytest.raises((redshift_connector.InterfaceError, Exception)):
+                redshift_connector.connect(**params)
+
+    def test_fake_credentials_raises(self):
+        """When fake credentials are set, API rejects them."""
+        fake_env = {
+            "AWS_ACCESS_KEY_ID": "AKIAIOSFODNN7EXAMPLE",
+            "AWS_SECRET_ACCESS_KEY": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "AWS_SESSION_TOKEN": "FakeSessionToken123456",
+            "AWS_DEFAULT_REGION": "us-east-1",
+        }
+
+        with patch.dict(os.environ, fake_env, clear=False):
+            params = {
+                "host": "test-cluster.abc123.us-east-1.redshift.amazonaws.com",
+                "database": self.DATABASE,
+                "credentials_provider": "IdpTokenAuthPlugin",
+            }
+            with pytest.raises((redshift_connector.InterfaceError, Exception)):
+                redshift_connector.connect(**params)
+
+    def test_wrong_region_override_raises(self):
+        """When region is overridden to incorrect value, connection fails."""
+        self._ensure_setup()
+        env_creds = self._setup.get_env_credentials()
+
+        with patch.dict(os.environ, env_creds, clear=False):
+            params = self._get_default_creds_params(
+                self._setup.provisioned_endpoint)
+            params["region"] = "ap-southeast-99"
+            with pytest.raises((redshift_connector.InterfaceError, Exception)):
+                redshift_connector.connect(**params)
+
+    def test_correct_region_override_succeeds(self):
+        """When region is overridden to correct value, connection succeeds."""
+        self._ensure_setup()
+        env_creds = self._setup.get_env_credentials()
+
+        with patch.dict(os.environ, env_creds, clear=False):
+            params = self._get_default_creds_params(
+                self._setup.provisioned_endpoint)
+            params["region"] = self.REGION
+            conn = redshift_connector.connect(**params)
+            try:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1")
+                assert cursor.fetchone()[0] == 1
+                cursor.close()
+            finally:
+                conn.close()
+
+    def test_nonexistent_cluster_host_raises(self):
+        """When host is a non-existent cluster, raises error."""
+        self._ensure_setup()
+        env_creds = self._setup.get_env_credentials()
+
+        with patch.dict(os.environ, env_creds, clear=False):
+            params = self._get_default_creds_params(
+                "nonexistent-cluster.abc123.us-east-1.redshift.amazonaws.com"
+            )
+            with pytest.raises((redshift_connector.InterfaceError, Exception)):
+                redshift_connector.connect(**params)
+
+    def test_conflicting_parameters_raises(self):
+        """When both token and IAM params provided, raises InterfaceError."""
+        params = {
+            "host": "test-cluster.abc123.us-east-1.redshift.amazonaws.com",
+            "database": self.DATABASE,
+            "credentials_provider": "IdpTokenAuthPlugin",
+            "token": "some_token",
+            "token_type": "ACCESS_TOKEN",
+            "access_key_id": "AKIA123",
+            "secret_access_key": "secret",
+            "session_token": "sess",
+        }
+
+        with pytest.raises(
+            redshift_connector.InterfaceError, match=r"IdC authentication failed: Cannot provide both direct token parameters \(token, token_type\) and \(AccessKeyID, SecretAccessKey, SessionToken\)."
+        ):
+            redshift_connector.connect(**params)
+
+
+class DefaultCredentialsSetup:
+    """Setup helper for default credentials tests.
+
+    Uses the same AzureAuthenticator flow as TestIdpTokenAuthPlugin to obtain
+    identity-enhanced credentials, then provides them as environment variables
+    for boto3's default credential chain.
+    """
+
+    def __init__(self):
+        self.region = "us-east-1"
+
+        authenticator = AzureAuthenticator()
+
+        self.provisioned_endpoint = authenticator.provisioned_endpoint
+        self.serverless_endpoint = authenticator.serverless_endpoint
+
+        # Get identity-enhanced credentials (same flow as TestIdpTokenAuthPlugin.setup_credentials)
+        azure_token = authenticator.get_azure_token()
+        aws_response = authenticator.create_aws_token(azure_token)
+        context_assertion = aws_response['awsAdditionalDetails']['identityContext']
+        credentials_response = authenticator.assume_role_with_context(context_assertion)
+
+        creds = credentials_response['Credentials']
+        self._credentials = {
+            "aws_access_key_id": creds["AccessKeyId"],
+            "aws_secret_access_key": creds["SecretAccessKey"],
+            "aws_session_token": creds["SessionToken"],
+        }
+
+    def get_env_credentials(self) -> Dict[str, str]:
+        """Return identity-enhanced credentials as environment variables."""
+        return {
+            "AWS_ACCESS_KEY_ID": self._credentials["aws_access_key_id"],
+            "AWS_SECRET_ACCESS_KEY": self._credentials["aws_secret_access_key"],
+            "AWS_SESSION_TOKEN": self._credentials["aws_session_token"],
+            "AWS_DEFAULT_REGION": self.region,
+            "AWS_SHARED_CREDENTIALS_FILE": "/dev/null",
+            "AWS_CONFIG_FILE": "/dev/null",
+        }

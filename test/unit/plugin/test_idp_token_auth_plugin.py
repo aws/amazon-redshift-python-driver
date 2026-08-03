@@ -1,3 +1,6 @@
+import typing
+from unittest.mock import MagicMock
+
 import pytest
 
 from redshift_connector import IamHelper, InterfaceError, RedshiftProperty
@@ -189,15 +192,14 @@ def test_check_required_parameters_with_identity_enhanced_credentials():
 
 
 def test_check_required_parameters_rejects_incomplete_identity_enhanced_credentials():
-    """Verify that check_required_parameters rejects incomplete identity-enhanced credentials (treated as no valid flow)"""
+    """Verify that check_required_parameters rejects incomplete identity-enhanced credentials"""
     itap: IdpTokenAuthPlugin = IdpTokenAuthPlugin()
     itap.access_key_id = "dummy_access_key_id"
     itap.secret_access_key = "dummy_secret_access_key"
-    # Missing session_token - this means _is_using_identity_enhanced_credentials returns False
-    # and since there's no direct token either, it should fail with "no parameters" error
+    # Missing session_token - partial IAM
     
     with pytest.raises(
-        InterfaceError, match="IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."
+        InterfaceError, match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."
     ):
         itap.check_required_parameters()
 
@@ -225,22 +227,19 @@ def test_check_required_parameters_rejects_conflicting_parameters():
     itap.access_key_id = "dummy_access_key_id"
     itap.secret_access_key = "dummy_secret_access_key"
     itap.session_token = "dummy_session_token"
-    itap.host = "cluster.abc123.us-east-1.redshift.amazonaws.com"
     
     with pytest.raises(
-        InterfaceError, match="Cannot provide both direct token parameters"
+        InterfaceError, match=r"IdC authentication failed: Cannot provide both direct token parameters \(token, token_type\) and \(AccessKeyID, SecretAccessKey, SessionToken\)."
     ):
         itap.check_required_parameters()
 
 
-def test_check_required_parameters_rejects_no_parameters():
-    """Verify that check_required_parameters rejects when no parameters are provided"""
+def test_check_required_parameters_accepts_no_parameters():
+    """Verify that check_required_parameters passes when no parameters are provided (default credentials flow)"""
     itap: IdpTokenAuthPlugin = IdpTokenAuthPlugin()
     
-    with pytest.raises(
-        InterfaceError, match="IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."
-    ):
-        itap.check_required_parameters()
+    # Should not raise - falls through to default credentials flow
+    itap.check_required_parameters()
 
 
 def test_is_using_identity_enhanced_credentials_returns_true_with_credentials():
@@ -658,3 +657,601 @@ def test_get_auth_token_calls_check_required_parameters_with_identity_enhanced(m
     
     # Verify that check_required_parameters was called
     assert spy.called
+# Default Credentials Fallback Tests
+
+def _make_plugin(**kwargs) -> IdpTokenAuthPlugin:
+    """Create an IdpTokenAuthPlugin with specified attributes."""
+    plugin = IdpTokenAuthPlugin()
+    for k, v in kwargs.items():
+        setattr(plugin, k, v)
+    return plugin
+
+
+def _make_plugin_with_rp(**rp_kwargs) -> IdpTokenAuthPlugin:
+    """Create an IdpTokenAuthPlugin with a RedshiftProperty configured."""
+    plugin = IdpTokenAuthPlugin()
+    rp = RedshiftProperty()
+    for k, v in rp_kwargs.items():
+        setattr(rp, k, v)
+    plugin.add_parameter(rp)
+    return plugin
+
+
+class TestValidCombinations:
+    def test_valid_direct_token_flow(self):
+        plugin = _make_plugin(token="my_token", token_type="ACCESS_TOKEN")
+        assert plugin.get_auth_token() == "my_token"
+
+    def test_valid_identity_enhanced_flow(self):
+        plugin = _make_plugin_with_rp(
+            access_key_id="AKIA123", secret_access_key="secret", session_token="sesstoken",
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        plugin.check_required_parameters()
+
+    def test_valid_default_credentials_flow(self):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com")
+        plugin.check_required_parameters()
+
+
+class TestPartialTokenValidation:
+    def test_token_without_token_type_raises(self):
+        plugin = _make_plugin(token="my_token")
+        with pytest.raises(InterfaceError, match="IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+    def test_token_type_without_token_raises(self):
+        plugin = _make_plugin(token_type="ACCESS_TOKEN")
+        with pytest.raises(InterfaceError, match="IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+
+class TestPartialAndConflictingCredentials:
+    def test_partial_iam_access_key_only(self):
+        plugin = _make_plugin(access_key_id="AKIA123")
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+    def test_partial_iam_access_key_and_secret(self):
+        plugin = _make_plugin(access_key_id="AKIA123",
+                              secret_access_key="secret")
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+    def test_partial_iam_access_key_and_session_token(self):
+        plugin = _make_plugin(access_key_id="AKIA123", session_token="token")
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+    def test_partial_iam_secret_and_session_token(self):
+        plugin = _make_plugin(secret_access_key="secret",
+                              session_token="token")
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+    def test_conflicting_complete_token_and_complete_iam(self):
+        plugin = _make_plugin(
+            token="tok", token_type="ACCESS_TOKEN",
+            access_key_id="AKIA", secret_access_key="secret", session_token="sess",
+        )
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Cannot provide both direct token parameters \(token, token_type\) and \(AccessKeyID, SecretAccessKey, SessionToken\)."):
+            plugin.check_required_parameters()
+
+    def test_conflicting_complete_token_and_partial_iam(self):
+        """Complete token + partial IAM -> direct token flow is fully valid, passes validation.
+        The extra partial IAM param is ignored at runtime."""
+        plugin = _make_plugin(
+            token="tok", token_type="ACCESS_TOKEN", access_key_id="AKIA")
+        # Should not raise - direct token flow is complete
+        plugin.check_required_parameters()
+
+    def test_partial_token_and_partial_iam_raises(self):
+        """Partial token + partial IAM -> neither flow is fully valid, raises 'either X or Y'."""
+        plugin = _make_plugin(token="tok", access_key_id="AKIA")
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+    def test_iam_credentials_without_host_raises_at_auth_time(self):
+        plugin = _make_plugin(access_key_id="AKIA",
+                              secret_access_key="secret", session_token="sess")
+        rp = RedshiftProperty()
+        rp.host = ""
+        plugin.redshift_property = rp
+        with pytest.raises(InterfaceError):
+            plugin.get_auth_token()
+
+
+class TestIsUsingDefaultCredentials:
+    def test_true_when_only_host_set(self):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com")
+        assert plugin.is_using_default_credentials() is True
+
+    def test_true_when_no_params(self):
+        assert IdpTokenAuthPlugin().is_using_default_credentials() is True
+
+    def test_false_when_token_params_present(self):
+        plugin = _make_plugin(token="tok", token_type="ACCESS_TOKEN")
+        assert plugin.is_using_default_credentials() is False
+
+    def test_false_when_iam_params_present(self):
+        plugin = _make_plugin(access_key_id="AKIA",
+                              secret_access_key="secret", session_token="sess")
+        assert plugin.is_using_default_credentials() is False
+
+
+class TestIsUsingIdentityEnhancedCredentialsDefault:
+    def test_true_when_all_three_iam_provided(self):
+        plugin = _make_plugin(access_key_id="AKIA",
+                              secret_access_key="secret", session_token="sess")
+        assert plugin._is_using_identity_enhanced_credentials() is True
+
+    def test_false_when_access_key_missing(self):
+        plugin = _make_plugin(secret_access_key="secret", session_token="sess")
+        assert plugin._is_using_identity_enhanced_credentials() is False
+
+    def test_false_when_secret_missing(self):
+        plugin = _make_plugin(access_key_id="AKIA", session_token="sess")
+        assert plugin._is_using_identity_enhanced_credentials() is False
+
+    def test_false_when_session_token_missing(self):
+        plugin = _make_plugin(access_key_id="AKIA", secret_access_key="secret")
+        assert plugin._is_using_identity_enhanced_credentials() is False
+
+    def test_false_with_direct_token(self):
+        plugin = _make_plugin(token="tok", token_type="ACCESS_TOKEN")
+        assert plugin._is_using_identity_enhanced_credentials() is False
+
+    def test_false_with_no_params(self):
+        assert IdpTokenAuthPlugin()._is_using_identity_enhanced_credentials() is False
+
+
+class TestRegionAndIdentifierResolution:
+    def test_provisioned_hostname_resolves_cluster_and_region(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "subject_tok"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        assert plugin._get_default_credentials_auth_token() == "subject_tok"
+        mock_session.client.assert_called_once_with(
+            "redshift", region_name="us-east-1", endpoint_url=None)
+
+    def test_serverless_hostname_resolves_workgroup_and_region(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="default.123456789012.us-west-2.redshift-serverless.amazonaws.com",
+            region="us-west-2", serverless_work_group="default", is_serverless=True,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "token": "serverless_tok"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        assert plugin._get_default_credentials_auth_token() == "serverless_tok"
+        mock_session.client.assert_called_once_with(
+            "redshift-serverless", region_name="us-west-2", endpoint_url=None)
+
+    def test_explicit_region_overrides_hostname_region(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        plugin.region = "eu-west-1"
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "tok"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        plugin._get_default_credentials_auth_token()
+        mock_session.client.assert_called_once_with(
+            "redshift", region_name="eu-west-1", endpoint_url=None)
+
+    def test_missing_cluster_identifier_raises(self):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier=None, is_serverless=False,
+        )
+        with pytest.raises(InterfaceError, match="Unable to determine cluster identifier"):
+            plugin._get_default_credentials_auth_token()
+
+    def test_missing_region_raises(self):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region=None, cluster_identifier="mycluster", is_serverless=False,
+        )
+        plugin.region = None
+        with pytest.raises(InterfaceError, match="Unable to determine AWS region"):
+            plugin._get_default_credentials_auth_token()
+
+
+class TestProvisionedAuthTokenDefault:
+    def test_success_returns_token(self):
+        plugin = IdpTokenAuthPlugin()
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "provisioned_tok"}
+        mock_session.client.return_value = mock_client
+        plugin._default_credentials_provider = mock_session
+        assert plugin._get_provisioned_auth_token_default(
+            "us-east-1", "mycluster") == "provisioned_tok"
+        mock_client.get_identity_center_auth_token.assert_called_once_with(ClusterIds=[
+                                                                           "mycluster"])
+
+    def test_api_failure_raises_interface_error(self):
+        plugin = IdpTokenAuthPlugin()
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.side_effect = Exception(
+            "API timeout")
+        mock_session.client.return_value = mock_client
+        plugin._default_credentials_provider = mock_session
+        with pytest.raises(InterfaceError, match="Failed to obtain subject token.*provisioned cluster.*API timeout"):
+            plugin._get_provisioned_auth_token_default(
+                "us-east-1", "mycluster")
+
+    def test_endpoint_url_passed_to_client(self):
+        plugin = IdpTokenAuthPlugin()
+        plugin.endpoint_url = "https://custom-endpoint.example.com"
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "tok"}
+        mock_session.client.return_value = mock_client
+        plugin._default_credentials_provider = mock_session
+        plugin._get_provisioned_auth_token_default("us-east-1", "mycluster")
+        mock_session.client.assert_called_once_with(
+            "redshift", region_name="us-east-1", endpoint_url="https://custom-endpoint.example.com",
+        )
+
+
+class TestServerlessAuthTokenDefault:
+    def test_success_returns_token(self):
+        plugin = IdpTokenAuthPlugin()
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "token": "serverless_tok"}
+        mock_session.client.return_value = mock_client
+        plugin._default_credentials_provider = mock_session
+        assert plugin._get_serverless_auth_token_default(
+            "us-west-2", "my-workgroup") == "serverless_tok"
+        mock_client.get_identity_center_auth_token.assert_called_once_with(
+            workgroupNames=["my-workgroup"])
+
+    def test_api_failure_raises_interface_error(self):
+        plugin = IdpTokenAuthPlugin()
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.side_effect = Exception(
+            "Connection refused")
+        mock_session.client.return_value = mock_client
+        plugin._default_credentials_provider = mock_session
+        with pytest.raises(InterfaceError, match="Failed to obtain subject token.*serverless workgroup.*Connection refused"):
+            plugin._get_serverless_auth_token_default(
+                "us-west-2", "my-workgroup")
+
+    def test_endpoint_url_passed_to_client(self):
+        plugin = IdpTokenAuthPlugin()
+        plugin.endpoint_url = "https://custom-serverless.example.com"
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "token": "tok"}
+        mock_session.client.return_value = mock_client
+        plugin._default_credentials_provider = mock_session
+        plugin._get_serverless_auth_token_default("us-west-2", "wg")
+        mock_session.client.assert_called_once_with(
+            "redshift-serverless", region_name="us-west-2", endpoint_url="https://custom-serverless.example.com",
+        )
+
+
+class TestDefaultCredentialsOrchestration:
+    def test_provisioned_end_to_end(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "e2e_tok"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        assert plugin._get_default_credentials_auth_token() == "e2e_tok"
+
+    def test_serverless_end_to_end(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="default.123456789012.us-west-2.redshift-serverless.amazonaws.com",
+            region="us-west-2", serverless_work_group="default", is_serverless=True,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "token": "serverless_e2e"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        assert plugin._get_default_credentials_auth_token() == "serverless_e2e"
+
+    def test_empty_token_provisioned_raises(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {"Token": ""}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        with pytest.raises(InterfaceError, match="empty response for provisioned cluster"):
+            plugin._get_default_credentials_auth_token()
+
+    def test_empty_token_serverless_raises(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="default.123456789012.us-west-2.redshift-serverless.amazonaws.com",
+            region="us-west-2", serverless_work_group="default", is_serverless=True,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {"token": ""}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        with pytest.raises(InterfaceError, match="empty response for serverless workgroup"):
+            plugin._get_default_credentials_auth_token()
+
+    def test_cluster_resolution_failure_raises(self):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier=None, is_serverless=False,
+        )
+        with pytest.raises(InterfaceError, match="Unable to determine cluster identifier"):
+            plugin._get_default_credentials_auth_token()
+
+
+class TestDefaultCredentialsProviderSpecific:
+    def test_is_using_default_true_only_host(self):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com")
+        assert plugin.is_using_default_credentials() is True
+
+    def test_is_using_default_true_no_params(self):
+        assert IdpTokenAuthPlugin().is_using_default_credentials() is True
+
+    def test_provisioned_success_with_mock_provider(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "prov_tok"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        assert plugin.get_auth_token() == "prov_tok"
+
+    def test_serverless_success_with_mock_provider(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="default.123456789012.us-west-2.redshift-serverless.amazonaws.com",
+            region="us-west-2", serverless_work_group="default", is_serverless=True,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "token": "srv_tok"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        assert plugin.get_auth_token() == "srv_tok"
+
+    def test_no_host_raises(self):
+        plugin = IdpTokenAuthPlugin()
+        plugin.redshift_property = RedshiftProperty()
+        plugin.redshift_property.host = ""
+        with pytest.raises(InterfaceError, match="Host URL must be provided"):
+            plugin._get_default_credentials_auth_token()
+
+    def test_no_redshift_property_raises(self):
+        plugin = IdpTokenAuthPlugin()
+        plugin.redshift_property = None
+        with pytest.raises(InterfaceError, match="Host URL must be provided"):
+            plugin._get_default_credentials_auth_token()
+
+    def test_credentials_unavailable_raises(self, mocker):
+        from botocore.exceptions import NoCredentialsError
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_session.client.side_effect = NoCredentialsError()
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        with pytest.raises(InterfaceError, match="Failed to obtain subject token.*provisioned cluster"):
+            plugin._get_default_credentials_auth_token()
+
+    def test_invalid_credentials_api_403_raises(self, mocker):
+        from botocore.exceptions import ClientError
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        error_response = {"Error": {"Code": "403", "Message": "Access Denied"}}
+        mock_client.get_identity_center_auth_token.side_effect = ClientError(
+            error_response, "GetIdentityCenterAuthToken")
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        with pytest.raises(InterfaceError, match="Failed to obtain subject token.*provisioned cluster"):
+            plugin._get_default_credentials_auth_token()
+
+
+
+class TestIsUsingDefaultCredentialsBoundary:
+    """Verify is_using_default_credentials across all parameter combinations."""
+
+    @pytest.mark.parametrize("token,token_type,access_key_id,secret_access_key,session_token,expected", [
+        # No params at all -> True
+        (None, None, None, None, None, True),
+        # Any token param set -> False
+        ("t", None, None, None, None, False),
+        (None, "tt", None, None, None, False),
+        # Any IAM param set -> False
+        (None, None, "a", None, None, False),
+        (None, None, None, "s", None, False),
+        (None, None, None, None, "st", False),
+        (None, None, "a", "s", None, False),
+        (None, None, "a", None, "st", False),
+        (None, None, None, "s", "st", False),
+        # Complete token pair -> False
+        ("t", "tt", None, None, None, False),
+        ("t", "tt", "a", None, None, False),
+        ("t", "tt", "a", "s", "st", False),
+        # Complete IAM triple -> False
+        (None, None, "a", "s", "st", False),
+        ("t", None, "a", "s", "st", False),
+    ])
+    def test_is_using_default_credentials(self, token, token_type, access_key_id, secret_access_key, session_token, expected):
+        plugin = _make_plugin(
+            token=token, token_type=token_type,
+            access_key_id=access_key_id, secret_access_key=secret_access_key, session_token=session_token,
+        )
+        assert plugin.is_using_default_credentials() is expected
+
+
+class TestCheckRequiredParametersBoundary:
+    """Verify check_required_parameters rejects conflicting and incomplete credentials.
+
+    Logic:
+    1. All params None -> default credentials (valid, early return)
+    2. Both direct token AND identity-enhanced fully provided -> conflict error
+    3. Otherwise (partial or single-side only) -> "either X or Y must be provided"
+    """
+
+    def test_conflicting_full_token_and_full_iam(self):
+        """Both complete direct token and complete IAM raises conflict error."""
+        plugin = _make_plugin(
+            token="t", token_type="tt",
+            access_key_id="a", secret_access_key="s", session_token="st",
+        )
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Cannot provide both direct token parameters \(token, token_type\) and \(AccessKeyID, SecretAccessKey, SessionToken\)."):
+            plugin.check_required_parameters()
+
+    @pytest.mark.parametrize("token,token_type,access_key_id,secret_access_key,session_token", [
+        # Partial token only (no IAM) - not default (has a param), not direct_token, not identity_enhanced
+        ("t", None, None, None, None),
+        (None, "tt", None, None, None),
+        # Partial IAM only (no token) - not default, not direct_token, not identity_enhanced
+        (None, None, "a", None, None),
+        (None, None, None, "s", None),
+        (None, None, None, None, "st"),
+        (None, None, "a", "s", None),
+        (None, None, "a", None, "st"),
+        (None, None, None, "s", "st"),
+        # Partial token + partial IAM - neither flow fully valid
+        ("t", None, "a", None, None),
+        ("t", None, None, "s", None),
+        ("t", None, None, None, "st"),
+        (None, "tt", "a", None, None),
+        (None, "tt", None, "s", None),
+    ])
+    def test_incomplete_params_raises(self, token, token_type, access_key_id, secret_access_key, session_token):
+        """Any incomplete combination (not default, not both-full) raises 'either X or Y'."""
+        plugin = _make_plugin(
+            token=token, token_type=token_type,
+            access_key_id=access_key_id, secret_access_key=secret_access_key, session_token=session_token,
+        )
+        with pytest.raises(InterfaceError, match=r"IdC authentication failed: Either token/token_type or AccessKeyID/SecretAccessKey/SessionToken must be provided."):
+            plugin.check_required_parameters()
+
+    @pytest.mark.parametrize("token,token_type,access_key_id,secret_access_key,session_token", [
+        # Complete direct token + partial IAM -> direct token flow wins, validation passes
+        ("t", "tt", "a", None, None),
+        ("t", "tt", None, "s", None),
+        ("t", "tt", "a", "s", None),
+        # Partial token + complete IAM -> identity-enhanced flow wins, validation passes
+        ("t", None, "a", "s", "st"),
+        (None, "tt", "a", "s", "st"),
+    ])
+    def test_one_complete_flow_with_extra_params_passes(self, token, token_type, access_key_id, secret_access_key, session_token):
+        """When one flow is fully specified, extra partial params from the other don't block validation."""
+        plugin = _make_plugin(
+            token=token, token_type=token_type,
+            access_key_id=access_key_id, secret_access_key=secret_access_key, session_token=session_token,
+        )
+        # Should not raise - at least one flow is fully valid
+        plugin.check_required_parameters()
+
+
+class TestLazyInitialization:
+    def test_provider_none_at_construction(self):
+        assert IdpTokenAuthPlugin()._default_credentials_provider is None
+
+    def test_first_call_creates_provider(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "tok"}
+        mock_session.client.return_value = mock_client
+        create_spy = mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        plugin._get_default_credentials_auth_token()
+        create_spy.assert_called_once()
+        assert plugin._default_credentials_provider is mock_session
+
+    def test_subsequent_calls_reuse_provider(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "tok"}
+        mock_session.client.return_value = mock_client
+        create_spy = mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        plugin._get_default_credentials_auth_token()
+        plugin._get_default_credentials_auth_token()
+        create_spy.assert_called_once()
+
+    def test_boto3_client_created_without_explicit_credentials(self, mocker):
+        plugin = _make_plugin_with_rp(
+            host="mycluster.abc123.us-east-1.redshift.amazonaws.com",
+            region="us-east-1", cluster_identifier="mycluster", is_serverless=False,
+        )
+        mock_session = MagicMock()
+        mock_client = MagicMock()
+        mock_client.get_identity_center_auth_token.return_value = {
+            "Token": "tok"}
+        mock_session.client.return_value = mock_client
+        mocker.patch.object(
+            plugin, "_create_default_credentials_provider", return_value=mock_session)
+        plugin._get_default_credentials_auth_token()
+        call_kwargs = mock_session.client.call_args[1]
+        assert "aws_access_key_id" not in call_kwargs
+        assert "aws_secret_access_key" not in call_kwargs
+        assert "aws_session_token" not in call_kwargs

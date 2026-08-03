@@ -15,8 +15,14 @@ _logger: logging.Logger = logging.getLogger(__name__)
 
 class IdpTokenAuthPlugin(CommonCredentialsProvider):
     """
-    A basic IdP Token auth plugin class. This plugin class allows clients to directly provide any auth token that is handled by Redshift.
-    It also supports identity-enhanced credentials flow where AWS credentials are exchanged for a subject token via GetIdentityCenterAuthToken.
+    IdP Token auth plugin for Redshift Identity Center (IdC) authentication.
+
+    Supports three authentication flows:
+    1. Direct token: user provides token and token_type directly.
+    2. Identity-enhanced credentials: user provides AccessKeyID, SecretAccessKey,
+       and SessionToken which are exchanged for a subject token via GetIdentityCenterAuthToken.
+    3. Default credentials: no explicit parameters provided; uses boto3's default credential
+       chain to resolve AWS credentials from the environment, then calls GetIdentityCenterAuthToken.
     """
 
     def __init__(self: "IdpTokenAuthPlugin") -> None:
@@ -36,6 +42,9 @@ class IdpTokenAuthPlugin(CommonCredentialsProvider):
 
         # Reference to RedshiftProperty for cluster info
         self.redshift_property: typing.Optional[RedshiftProperty] = None
+
+        # Default credentials provider (lazily initialized)
+        self._default_credentials_provider: typing.Optional[boto3.Session] = None
 
     def add_parameter(
         self: "IdpTokenAuthPlugin",
@@ -67,8 +76,24 @@ class IdpTokenAuthPlugin(CommonCredentialsProvider):
             self.endpoint_url, self.region
         ))
 
+    def is_using_default_credentials(self: "IdpTokenAuthPlugin") -> bool:
+        """
+        Returns True when no authentication parameters are provided at all.
+        """
+        return (
+            self.token is None
+            and self.token_type is None
+            and self.access_key_id is None
+            and self.secret_access_key is None
+            and self.session_token is None
+        )
+
     def check_required_parameters(self: "IdpTokenAuthPlugin") -> None:
         super().check_required_parameters()
+
+        # Default credentials flow: no explicit parameters provided at all
+        if self.is_using_default_credentials():
+            return
 
         # Determine which flow is being used
         has_direct_token_params = self.token is not None and self.token_type is not None
@@ -160,23 +185,7 @@ class IdpTokenAuthPlugin(CommonCredentialsProvider):
                 endpoint_url=self.endpoint_url,
             )
 
-            # Call get_identity_center_auth_token API
-            response = redshift_client.get_identity_center_auth_token(
-                ClusterIds=[cluster_id]
-            )
-
-            # Extract subject token from response
-            subject_token = response.get("Token")
-
-            if not subject_token:
-                _logger.error("GetIdentityCenterAuthToken returned empty token for provisioned workgroup")
-                raise InterfaceError(
-                    "IdC authentication failed: GetIdentityCenterAuthToken returned an empty token. "
-                    "Please verify your credentials and cluster configuration."
-                )
-
-            _logger.debug("Successfully obtained subject token from GetIdentityCenterAuthToken for provisioned cluster")
-            return subject_token
+            return self._call_provisioned_get_auth_token(redshift_client, cluster_id)
 
         except InterfaceError:
             # Re-raise InterfaceError as-is
@@ -220,23 +229,7 @@ class IdpTokenAuthPlugin(CommonCredentialsProvider):
                 endpoint_url=self.endpoint_url,
             )
 
-            # Call get_identity_center_auth_token API
-            response = redshift_serverless_client.get_identity_center_auth_token(
-                workgroupNames=[workgroup_id]
-            )
-
-            # Extract subject token from response
-            subject_token = response.get("token")
-
-            if not subject_token:
-                _logger.error("GetIdentityCenterAuthToken returned empty token for serverless workgroup")
-                raise InterfaceError(
-                    "IdC authentication failed: GetIdentityCenterAuthToken returned an empty token. "
-                    "Please verify your credentials and workgroup configuration."
-                )
-
-            _logger.debug("Successfully obtained subject token from GetIdentityCenterAuthToken for serverless workgroup")
-            return subject_token
+            return self._call_serverless_get_auth_token(redshift_serverless_client, workgroup_id)
 
         except InterfaceError:
             # Re-raise InterfaceError as-is
@@ -319,11 +312,120 @@ class IdpTokenAuthPlugin(CommonCredentialsProvider):
     def get_auth_token(self: "IdpTokenAuthPlugin") -> str:
         self.check_required_parameters()
 
-        # If using identity-enhanced credentials flow, get subject token from GetIdentityCenterAuthToken
-        if self._is_using_identity_enhanced_credentials():
-            _logger.debug("Using identity-enhanced credentials flow")
-            return self._get_subject_token()
+        # Default credentials flow: no explicit parameters provided
+        if self.is_using_default_credentials():
+            _logger.debug("Using default credentials flow")
+            token = self._get_default_credentials_auth_token()
+            # Set token_type on redshift_property so the startup message includes it.
+            # The server requires a non-NULL token_type to avoid a crash in strcasecmp().
+            if self.redshift_property:
+                self.redshift_property.token_type = "SUBJECT_TOKEN"
 
-        # Otherwise, return direct token
-        _logger.debug("Using direct token flow")
-        return typing.cast(str, self.token)
+        # Identity-enhanced credentials flow
+        elif self._is_using_identity_enhanced_credentials():
+            _logger.debug("Using identity-enhanced credentials flow")
+            token = self._get_subject_token()
+        else:
+            # Direct token flow: return the user-provided token as-is
+            _logger.debug("Using direct token flow")
+            token = typing.cast(str, self.token)
+
+        _logger.debug("Returning token (length=%d)", len(token))
+        return token
+
+    def _create_default_credentials_provider(self: "IdpTokenAuthPlugin") -> boto3.Session:
+        """Factory method for the default credentials provider; overridable for testing."""
+        return boto3.Session()
+
+    def _get_default_credentials_auth_token(self: "IdpTokenAuthPlugin") -> str:
+        """Orchestrates the default credentials flow end-to-end."""
+        # Validate host URL
+        if not self.redshift_property or not self.redshift_property.host:
+            raise InterfaceError(
+                "IdC authentication failed: Host URL must be provided to extract cluster identifier "
+                "and region for default credentials flow."
+            )
+
+        # Resolve region
+        region = self.region or self.redshift_property.region
+        if not region:
+            raise InterfaceError(
+                "IdC authentication failed: Unable to determine AWS region from hostname or "
+                "connection parameters. Please provide an explicit region parameter."
+            )
+
+        # Lazily create/reuse default credentials provider
+        if self._default_credentials_provider is None:
+            self._default_credentials_provider = self._create_default_credentials_provider()
+
+        # Route to provisioned or serverless
+        if self.redshift_property._is_serverless:
+            workgroup_id = self.redshift_property.serverless_work_group
+            if not workgroup_id:
+                raise InterfaceError(
+                    "IdC authentication failed: Unable to determine workgroup identifier from hostname. "
+                    "Please verify the connection URL format."
+                )
+            return self._get_serverless_auth_token_default(region, workgroup_id)
+        else:
+            cluster_id = self.redshift_property.cluster_identifier
+            if not cluster_id:
+                raise InterfaceError(
+                    "IdC authentication failed: Unable to determine cluster identifier from hostname. "
+                    "Please verify the connection URL format."
+                )
+            return self._get_provisioned_auth_token_default(region, cluster_id)
+
+    def _get_provisioned_auth_token_default(self: "IdpTokenAuthPlugin", region: str, cluster_id: str) -> str:
+        """Call GetIdentityCenterAuthToken for provisioned cluster using default credentials."""
+        try:
+            client = self._default_credentials_provider.client(
+                "redshift",
+                region_name=region,
+                endpoint_url=self.endpoint_url,
+            )
+            return self._call_provisioned_get_auth_token(client, cluster_id)
+        except InterfaceError:
+            raise
+        except Exception as e:
+            raise InterfaceError(
+                f"Failed to obtain subject token from GetIdentityCenterAuthToken API for provisioned cluster: {e}"
+            )
+
+    def _get_serverless_auth_token_default(self: "IdpTokenAuthPlugin", region: str, workgroup_id: str) -> str:
+        """Call GetIdentityCenterAuthToken for serverless workgroup using default credentials."""
+        try:
+            client = self._default_credentials_provider.client(
+                "redshift-serverless",
+                region_name=region,
+                endpoint_url=self.endpoint_url,
+            )
+            return self._call_serverless_get_auth_token(client, workgroup_id)
+        except InterfaceError:
+            raise
+        except Exception as e:
+            raise InterfaceError(
+                f"Failed to obtain subject token from GetIdentityCenterAuthToken API for serverless workgroup: {e}"
+            )
+
+    @staticmethod
+    def _call_provisioned_get_auth_token(client: typing.Any, cluster_id: str) -> str:
+        """Shared logic: call GetIdentityCenterAuthToken on a Redshift provisioned client."""
+        response = client.get_identity_center_auth_token(ClusterIds=[cluster_id])
+        # Redshift provisioned API uses PascalCase response keys
+        subject_token = response.get("Token")
+        if not subject_token:
+            raise InterfaceError(
+                "GetIdentityCenterAuthToken returned empty response for provisioned cluster.")
+        return subject_token
+
+    @staticmethod
+    def _call_serverless_get_auth_token(client: typing.Any, workgroup_id: str) -> str:
+        """Shared logic: call GetIdentityCenterAuthToken on a Redshift Serverless client."""
+        response = client.get_identity_center_auth_token(workgroupNames=[workgroup_id])
+        # Redshift Serverless API uses camelCase response keys
+        subject_token = response.get("token")
+        if not subject_token:
+            raise InterfaceError(
+                "GetIdentityCenterAuthToken returned empty response for serverless workgroup.")
+        return subject_token
