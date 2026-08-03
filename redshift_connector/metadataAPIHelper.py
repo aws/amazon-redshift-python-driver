@@ -665,7 +665,16 @@ class MetadataAPIHelper:
         else:
             return self.__data_type_length.get(rs_type, 2147483647)
 
-    def get_column_length(self, rs_type: str) -> typing.Optional[int]:
+    def get_column_length(self, rs_type: str, character_maximum_length: int) -> typing.Optional[int]:
+        if (
+            rs_type == "varchar"
+            or rs_type == "character varying"
+            or rs_type == "char"
+            or rs_type == "character"
+            or rs_type == "bpchar"
+        ):
+            character_maximum_length = max(int(character_maximum_length) if character_maximum_length is not None else 0, 0)
+            return character_maximum_length
         return self.__buffer_length.get(rs_type, None)
 
     @staticmethod

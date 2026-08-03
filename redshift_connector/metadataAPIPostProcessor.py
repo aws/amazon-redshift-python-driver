@@ -472,7 +472,9 @@ class MetadataAPIPostProcessor(MetadataAPIHelper):
                                              self._SHOW_PARAMETERS_numeric_precision]],
                                          row[self._cursor._SHOW_PARAMETERS_PRO_Col_index[
                                              self._SHOW_PARAMETERS_character_maximum_length]]),
-                    self.get_column_length(rs_type),
+                    self.get_column_length(rs_type,
+                                           row[self._cursor._SHOW_PARAMETERS_PRO_Col_index[
+                                               self._SHOW_PARAMETERS_character_maximum_length]]),
                     self.get_decimal_digits(rs_type,
                                             row[self._cursor._SHOW_PARAMETERS_PRO_Col_index[
                                                 self._SHOW_PARAMETERS_numeric_scale]],
@@ -591,7 +593,9 @@ class MetadataAPIPostProcessor(MetadataAPIHelper):
                                              self._SHOW_PARAMETERS_numeric_precision]],
                                          row[self._cursor._SHOW_PARAMETERS_FUNC_Col_index[
                                              self._SHOW_PARAMETERS_character_maximum_length]]),
-                    self.get_column_length(rs_type),
+                    self.get_column_length(rs_type,
+                                           row[self._cursor._SHOW_PARAMETERS_FUNC_Col_index[
+                                               self._SHOW_PARAMETERS_character_maximum_length]]),
                     self.get_decimal_digits(rs_type,
                                             row[self._cursor._SHOW_PARAMETERS_FUNC_Col_index[
                                                 self._SHOW_PARAMETERS_numeric_scale]],
