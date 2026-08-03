@@ -1096,7 +1096,15 @@ class Cursor:
         """
 
         self._check_connection()
-        table_types: typing.Tuple = self._metadataAPIPostProcessor.get_table_types_post_processing(self._TABLE_TYPE_LIST)
+        # Faithful to the SHOW-path-only scope of enable_table_types: only
+        # collapse to TABLE/VIEW when the option is disabled AND the cluster
+        # uses the server SHOW path. Legacy (pre-V4) clusters keep the full list.
+        if (not self._c.is_enable_table_types
+                and self.get_show_discovery_version() >= self._MIN_SHOW_DISCOVERY_VERSION_V4):
+            table_type_list = self._metadataAPIPostProcessor.GENERALIZED_TABLE_TYPE_LIST
+        else:
+            table_type_list = self._TABLE_TYPE_LIST
+        table_types: typing.Tuple = self._metadataAPIPostProcessor.get_table_types_post_processing(table_type_list)
 
         return table_types
 

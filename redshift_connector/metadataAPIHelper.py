@@ -159,6 +159,33 @@ class RedshiftDataTypes:
 
 
 class MetadataAPIHelper:
+    # Generalized list of table types reported by get_table_types() when
+    # enable_table_types is disabled. Ordered by TABLE_TYPE. Immutable so it
+    # cannot be modified unintentionally.
+    GENERALIZED_TABLE_TYPE_LIST: typing.Tuple[str, ...] = ("TABLE", "VIEW")
+
+    @staticmethod
+    def generalize_table_type(table_type):
+        """
+        Collapses a detailed SHOW TABLES table type into the generic bucket:
+        any value containing TABLE becomes TABLE, any value containing VIEW
+        becomes VIEW, otherwise the value is returned unchanged. Used when
+        enable_table_types is disabled so detailed server types (EXTERNAL TABLE,
+        SYSTEM TABLE, MATERIALIZED VIEW, LOCAL TEMPORARY, ...) map to TABLE or VIEW.
+        """
+        if table_type is None:
+            return None
+        upper = table_type.upper()
+        if "TABLE" in upper:
+            return "TABLE"
+        elif "VIEW" in upper:
+            return "VIEW"
+        elif "TEMPORARY" in upper:
+            # LOCAL/GLOBAL TEMPORARY objects are tables.
+            return "TABLE"
+        # Unknown type: leave it unchanged rather than guessing.
+        return table_type
+
     def __init__(self) -> None:
         self._empty_string: str = ""
         self._initialize_numeric_constants()

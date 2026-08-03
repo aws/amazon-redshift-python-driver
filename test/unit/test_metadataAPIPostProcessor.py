@@ -331,6 +331,7 @@ def test_get_tables_post_processing(show_tables_col, show_tables_res) -> None:
     mock_connection.parameter_statuses = deque(maxlen=100)
     mock_connection.parameter_statuses.append((b"show_discovery", 0))
     mock_cursor._c = mock_connection
+    mock_connection._enable_table_types = True
     mock_cursor.ps = {}
     mock_cursor._SHOW_TABLES_Col_index = {}
     mock_metadataAPIPostProcessor: MetadataAPIPostProcessor = MetadataAPIPostProcessor(mock_cursor)
@@ -360,6 +361,76 @@ def test_get_tables_post_processing(show_tables_col, show_tables_res) -> None:
     for row in final_rs:
         for res1, res2 in zip(row, expected_result):
             assert res1 == res2
+
+
+def _run_get_tables_pp(enable_table_types, rows, types):
+    """Helper: run get_tables_post_processing with a mocked cursor/connection."""
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mock_cursor.paramstyle = "mocked"
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses = deque(maxlen=100)
+    mock_connection.parameter_statuses.append((b"show_discovery", 4))
+    mock_connection._enable_table_types = enable_table_types
+    mock_cursor._c = mock_connection
+    mock_cursor.ps = {}
+    mock_cursor._SHOW_TABLES_Col_index = {}
+    pp: MetadataAPIPostProcessor = MetadataAPIPostProcessor(mock_cursor)
+    pp.set_row_description(show_tables_column())
+    intermediate_rs_list = []
+    for r in rows:
+        intermediate_rs_list.append((r,))
+    for col, i in zip(mock_cursor.description, range(len(mock_cursor.description))):
+        mock_cursor._SHOW_TABLES_Col_index[col[0]] = int(i)
+    return pp.get_tables_post_processing(intermediate_rs_list, types)
+
+
+def _row(table_type):
+    # Matches show_tables_column() order; table_type is index 3.
+    return ['testCatalog', 'testSchema', 'testTable', table_type, 'testAcl',
+            'testRemarks', 'testOwner', '2012-01-01 01:01:01.123456',
+            '2012-01-01 01:01:01.123456', 'testDistStyle', 'testSubType']
+
+
+def test_get_tables_post_processing_enable_table_types_off_generalizes() -> None:
+    rows = [_row("EXTERNAL TABLE"), _row("MATERIALIZED VIEW"), _row("SYSTEM TABLE")]
+    final_rs = _run_get_tables_pp(False, rows, [])
+    # table_type is column index 3 in the output row as well.
+    out_types = [row[3] for row in final_rs]
+    assert out_types == ["TABLE", "VIEW", "TABLE"]
+
+
+def test_get_tables_post_processing_off_filter_matches_generalized() -> None:
+    rows = [_row("EXTERNAL TABLE"), _row("VIEW")]
+    # EXTERNAL TABLE collapses to TABLE and must match a "TABLE" filter; VIEW excluded.
+    final_rs = list(_run_get_tables_pp(False, rows, ["TABLE"]))
+    assert len(final_rs) == 1
+    assert final_rs[0][3] == "TABLE"
+
+
+def test_get_tables_post_processing_on_preserves_detailed_types() -> None:
+    rows = [_row("EXTERNAL TABLE")]
+    final_rs = list(_run_get_tables_pp(True, rows, []))
+    assert len(final_rs) == 1
+    assert final_rs[0][3] == "EXTERNAL TABLE"
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("EXTERNAL TABLE", "TABLE"),
+        ("SYSTEM TABLE", "TABLE"),
+        ("external table", "TABLE"),       # case-insensitive
+        ("MATERIALIZED VIEW", "VIEW"),
+        ("Temporary View", "VIEW"),
+        ("LOCAL TEMPORARY", "TABLE"),
+        ("GLOBAL TEMPORARY", "TABLE"),
+        ("SEQUENCE", "SEQUENCE"),           # unknown -> unchanged
+        (None, None),                       # null -> null
+    ],
+)
+def test_generalize_table_type(raw, expected) -> None:
+    from redshift_connector.metadataAPIHelper import MetadataAPIHelper
+    assert MetadataAPIHelper.generalize_table_type(raw) == expected
 
 
 def show_columns_column() -> typing.Dict:

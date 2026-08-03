@@ -27,6 +27,7 @@ def mask_secure_info_in_props(info: "RedshiftProperty") -> "RedshiftProperty":
         "cluster_identifier",
         "credentials_provider",
         "database_metadata_current_db_only",
+        "enable_table_types",
         "db_groups",
         "db_name",
         "db_user",

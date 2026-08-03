@@ -44,6 +44,9 @@ class RedshiftProperty:
             # Default value of True indicates the application is does not support multidatabase datashare
             # catalogs for backwards compatibility.
             self.database_metadata_current_db_only: bool = True
+            # Boolean controlling table type granularity in get_tables/get_table_types on the SHOW path.
+            # Default True reports detailed server types; False collapses them to TABLE/VIEW.
+            self.enable_table_types: bool = True
             # A list of existing database group names that the DbUser joins for the current session.
             # If not specified, defaults to PUBLIC.
             self.db_groups: typing.List[str] = list()

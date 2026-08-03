@@ -426,6 +426,7 @@ class Connection:
         application_name: typing.Optional[str] = None,
         client_protocol_version: int = DEFAULT_PROTOCOL_VERSION,
         database_metadata_current_db_only: bool = True,
+        enable_table_types: bool = True,
         credentials_provider: typing.Optional[str] = None,
         provider_name: typing.Optional[str] = None,
         web_identity_token: typing.Optional[str] = None,
@@ -519,6 +520,7 @@ class Connection:
         self.py_types = deepcopy(PY_TYPES)
         self.redshift_types = deepcopy(REDSHIFT_TYPES)
         self._database_metadata_current_db_only: bool = database_metadata_current_db_only
+        self._enable_table_types: bool = enable_table_types
         self.numeric_to_float: bool = numeric_to_float
 
         # based on _client_protocol_version value, we must use different conversion functions
@@ -932,6 +934,16 @@ class Connection:
 
         else:
             return self._database_metadata_current_db_only or not self._is_multi_databases_catalog_enable_in_server
+
+    @property
+    def is_enable_table_types(self):
+        """
+        Returns True (the default) when the ``enable_table_types`` connection
+        parameter reports detailed server table types from ``get_tables`` and
+        ``get_table_types`` on the SHOW path. Returns False when the option is
+        disabled, in which case detailed types are collapsed to TABLE/VIEW.
+        """
+        return self._enable_table_types is not False
 
     def handle_ERROR_RESPONSE(self: "Connection", data, ps):
         """

@@ -131,29 +131,37 @@ class MetadataAPIPostProcessor(MetadataAPIHelper):
         )
 
     def get_tables_post_processing(self, intermediate_rs: typing.List[typing.Tuple], types: list) -> typing.Tuple:
+        # When enable_table_types is disabled, collapse detailed server types
+        # (EXTERNAL TABLE, SYSTEM TABLE, MATERIALIZED VIEW, ...) to the generic
+        # TABLE/VIEW buckets. Generalize BEFORE the requested-type filter so a
+        # client filtering on "TABLE" still matches external tables, etc.
+        enable_table_types: bool = self._cursor._c.is_enable_table_types
+
         def transform_tables_rows(rows, table_types=None):
-            return (
-                [
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_database_name]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_schema_name]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_name]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_type]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_remarks]],
-                    self._empty_string,
-                    self._empty_string,
-                    self._empty_string,
-                    self._empty_string,
-                    self._empty_string,
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_owner]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_last_altered_time]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_last_modified_time]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_dist_style]],
-                    row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_subtype]],
-                ]
-                for row in rows
-                if table_types is None or len(table_types) == 0 or
-                   row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_type]] in table_types
-            )
+            result = []
+            for row in rows:
+                table_type = row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_type]]
+                if not enable_table_types:
+                    table_type = MetadataAPIHelper.generalize_table_type(table_type)
+                if table_types is None or len(table_types) == 0 or table_type in table_types:
+                    result.append([
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_database_name]],
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_schema_name]],
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_name]],
+                        table_type,
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_remarks]],
+                        self._empty_string,
+                        self._empty_string,
+                        self._empty_string,
+                        self._empty_string,
+                        self._empty_string,
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_owner]],
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_last_altered_time]],
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_last_modified_time]],
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_dist_style]],
+                        row[self._cursor._SHOW_TABLES_Col_index[self._SHOW_TABLES_table_subtype]],
+                    ])
+            return result
 
         return self._generic_post_processing(
             metadata_api="get_tables",
