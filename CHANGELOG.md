@@ -1,10 +1,19 @@
 Changelog
 =========
 
+v2.1.16 (2026-08-03)
+-------------------
+- Added enable_table_types connection option to generalize get_tables() table types to TABLE/VIEW when disabled
+- Added support for the default AWS credential provider chain in Identity Enhanced Credentials authentication.
+- Fixed get_procedure_columns() and get_function_columns() to return the correct LENGTH value for character-type parameters.
+- Fixed get_columns() to report TEXT columns as VARCHAR with size 256.
+
+
 v2.1.15 (2026-06-09)
 -------------------
 - Hardened identifier sanitization in callproc, write_dataframe, and metadata APIs to strip additional whitespace characters
 - Added driver_discovery_version parameter to the startup packet, enabling SHOW SCHEMAS to return pg_catalog in its results
+
 
 v2.1.14 (2026-05-18)
 -------------------
