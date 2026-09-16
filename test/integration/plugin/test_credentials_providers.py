@@ -8,6 +8,7 @@ import pytest  # type: ignore
 
 import redshift_connector
 from redshift_connector import DriverInfo
+from redshift_connector.idp_auth_helper import set_plugin_allowlist
 
 conf: configparser.ConfigParser = configparser.ConfigParser()
 root_path: str = os.path.dirname(os.path.dirname(os.path.abspath(os.path.join(__file__, os.pardir))))
@@ -227,3 +228,99 @@ def test_connect_with_group_federation(idp_arg):
 
     with redshift_connector.connect(**idp_arg):
         pass
+
+
+# ============================================================
+# Plugin allowlist tests
+# ============================================================
+
+
+@pytest.fixture
+def reset_allowlist():
+    yield
+    set_plugin_allowlist(None)
+
+
+@pytest.mark.parametrize("idp_arg", ["azure_idp"], indirect=True)
+def test_idp_connects_with_allowlist_permitting_plugin(idp_arg, reset_allowlist):
+    """IdP plugin connects when the allowlist includes it."""
+    set_plugin_allowlist(
+        {
+            "redshift_connector.plugin.AzureCredentialsProvider",
+        }
+    )
+    with redshift_connector.connect(**idp_arg):
+        pass
+
+
+@pytest.mark.parametrize("idp_arg", ["azure_idp"], indirect=True)
+def test_idp_blocked_when_not_in_allowlist(idp_arg, reset_allowlist):
+    """IdP plugin is blocked when allowlist does not include it."""
+    set_plugin_allowlist({"redshift_connector.plugin.PingCredentialsProvider"})
+    with pytest.raises(redshift_connector.InterfaceError):
+        redshift_connector.connect(**idp_arg)
+
+
+@pytest.mark.parametrize("idp_arg", ["azure_idp"], indirect=True)
+def test_idp_wrong_password_with_allowlist(idp_arg, reset_allowlist):
+    """An allowlisted plugin loads past the check and reaches the IdP.
+
+    A wrong password then makes the IdP return a SAML failure, which is
+    the expected downstream error and proves the plugin was invoked.
+    """
+    set_plugin_allowlist(
+        {
+            "redshift_connector.plugin.AzureCredentialsProvider",
+        }
+    )
+    idp_arg["password"] = "wrong_password"
+    with pytest.raises(
+        redshift_connector.InterfaceError,
+        match=r"(Failed to get SAML assertion)",
+    ):
+        redshift_connector.connect(**idp_arg)
+
+
+@pytest.mark.parametrize("idp_arg", ["azure_idp"], indirect=True)
+def test_malicious_plugin_blocked_with_allowlist(idp_arg, reset_allowlist):
+    """An arbitrary module path is blocked even when others are listed."""
+    set_plugin_allowlist(
+        {
+            "redshift_connector.plugin.AzureCredentialsProvider",
+        }
+    )
+    idp_arg["credentials_provider"] = "os.system"
+    with pytest.raises(redshift_connector.InterfaceError):
+        redshift_connector.connect(**idp_arg)
+
+
+def test_malicious_plugin_blocked_by_env_var(db_kwargs, reset_allowlist, monkeypatch):
+    """Env var allowlist blocks arbitrary module path."""
+    monkeypatch.setenv(
+        "REDSHIFT_CONNECTOR_PLUGIN_ALLOWLIST",
+        "redshift_connector.plugin.AzureCredentialsProvider",
+    )
+    with pytest.raises(redshift_connector.InterfaceError):
+        redshift_connector.connect(
+            credentials_provider="subprocess.Popen",
+            iam=True,
+            **db_kwargs,
+        )
+
+
+def test_empty_env_var_allowlist_blocks_all_plugins(db_kwargs, reset_allowlist, monkeypatch):
+    """An empty-string env var rejects every plugin import.
+
+    An empty string means the allowlist is set but has no entries, so even
+    a legitimate bundled plugin is refused. The final ``InterfaceError``
+    message is wrapped by ``load_credentials_provider``, so this test
+    asserts only on the exception type.
+    """
+    monkeypatch.setenv("REDSHIFT_CONNECTOR_PLUGIN_ALLOWLIST", "")
+    # A legitimate bundled plugin is still rejected: the allowlist is empty.
+    with pytest.raises(redshift_connector.InterfaceError):
+        redshift_connector.connect(
+            credentials_provider="redshift_connector.plugin.AzureCredentialsProvider",
+            iam=True,
+            **db_kwargs,
+        )

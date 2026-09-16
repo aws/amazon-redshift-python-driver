@@ -1,4 +1,5 @@
 import logging
+import os
 import typing
 from enum import Enum
 
@@ -230,23 +231,29 @@ class IdpAuthHelper:
             raise InterfaceError("No value for credentials_provider was given")
         try:
             klass = dynamic_plugin_import(info.credentials_provider)
-        except (AttributeError, ModuleNotFoundError):
+        except (AttributeError, ModuleNotFoundError, InterfaceError) as user_defined_error:
             _logger.debug(
-                "Failed to load user defined IdP specified in credential_provider connection parameters: %s",
+                "Failed to load user defined IdP specified in credential_provider connection parameters: %s (%s)",
                 info.credentials_provider,
+                user_defined_error,
             )
             try:
                 predefined_idp: str = "redshift_connector.plugin.{}".format(info.credentials_provider)
                 klass = dynamic_plugin_import(predefined_idp)
                 info.put("credentials_provider", predefined_idp)
-            except (AttributeError, ModuleNotFoundError):
+            except (AttributeError, ModuleNotFoundError, InterfaceError) as predefined_error:
                 _logger.debug(
-                    "Failed to load pre-defined IdP plugin from redshift_connector.plugin: %s",
+                    "Failed to load pre-defined IdP plugin from redshift_connector.plugin: %s (%s)",
                     info.credentials_provider,
+                    predefined_error,
                 )
+                # Chain the underlying error so allowlist rejection
+                # messages (or ModuleNotFoundError details) stay visible
+                # in the traceback instead of being hidden behind the
+                # generic wrapper.
                 raise InterfaceError(
                     "Invalid IdP specified in credential_provider connection parameter: " + info.credentials_provider
-                )
+                ) from predefined_error
 
         if not issubclass(klass, IPlugin):
             raise InterfaceError("Invalid value passed to credentials_provider: {}".format(info.credentials_provider))
@@ -256,7 +263,104 @@ class IdpAuthHelper:
         return provider
 
 
+_ALLOWED_PLUGIN_MODULES: typing.Optional[typing.Set[str]] = None
+
+_PLUGIN_ALLOWLIST_ENV_VAR = "REDSHIFT_CONNECTOR_PLUGIN_ALLOWLIST"
+
+
+def _get_effective_allowlist() -> typing.Optional[typing.Set[str]]:
+    """Return the current allowlist, or None if nothing is configured.
+
+    Rules:
+    - If ``set_plugin_allowlist`` was called with a set (including an empty
+      set), that value wins.
+    - Otherwise, if the ``REDSHIFT_CONNECTOR_PLUGIN_ALLOWLIST`` environment
+      variable is present, its value is parsed as the allowlist. An empty
+      string produces an empty set, which blocks every plugin.
+    - If neither is configured, returns None and every module is allowed
+      (the default before the allowlist feature).
+    """
+    if _ALLOWED_PLUGIN_MODULES is not None:
+        return _ALLOWED_PLUGIN_MODULES
+    env_val = os.environ.get(_PLUGIN_ALLOWLIST_ENV_VAR)
+    if env_val is not None:
+        return {entry.strip() for entry in env_val.split(",") if entry.strip()}
+    return None
+
+
+def set_plugin_allowlist(allowed_modules: typing.Optional[typing.Set[str]]) -> None:
+    """
+    Set the list of plugin module paths that are allowed to load.
+
+    - Pass a set of full module paths to restrict what can load.
+    - Pass ``None`` (the default) to allow any module, matching how the
+      driver behaved before this feature.
+    - Pass an empty set to block every plugin.
+
+    You can also set the ``REDSHIFT_CONNECTOR_PLUGIN_ALLOWLIST`` environment
+    variable to a comma-separated list of paths. When both are configured,
+    the value passed to this function wins.
+
+    How entries are matched
+    -----------------------
+    Each entry is compared as an exact, case-sensitive string against the
+    full module path being imported, so entries must be full paths such as
+    ``"redshift_connector.plugin.OktaCredentialsProvider"``. Short names
+    are still supported as the ``credentials_provider`` connection
+    parameter, since ``load_credentials_provider`` expands them to the full
+    bundled path before this check runs.
+
+    Thread safety
+    -------------
+    This function changes process-wide state. Call it once at application
+    startup. Calling it while other threads are opening connections may
+    cause them to see the old or new value; it should not be used from a
+    request handler.
+
+    Parameters
+    ----------
+    allowed_modules: Optional set of full module paths, e.g.
+        {"redshift_connector.plugin.OktaCredentialsProvider"}
+
+    Raises
+    ------
+    TypeError
+        If ``allowed_modules`` is not None and is not a set (or other
+        iterable) of strings. Passing a bare string is rejected on purpose:
+        because strings are iterable, ``name in "some.path"`` would
+        silently degrade the allowlist check into a substring match, which
+        could let short names slip through and defeat the security
+        guarantee.
+    """
+    global _ALLOWED_PLUGIN_MODULES
+    if allowed_modules is None:
+        _ALLOWED_PLUGIN_MODULES = None
+        return
+    if isinstance(allowed_modules, str) or not all(isinstance(m, str) for m in allowed_modules):
+        raise TypeError("allowed_modules must be None or a set of module path strings")
+    _ALLOWED_PLUGIN_MODULES = set(allowed_modules)
+
+
 def dynamic_plugin_import(name: str):
+    """Import ``name`` and return the resolved object.
+
+    ``name`` is a full path such as ``"pkg.module.Class"``. If an allowlist
+    is configured (via ``set_plugin_allowlist`` or the
+    ``REDSHIFT_CONNECTOR_PLUGIN_ALLOWLIST`` environment variable), ``name``
+    must match an entry exactly, or ``InterfaceError`` is raised. Callers
+    passing a short plugin name go through ``load_credentials_provider``,
+    which retries with the full bundled path.
+
+    The allowlist check runs BEFORE the import. This order matters for
+    security: Python runs a module's top-level code as soon as it is
+    imported, so an unwanted name must be rejected before ``__import__``
+    is called.
+    """
+    # Reject disallowed names before calling __import__, so that any top-level
+    # code in the target module never gets a chance to run.
+    allowlist = _get_effective_allowlist()
+    if allowlist is not None and name not in allowlist:
+        raise InterfaceError("credentials_provider '{}' is not in the configured plugin allowlist.".format(name))
     components = name.split(".")
     mod = __import__(components[0])
     for comp in components[1:]:

@@ -24,6 +24,7 @@ from redshift_connector.error import (
     Warning,
 )
 from redshift_connector.iam_helper import IamHelper
+from redshift_connector.idp_auth_helper import set_plugin_allowlist
 from redshift_connector.objects import (
     Binary,
     Date,
@@ -503,6 +504,7 @@ __all__: typing.Any = [
     "DataError",
     "DatabaseError",
     "connect",
+    "set_plugin_allowlist",
     "InterfaceError",
     "ProgrammingError",
     "Error",
