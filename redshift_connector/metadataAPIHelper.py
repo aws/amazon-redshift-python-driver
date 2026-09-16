@@ -158,6 +158,15 @@ class RedshiftDataTypes:
         return len(invalid_types) == 0, invalid_types
 
 
+# The server-generated driver_token is a UUID (36 characters). The token is embedded in the SQL as a
+# string literal because the server grammar does not accept a bind parameter in that position, so any
+# value that is not a well-formed UUID is rejected rather than concatenated. Matched with fullmatch()
+# rather than match(), since "$" would otherwise also accept a value with a trailing newline.
+_DRIVER_TOKEN_PATTERN: typing.Pattern = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+)
+
+
 class MetadataAPIHelper:
     # Generalized list of table types reported by get_table_types() when
     # enable_table_types is disabled. Ordered by TABLE_TYPE. Immutable so it
@@ -536,6 +545,17 @@ class MetadataAPIHelper:
         self._sql_semicolon = ";"
         self._sql_like: str = " LIKE %s;"
 
+        # Batch SHOW commands at database level (V5+)
+        self._sql_show_tables_from_db: str = "SHOW TABLES FROM DATABASE %s"
+        self._sql_show_columns_from_db: str = "SHOW COLUMNS FROM DATABASE %s"
+        self._sql_show_grants_on_tables_from_db: str = "SHOW GRANTS ON TABLES FROM DATABASE %s"
+
+        # WHERE clause filter keywords for batch SHOW commands
+        self._filter_schema_name: str = "SCHEMA_NAME"
+        self._filter_table_name: str = "TABLE_NAME"
+        self._filter_column_name: str = "COLUMN_NAME"
+        self._sql_like_placeholder: str = " LIKE %s"
+
     # Mapping of string parameter types to ProcedureColumnType enum values
     __procedure_column_type_map = {
         'IN': ProcedureColumnType.IN,
@@ -786,6 +806,46 @@ class MetadataAPIHelper:
     @staticmethod
     def is_none_or_empty(input_str: Optional[str]) -> bool:
         return input_str is None or input_str == ""
+
+    @staticmethod
+    def _normalize_match_all_pattern(pattern: Optional[str]) -> Optional[str]:
+        # A match-all pattern -- a non-empty run of only '%' ("%", "%%", "%%%", ...) -- is
+        # semantically equivalent to no filter, so map it to None and let the is_none_or_empty
+        # guards omit the redundant LIKE clause. An escaped literal "\%" contains a non-'%'
+        # char and is left intact, since it is a real filter.
+        if pattern and all(ch == "%" for ch in pattern):
+            return None
+        return pattern
+
+    def _get_driver_token(self) -> typing.Optional[str]:
+        """Returns the driver_token from connection parameter statuses, or None if not available."""
+        for item in self._cursor._c.parameter_statuses:
+            if item[0] == b"driver_token":
+                return item[1].decode()
+        return None
+
+    def _get_validated_driver_token(self) -> typing.Optional[str]:
+        """
+        Returns the driver token supplied by the server during connection startup, or None if the server
+        did not send one or sent a value that is not a well-formed UUID.
+        """
+        driver_token = self._get_driver_token()
+        if driver_token and _DRIVER_TOKEN_PATTERN.fullmatch(driver_token):
+            return driver_token
+        return None
+
+    def has_malformed_driver_token(self) -> bool:
+        """
+        Indicates whether the server sent a driver token that we cannot use, that is, a non-empty value
+        that is not a well-formed UUID.
+
+        A server that sends no token at all is not gating batch SHOW, so the batch commands are still
+        usable in that case and this returns False. Only a token that is present but malformed indicates
+        the batch command would be rejected, since the server would compare the clause we send against a
+        token it does not recognize.
+        """
+        driver_token = self._get_driver_token()
+        return bool(driver_token) and self._get_validated_driver_token() is None
 
     @staticmethod
     def get_specific_name(name: str, argument_list: str) -> str:

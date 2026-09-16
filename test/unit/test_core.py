@@ -1098,3 +1098,49 @@ class TestDriverDiscoveryVersion:
             pass
 
         assert b"driver_discovery_version" in written_data
+
+
+
+def test_handle_parameter_status_redacts_driver_token(caplog):
+    """
+    The server-generated driver_token arrives as a ParameterStatus message during connection startup.
+    The raw value must be stored in ``parameter_statuses`` so ``_get_driver_token`` can read it, but
+    it must never reach log files.
+    """
+    from collections import deque
+
+    conn = Connection.__new__(Connection)
+    conn.parameter_statuses = deque(maxlen=100)
+
+    NULL_BYTE = b"\x00"
+    token_value = b"aaaaaaaa-bbbb-7ccc-8ddd-eeeeeeeeeeea"
+    data = b"driver_token" + NULL_BYTE + token_value + NULL_BYTE
+
+    with caplog.at_level("DEBUG", logger="redshift_connector.core"):
+        conn.handle_PARAMETER_STATUS(data, None)
+
+    # Raw value is still available in parameter_statuses for _get_driver_token.
+    assert (b"driver_token", token_value) in conn.parameter_statuses
+
+    # But the debug log must have masked the token value.
+    log_output = "\n".join(record.getMessage() for record in caplog.records)
+    assert token_value.decode() not in log_output
+    assert "[REDACTED]" in log_output
+
+
+def test_handle_parameter_status_leaves_other_values_unredacted(caplog):
+    """Only driver_token is redacted; every other parameter is logged verbatim."""
+    from collections import deque
+
+    conn = Connection.__new__(Connection)
+    conn.parameter_statuses = deque(maxlen=100)
+
+    NULL_BYTE = b"\x00"
+    data = b"show_discovery" + NULL_BYTE + b"5" + NULL_BYTE
+
+    with caplog.at_level("DEBUG", logger="redshift_connector.core"):
+        conn.handle_PARAMETER_STATUS(data, None)
+
+    log_output = "\n".join(record.getMessage() for record in caplog.records)
+    assert "5" in log_output
+    assert "[REDACTED]" not in log_output

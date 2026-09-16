@@ -2322,7 +2322,8 @@ class Connection:
         _logger.debug("ParameterStatus message received from BE")
         pos: int = data.find(NULL_BYTE)
         key, value = data[:pos], data[pos + 1 : -1]
-        _logger.debug("key=%s value=%s", key, value)
+        # The driver_token value must not reach log files.
+        _logger.debug("key=%s value=%s", key, b"[REDACTED]" if key == b"driver_token" else value)
         self.parameter_statuses.append((key, value))
         if key == b"client_encoding":
             encoding = value.decode("ascii").lower()

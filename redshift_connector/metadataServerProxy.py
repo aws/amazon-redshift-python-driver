@@ -100,6 +100,104 @@ class MetadataServerProxy(MetadataAPIHelper):
 
         return intermediate_rs
 
+    def get_tables_v5(self, catalog: str = None, schema_pattern: str = None, table_name_pattern: str = None,
+                      is_single_database_metadata: bool = True) -> typing.List[typing.Tuple]:
+        """
+        Helper function for metadata API get_tables using batch SHOW TABLES FROM DATABASE (V5).
+        Replaces the nested loop of SHOW SCHEMAS + SHOW TABLES per schema with a single call per database.
+
+        Parameters
+        ----------
+        catalog : Optional[str] The name of the catalog
+        schema_pattern : Optional[str] A valid pattern for desired schemas
+        table_name_pattern : Optional[str] A valid pattern for desired table names
+        is_single_database_metadata : Optional[bool] Whether or not to only return current connected database metadata
+
+        Returns
+        -------
+        A list containing result set for SHOW TABLES FROM DATABASE: list
+        """
+        # A match-all pattern ("%", "%%", ...) is semantically equivalent to no filter.
+        schema_pattern = self._normalize_match_all_pattern(schema_pattern)
+        table_name_pattern = self._normalize_match_all_pattern(table_name_pattern)
+
+        intermediate_rs: typing.List[typing.Tuple[typing.Any, ...]] = []
+
+        catalog_list: typing.List = self.get_catalog_list(catalog, is_single_database_metadata)
+
+        for cur_catalog in catalog_list:
+            filters: typing.List[str] = []
+            params: typing.List[str] = [cur_catalog]
+            if not self.is_none_or_empty(schema_pattern):
+                filters.append(self._filter_schema_name + self._sql_like_placeholder)
+                params.append(schema_pattern)
+            if not self.is_none_or_empty(table_name_pattern):
+                filters.append(self._filter_table_name + self._sql_like_placeholder)
+                params.append(table_name_pattern)
+
+            sql = self._build_batch_show_sql(self._sql_show_tables_from_db, filters)
+
+            intermediate_rs.append(self._execute_and_fetch(sql, params))
+
+            self._ensure_column_index('_SHOW_TABLES_Col_index')
+
+        _logger.debug("V5 batch SHOW TABLES FROM DATABASE for catalog = %s, schemaPattern = %s, tableNamePattern = %s",
+                      catalog, schema_pattern, table_name_pattern)
+
+        return intermediate_rs
+
+    def get_columns_v5(self, catalog: str = None, schema_pattern: str = None, tablename_pattern: str = None,
+                       columnname_pattern: str = None, is_single_database_metadata: bool = True) -> typing.List[typing.Tuple]:
+        """
+        Helper function for metadata API get_columns using batch SHOW COLUMNS FROM DATABASE (V5).
+        Uses a single SHOW COLUMNS FROM DATABASE command per database instead of the nested loop
+        of SHOW SCHEMAS + SHOW TABLES + SHOW COLUMNS per table when show_discovery >= 5.
+
+        Parameters
+        ----------
+        catalog : Optional[str] The name of the catalog
+        schema_pattern : Optional[str] A valid pattern for desired schemas
+        tablename_pattern : Optional[str] A valid pattern for desired table names
+        columnname_pattern : Optional[str] A valid pattern for desired column names
+        is_single_database_metadata : Optional[bool] Whether or not to only return current connected database metadata
+
+        Returns
+        -------
+        A list containing result set for SHOW COLUMNS FROM DATABASE: list
+        """
+        # A match-all pattern ("%", "%%", ...) is semantically equivalent to no filter.
+        schema_pattern = self._normalize_match_all_pattern(schema_pattern)
+        tablename_pattern = self._normalize_match_all_pattern(tablename_pattern)
+        columnname_pattern = self._normalize_match_all_pattern(columnname_pattern)
+
+        intermediate_rs: typing.List[typing.Tuple[typing.Any, ...]] = []
+
+        catalog_list: typing.List = self.get_catalog_list(catalog, is_single_database_metadata)
+
+        for cur_catalog in catalog_list:
+            filters: typing.List[str] = []
+            params: typing.List[str] = [cur_catalog]
+            if not self.is_none_or_empty(schema_pattern):
+                filters.append(self._filter_schema_name + self._sql_like_placeholder)
+                params.append(schema_pattern)
+            if not self.is_none_or_empty(tablename_pattern):
+                filters.append(self._filter_table_name + self._sql_like_placeholder)
+                params.append(tablename_pattern)
+            if not self.is_none_or_empty(columnname_pattern):
+                filters.append(self._filter_column_name + self._sql_like_placeholder)
+                params.append(columnname_pattern)
+
+            sql = self._build_batch_show_sql(self._sql_show_columns_from_db, filters)
+
+            intermediate_rs.append(self._execute_and_fetch(sql, params))
+
+            self._ensure_column_index('_SHOW_COLUMNS_Col_index')
+
+        _logger.debug("V5 batch SHOW COLUMNS FROM DATABASE for catalog = %s, schemaPattern = %s, tableNamePattern = %s, columnNamePattern = %s",
+                      catalog, schema_pattern, tablename_pattern, columnname_pattern)
+
+        return intermediate_rs
+
     def get_columns(self, catalog: str = None, schema_pattern: str = None, tablename_pattern: str = None,
                     columnname_pattern: str = None, is_single_database_metadata: bool = True) -> typing.List[
         typing.Tuple]:
@@ -362,6 +460,56 @@ class MetadataServerProxy(MetadataAPIHelper):
                 intermediate_rs.append(sorted_rs)
 
         _logger.debug("Successfully executed SHOW GRANTS for catalog = %s, schema = %s, table = %s, column = %s", catalog, schema, table, column_name_pattern)
+
+        return intermediate_rs
+
+    def get_table_privileges_v5(self, catalog: str = None, schema_pattern: str = None, table_name_pattern: str = None,
+                                is_single_database_metadata: bool = True) -> typing.List[typing.Tuple]:
+        """
+        Helper function for metadata API get_table_privileges using batch SHOW GRANTS ON TABLES FROM DATABASE (V5).
+        Uses a single SHOW GRANTS ON TABLES FROM DATABASE command per database instead of the nested loop
+        of SHOW SCHEMAS + SHOW TABLES + SHOW GRANTS per table when show_discovery >= 5.
+
+        Parameters
+        ----------
+        catalog : Optional[str] The name of the catalog
+        schema_pattern : Optional[str] A valid pattern for desired schemas
+        table_name_pattern : Optional[str] A valid pattern for desired table names
+        is_single_database_metadata : Optional[bool] Whether or not to only return current connected database metadata
+
+        Returns
+        -------
+        A list containing result set for SHOW GRANTS ON TABLES FROM DATABASE: list
+        """
+        # A match-all pattern ("%", "%%", ...) is semantically equivalent to no filter.
+        schema_pattern = self._normalize_match_all_pattern(schema_pattern)
+        table_name_pattern = self._normalize_match_all_pattern(table_name_pattern)
+
+        intermediate_rs: typing.List[typing.Tuple[typing.Any, ...]] = []
+
+        # Resolve target database(s)
+        catalog_list: typing.List = self.get_catalog_list(catalog, is_single_database_metadata)
+
+        for cur_catalog in catalog_list:
+            # Build optional WHERE filters for schema and table
+            filters: typing.List[str] = []
+            params: typing.List[str] = [cur_catalog]
+            if not self.is_none_or_empty(schema_pattern):
+                filters.append(self._filter_schema_name + self._sql_like_placeholder)
+                params.append(schema_pattern)
+            if not self.is_none_or_empty(table_name_pattern):
+                filters.append(self._filter_table_name + self._sql_like_placeholder)
+                params.append(table_name_pattern)
+
+            # Assemble and execute the batch command
+            sql = self._build_batch_show_sql(self._sql_show_grants_on_tables_from_db, filters)
+            intermediate_rs.append(self._execute_and_fetch(sql, params))
+
+            # Cache column index mapping for post-processing
+            self._ensure_column_index('_SHOW_GRANTS_TABLE_Col_index')
+
+        _logger.debug("V5 batch SHOW GRANTS ON TABLES FROM DATABASE for catalog = %s, schemaPattern = %s, tableNamePattern = %s",
+                      catalog, schema_pattern, table_name_pattern)
 
         return intermediate_rs
 
@@ -702,9 +850,40 @@ class MetadataServerProxy(MetadataAPIHelper):
             params.append(pattern)
         return self._execute_and_fetch(sql, params)
 
+    @staticmethod
+    def _redact_driver_token(sql: str) -> str:
+        """Replaces the DRIVER_TOKEN value with [REDACTED] for safe logging."""
+        marker = "DRIVER_TOKEN '"
+        pos = sql.find(marker)
+        if pos == -1:
+            return sql
+        value_start = pos + len(marker)
+        cur = value_start
+        while cur < len(sql):
+            if sql[cur] == "'":
+                if cur + 1 < len(sql) and sql[cur + 1] == "'":
+                    cur += 2
+                    continue
+                break
+            cur += 1
+        return sql[:value_start] + "[REDACTED]" + sql[cur:]
+
+    def _build_batch_show_sql(self, base_sql: str, filters: typing.List[str]) -> str:
+        """Builds a batch SHOW SQL with optional DRIVER_TOKEN and WHERE filters."""
+        if base_sql is None:
+            raise ValueError("base_sql must not be None")
+        sql = base_sql
+        driver_token = self._get_validated_driver_token()
+        if driver_token:
+            sql += " DRIVER_TOKEN '" + driver_token + "'"
+        if filters:
+            sql += " WHERE " + " AND ".join(filters)
+        sql += self._sql_semicolon
+        return sql
+
     def _execute_and_fetch(self, sql: str, params: list = None) -> typing.Tuple:
         """Generic execute and fetch method"""
-        _logger.debug("Executing SQL: %s", sql)
+        _logger.debug("Executing SQL: %s", self._redact_driver_token(sql))
         self._cursor.execute(sql, params) if params else self._cursor.execute(sql)
         return self._cursor.fetchall()
 
