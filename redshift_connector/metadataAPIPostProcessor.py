@@ -661,14 +661,20 @@ class MetadataAPIPostProcessor(MetadataAPIHelper):
         Sets up the row description for the result set.
         Creates a standardized description dictionary for each column.
 
+        A new ``ps`` dict is allocated for the cursor rather than mutating
+        the one currently bound. ``self._cursor.ps`` may be a live reference
+        to a prepared statement held in the Connection prepared-statement
+        cache, and the cache relies on each cached ``ps`` having a
+        ``row_desc`` list whose length matches its ``input_funcs`` tuple.
+        Rebinding ``cursor.ps`` to a new dict preserves that invariant.
+
         Args:
             cur_column: Dictionary mapping column names to their OIDs
         """
 
-        if self._cursor.ps is None:
-            self._cursor.ps = {}
-
-        self._cursor.ps["row_desc"] = []
+        # Allocate a fresh dict for the cursor's "current ps" so any cached
+        # prepared statement reachable via ``cursor.ps`` is not mutated.
+        self._cursor.ps = {"row_desc": []}
 
         for col_name, col_oid in cur_column.items():
             row_desc: typing.Dict = {'autoincrement': 0,

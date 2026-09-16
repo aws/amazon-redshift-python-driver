@@ -1417,3 +1417,98 @@ def test_get_table_types_post_processing() -> None:
     expected_result = (["EXTERNAL TABLE"], ["EXTERNAL VIEW"], ["LOCAL TEMPORARY"], ["TABLE"], ["VIEW"])
     assert final_rs == expected_result
 
+
+
+
+# ---------------------------------------------------------------------------
+# Tests for MetadataAPIPostProcessor.set_row_description.
+#
+# After the call, cursor.ps is a fresh dict whose ``row_desc`` describes
+# the JDBC-shape output columns for the metadata API. The dict that
+# cursor.ps pointed at before the call is left untouched, so that any
+# other holder of a reference to it (e.g. the Connection
+# prepared-statement cache) continues to see its original state.
+# ---------------------------------------------------------------------------
+
+def _fake_cached_ps() -> typing.Dict:
+    """
+    Build a ps dict shaped like what Connection.execute would cache after a
+    Parse/Describe cycle: a list of row_desc dicts and a matching-length
+    input_funcs tuple. The exact contents don't matter, only the lengths.
+    """
+    row_desc: typing.List = [{"label": f"col{i}".encode(), "type_oid": 25, "type_modifier": -1} for i in range(11)]
+    input_funcs: typing.Tuple = tuple(lambda x, i=i: x for i in range(11))  # 11 fake receive functions
+    return {"row_desc": row_desc, "input_funcs": input_funcs}
+
+
+def test_set_row_description_does_not_mutate_the_previously_bound_ps() -> None:
+    """
+    set_row_description rebinds cursor.ps to a new dict. The ps dict that
+    cursor.ps pointed at before the call is left untouched, so that any
+    other holder of a reference to that dict (e.g. the Connection
+    prepared-statement cache) continues to see its original row_desc list
+    and input_funcs tuple.
+    """
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mock_cursor.paramstyle = "mocked"
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses = deque(maxlen=100)
+    mock_connection.parameter_statuses.append((b"show_discovery", 0))
+    mock_cursor._c = mock_connection
+
+    # Simulate the state right after Cursor.execute has returned from a cached
+    # prepared statement: cursor.ps points at a dict also held in the cache.
+    cached_ps: typing.Dict = _fake_cached_ps()
+    original_row_desc_id: int = id(cached_ps["row_desc"])
+    original_row_desc_len: int = len(cached_ps["row_desc"])
+    original_input_funcs: typing.Tuple = cached_ps["input_funcs"]
+    mock_cursor.ps = cached_ps
+
+    mock_metadataAPIPostProcessor: MetadataAPIPostProcessor = MetadataAPIPostProcessor(mock_cursor)
+    # A representative getTables-shape column set (matches colName[MetadataAPI.get_tables]).
+    metadata_columns: typing.Dict = {name: RedshiftOID.STRING for name in colName[MetadataAPI.get_tables]}
+    mock_metadataAPIPostProcessor.set_row_description(metadata_columns)
+
+    # cursor.ps is rebound to a new dict rather than being mutated in place.
+    assert mock_cursor.ps is not cached_ps, (
+        "set_row_description must rebind cursor.ps to a new dict so that any "
+        "other holder of the previously-bound ps (e.g. the connection's "
+        "prepared-statement cache) sees an unchanged dict"
+    )
+
+    # The originally-bound dict is untouched: same row_desc list, same length,
+    # same input_funcs tuple. These invariants are what let a cache hit later
+    # return a ps whose row_desc and input_funcs are still the same length.
+    assert cached_ps["row_desc"] is not None
+    assert id(cached_ps["row_desc"]) == original_row_desc_id, "row_desc list was replaced"
+    assert len(cached_ps["row_desc"]) == original_row_desc_len, "row_desc length changed"
+    assert cached_ps["input_funcs"] is original_input_funcs, "input_funcs tuple changed"
+
+    # The new cursor.ps has the JDBC-shape row_desc so cursor.description reports the
+    # right columns.
+    assert len(mock_cursor.ps["row_desc"]) == len(colName[MetadataAPI.get_tables])
+    labels: typing.List[str] = [d["label"].decode() for d in mock_cursor.ps["row_desc"]]
+    assert labels == colName[MetadataAPI.get_tables]
+
+
+def test_set_row_description_when_previous_ps_is_none() -> None:
+    """
+    When cursor.ps starts out None (no prior execute), set_row_description
+    still allocates a fresh ps whose row_desc matches the JDBC-shape output
+    columns, so cursor.description works from the first metadata call.
+    """
+    mock_cursor: Cursor = Cursor.__new__(Cursor)
+    mock_cursor.paramstyle = "mocked"
+    mock_connection: Connection = Connection.__new__(Connection)
+    mock_connection.parameter_statuses = deque(maxlen=100)
+    mock_connection.parameter_statuses.append((b"show_discovery", 0))
+    mock_cursor._c = mock_connection
+    mock_cursor.ps = None
+
+    mock_metadataAPIPostProcessor: MetadataAPIPostProcessor = MetadataAPIPostProcessor(mock_cursor)
+    metadata_columns: typing.Dict = {name: RedshiftOID.STRING for name in colName[MetadataAPI.get_catalogs]}
+    mock_metadataAPIPostProcessor.set_row_description(metadata_columns)
+
+    assert mock_cursor.ps is not None
+    assert "row_desc" in mock_cursor.ps
+    assert len(mock_cursor.ps["row_desc"]) == len(colName[MetadataAPI.get_catalogs])
