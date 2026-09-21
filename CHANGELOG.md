@@ -1,6 +1,13 @@
 Changelog
 =========
 
+v2.1.17 (2026-09-21)
+-------------------
+- Improved the performance of the get_tables, get_columns, and get_table_privileges metadata APIs
+- Added an opt-in allowlist for credential provider plugin loading
+- Fixed an issue that occurred when multiple metadata API calls were made on the same connection
+
+
 v2.1.16 (2026-08-03)
 -------------------
 - Added enable_table_types connection option to generalize get_tables() table types to TABLE/VIEW when disabled
