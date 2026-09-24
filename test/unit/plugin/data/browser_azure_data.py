@@ -56,7 +56,7 @@ empty_code_response: bytes = (
 )
 
 
-saml_response = b"my_access_token"
+saml_response = b"\"my_access_token\"".decode("utf-8")
 
 valid_json_response: dict = {
     "token_type": "Bearer",
@@ -64,7 +64,7 @@ valid_json_response: dict = {
     "ext_expires_in": "3599",
     "expires_on": "1602782647",
     "resource": "spn:1234567891011121314151617181920",
-    "access_token": "bXlfYWNjZXNzX3Rva2Vu",  # base64.urlsafe_64encode(saml_response)
+    "access_token": "Im15X2FjY2Vzc190b2tlbiI=",  # base64.urlsafe_64encode(saml_response)
     "issued_token_type": "urn:ietf:params:oauth:token-type:saml2",
     "refresh_token": "my_refresh_token",
     "id_token": "my_id_token",
