@@ -8,7 +8,7 @@ from datetime import datetime as Datetime
 from datetime import time
 from datetime import timedelta as Timedelta
 from datetime import timezone as Timezone
-from decimal import Decimal
+from decimal import Context, Decimal
 from enum import Enum
 from json import loads
 from struct import Struct
@@ -225,6 +225,9 @@ def intervald2s_send_integer(v: IntervalDayToSecond) -> bytes:
     return typing.cast(bytes, q_pack(microseconds))
 
 
+_NUMERIC_BINARY_CONTEXT: Context = Context(prec=39)
+
+
 def numeric_in_binary(data: bytes, offset: int, length: int, scale: int) -> Decimal:
     raw_value: int
 
@@ -233,7 +236,10 @@ def numeric_in_binary(data: bytes, offset: int, length: int, scale: int) -> Deci
     else:
         raise Exception("Malformed column value of type numeric received")
 
-    return Decimal(raw_value).scaleb(-1 * scale)
+    # scaleb() rounds to the current decimal context (28 digits by default),
+    # which silently truncated NUMERIC(38, s) values. A 16-byte value has at
+    # most 39 digits, so this context keeps every digit.
+    return Decimal(raw_value).scaleb(-1 * scale, context=_NUMERIC_BINARY_CONTEXT)
 
 
 def numeric_to_float_binary(data: bytes, offset: int, length: int, scale: int) -> float:
