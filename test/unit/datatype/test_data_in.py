@@ -1,6 +1,6 @@
 import typing
 from datetime import date, datetime, time, timedelta, timezone
-from decimal import Decimal
+from decimal import Context, Decimal
 from enum import Enum, auto
 from math import isclose
 
@@ -492,3 +492,21 @@ def test_numeric_to_float_binary_raises_for_invalid_length(length):
             length,  # invalid length
             8,
         )
+
+
+@pytest.mark.parametrize(
+    "value, scale, length",
+    [
+        (Decimal("12345678901234567890.123456789012345678"), 18, 16),
+        (Decimal("-99999999999999999999.999999999999999999"), 18, 16),
+        (Decimal("0.000000000000000001"), 18, 16),
+        (Decimal("170141183460469231731687303715884105727"), 0, 16),
+        (Decimal("-12345.67"), 2, 8),
+    ],
+)
+def test_numeric_in_binary_is_exact_beyond_28_digits(value, scale, length):
+    raw_value = int(value.scaleb(scale, context=Context(prec=60)))
+    data = raw_value.to_bytes(length, byteorder="big", signed=True)
+    result = Datatypes.numeric_binary(data, 0, length, scale)
+    assert result == value
+    assert result.as_tuple().exponent == -scale
