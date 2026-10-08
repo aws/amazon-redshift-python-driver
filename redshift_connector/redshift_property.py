@@ -111,7 +111,9 @@ class RedshiftProperty:
             # This property indicates whether to disable the verification of the IdP host's server SSL certificate.
             self.ssl_insecure: bool = False
             # ssl mode: verify-ca or verify-full.
-            self.sslmode: str = "verify-ca"
+            self.sslmode: str = "verify-full"
+            # True when the caller named a mode; only a driver-chosen one is relaxed.
+            self.sslmode_explicit: bool = False
             # Use this property to enable or disable TCP keepalives.
             self.tcp_keepalive: bool = True
             # Time (in seconds) before sending keepalive probes
@@ -160,6 +162,11 @@ class RedshiftProperty:
             if k in ("is_serverless_host", "_is_serverless"):
                 continue
             setattr(self, k, deepcopy(v))
+
+        # A mode arriving through a merge was named by the caller. It cannot travel
+        # as sslmode_explicit: a kwargs-built property skips the defaults branch.
+        if getattr(other, "sslmode", None) is not None:
+            self.sslmode_explicit = True
 
     def put(self: "RedshiftProperty", key: str, value: typing.Any):
         """

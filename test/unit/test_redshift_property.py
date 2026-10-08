@@ -184,3 +184,49 @@ def test_can_set_login_to_rp() -> None:
     info: RedshiftProperty = RedshiftProperty(**{"login_to_rp": "foo_bar"})
 
     assert info.__getattribute__("login_to_rp") == "foo_bar"
+
+
+def test_sslmode_default_is_verify_full() -> None:
+    # The default must verify the server's hostname, not just its chain.
+    info: RedshiftProperty = RedshiftProperty()
+
+    assert info.sslmode == "verify-full"
+
+
+def test_sslmode_default_agrees_across_every_site() -> None:
+    # The default is written in three independent places: RedshiftProperty, the
+    # Connection constructor, and the mode IdpAuthHelper coerces to. If they
+    # disagree, the effective default depends on which entry point was used, so
+    # this fails if only some of them are changed.
+    import inspect
+
+    from redshift_connector.core import Connection
+    from redshift_connector.idp_auth_helper import SupportedSSLMode
+
+    connection_default = inspect.signature(Connection.__init__).parameters["sslmode"].default
+
+    assert RedshiftProperty().sslmode == "verify-full"
+    assert connection_default == "verify-full"
+    assert SupportedSSLMode.default() == "verify-full"
+
+
+def test_merged_sslmode_is_explicit() -> None:
+    # An auth profile supplies sslmode through put_all. The merged object is
+    # built from kwargs and so carries no sslmode_explicit of its own, so
+    # without this the caller's mode would be treated as one the driver chose
+    # and a hostname mismatch would only warn.
+    info: RedshiftProperty = RedshiftProperty()
+    assert info.sslmode_explicit is False, "a fresh property has no caller-named mode"
+
+    info.put_all(RedshiftProperty(**{"sslmode": "verify-full"}))
+
+    assert info.sslmode == "verify-full", f"Expected verify-full, got {info.sslmode}"
+    assert info.sslmode_explicit is True, "a merged sslmode was named by the caller"
+
+
+def test_merge_without_sslmode_leaves_explicitness_alone() -> None:
+    info: RedshiftProperty = RedshiftProperty()
+
+    info.put_all(RedshiftProperty(**{"user_name": "someone"}))
+
+    assert info.sslmode_explicit is False, "a merge carrying no sslmode names no mode"

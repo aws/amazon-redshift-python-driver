@@ -23,7 +23,7 @@ class SupportedSSLMode(Enum):
 
     @staticmethod
     def default() -> str:
-        return SupportedSSLMode.VERIFY_CA.value
+        return SupportedSSLMode.VERIFY_FULL.value
 
     @staticmethod
     def list() -> typing.List[str]:
@@ -72,6 +72,9 @@ class IdpAuthHelper:
         if info.ssl is True:
             if info.sslmode not in SupportedSSLMode.list():
                 info.put("sslmode", SupportedSSLMode.default())
+                # The driver picked this mode, so it counts as defaulted even
+                # though the caller did name a (unsupported) one.
+                info.sslmode_explicit = False
                 _logger.debug(
                     "A non-supported value: %s was provided for sslmode. Falling back to default value: %s",
                     info.sslmode,

@@ -34,6 +34,7 @@ from redshift_connector.config import (
     pg_to_py_encodings,
 )
 from redshift_connector.cursor import Cursor
+from redshift_connector.hostname_check import match_hostname
 from redshift_connector.error import (
     ArrayContentNotHomogenousError,
     ArrayContentNotSupportedError,
@@ -130,6 +131,24 @@ if TYPE_CHECKING:
 __author__ = "Mathieu Fenniak"
 
 _logger: logging.Logger = logging.getLogger(__name__)
+
+def _warn_hostname_mismatch(host: str) -> None:
+    """Warn that a hostname mismatch was tolerated because sslmode was not set.
+
+    Logged every time, not once per host: the count is what shows how many
+    connections rely on the allowance. The log is the only channel -- this
+    connection succeeded, so nothing goes to stderr.
+    """
+    # Double-quoted rather than {!r}, which renders single quotes: the text must
+    # stay stable so one search finds it in a support case.
+    message: str = (
+        'Server certificate does not name host "{}". The connection was allowed '
+        "because sslmode was not set. A future release will require the "
+        "certificate to name the host being connected to; if you connect through "
+        "a name the certificate does not carry, set sslmode=verify-ca.".format(host)
+    )
+    _logger.warning(message)
+
 
 ZERO: Timedelta = Timedelta(0)
 BINARY: type = bytes
@@ -416,7 +435,8 @@ class Connection:
         source_address: typing.Optional[str] = None,
         unix_sock: typing.Optional[str] = None,
         ssl: bool = True,
-        sslmode: str = "verify-ca",
+        sslmode: str = "verify-full",
+        sslmode_defaulted: bool = False,
         timeout: typing.Optional[int] = None,
         max_prepared_statements: int = DEFAULT_MAX_PREPARED_STATEMENTS,
         tcp_keepalive: typing.Optional[bool] = True,
@@ -685,9 +705,19 @@ class Connection:
                         _logger.debug("applying sslmode=%s to socket", sslmode)
                         self._usock = ssl_context.wrap_socket(self._usock)
                     elif sslmode == "verify-full":
-                        _logger.debug("applying sslmode=%s to socket and force check_hostname", sslmode)
-                        ssl_context.check_hostname = True
-                        self._usock = ssl_context.wrap_socket(self._usock, server_hostname=host)
+                        _logger.debug("applying sslmode=%s to socket", sslmode)
+                        if sslmode_defaulted:
+                            # Driver chose the mode: check the name after the handshake so
+                            # a mismatch warns. Chain still CERT_REQUIRED either way.
+                            ssl_context.check_hostname = False
+                            self._usock = ssl_context.wrap_socket(self._usock, server_hostname=host)
+                            if not match_hostname(self._usock.getpeercert(), host):
+                                _warn_hostname_mismatch(host)
+                        else:
+                            # Caller asked for verify-full: leave OpenSSL as the gate, so
+                            # the local matcher can never admit a certificate for them.
+                            ssl_context.check_hostname = True
+                            self._usock = ssl_context.wrap_socket(self._usock, server_hostname=host)
                     else:
                         _logger.debug("unknown sslmode=%s is ignored", sslmode)
                     _logger.debug("Socket SSL details: %s", self._usock.cipher())  # type: ignore

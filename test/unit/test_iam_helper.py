@@ -72,15 +72,18 @@ def test_set_iam_properties_fails_when_non_str_credential_provider() -> None:
     assert "Invalid connection property setting" in str(excinfo.value)
 
 
+# (requested sslmode, mode enforced for an IAM connection). A mode Redshift
+# supports is preserved as asked for; anything else is coerced to the default,
+# which is verify-full.
 ssl_mode_descriptions: typing.List[typing.Tuple[typing.Optional[str], str]] = [
     ("verify-ca", "verify-ca"),
     ("verify-full", "verify-full"),
-    ("disable", "verify-ca"),
-    ("allow", "verify-ca"),
-    ("prefer", "verify-ca"),
-    ("require", "verify-ca"),
-    ("bogus", "verify-ca"),
-    (None, "verify-ca"),
+    ("disable", "verify-full"),
+    ("allow", "verify-full"),
+    ("prefer", "verify-full"),
+    ("require", "verify-full"),
+    ("bogus", "verify-full"),
+    (None, "verify-full"),
 ]
 
 

@@ -374,6 +374,7 @@ def connect(
     info.put("ssl", ssl)
     info.put("ssl_insecure", ssl_insecure)
     info.put("sslmode", sslmode)
+    info.sslmode_explicit = sslmode is not None
     info.put("tcp_keepalive", tcp_keepalive)
     info.put("tcp_keepalive_idle", tcp_keepalive_idle)
     info.put("tcp_keepalive_interval", tcp_keepalive_interval)
@@ -453,6 +454,7 @@ def connect(
         unix_sock=info.unix_sock,
         ssl=info.ssl,
         sslmode=info.sslmode,
+        sslmode_defaulted=not info.sslmode_explicit,
         timeout=info.timeout,
         max_prepared_statements=info.max_prepared_statements,
         tcp_keepalive=info.tcp_keepalive,
