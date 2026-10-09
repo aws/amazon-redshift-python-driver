@@ -1,6 +1,11 @@
 Changelog
 =========
 
+v2.2.0 (2026-10-09)
+-------------------
+- Behavior change: Changed the default value of sslmode from verify-ca to verify-full. In addition to validating the certificate chain, the driver now checks that the server certificate matches the host name it connected to. If sslmode is not set and the host name doesn't match, the driver logs a warning and still connects, so existing connections keep working while you migrate. If sslmode=verify-full is set explicitly, a mismatch still fails the connection. A future release will fail the connection on a mismatch in both cases.
+
+
 v2.1.17 (2026-09-21)
 -------------------
 - Improved the performance of the get_tables, get_columns, and get_table_privileges metadata APIs
