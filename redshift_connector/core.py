@@ -676,7 +676,7 @@ class Connection:
             # create ssl connection with Redshift CA certificates and check the hostname
             if ssl is True:
                 try:
-                    from ssl import CERT_REQUIRED, SSLContext
+                    from ssl import CERT_REQUIRED, PROTOCOL_TLS_CLIENT, SSLContext
 
                     # ssl_context = ssl.create_default_context()
 
@@ -686,7 +686,10 @@ class Connection:
                     else:
                         path = "/".join(path.split("/")[:-1]) + "/files/redshift-ca-bundle.crt"
 
-                    ssl_context: SSLContext = SSLContext()
+                    ssl_context: SSLContext = SSLContext(PROTOCOL_TLS_CLIENT)
+                    # Preserve the mode-specific hostname policy below. In
+                    # particular, verify-ca validates the chain without a name.
+                    ssl_context.check_hostname = False
                     ssl_context.verify_mode = CERT_REQUIRED
                     ssl_context.load_default_certs()
                     _logger.debug("try to load Redshift CA certs from location %s", path)
