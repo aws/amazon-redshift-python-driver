@@ -225,6 +225,27 @@ Alternatively, IAM credentials can be supplied directly to ``connect(...)`` usin
         region="us-east-2"
      )
 
+Example connecting as the database user mapped to your IAM identity (IAM role / ``IAMR:`` users)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+When ``db_user`` is provided, the driver calls ``GetClusterCredentials`` and connects as ``IAM:<db_user>``.
+To connect as the database user that maps to the calling IAM identity instead (``IAM:<user>`` for an IAM user,
+``IAMR:<role>`` for an assumed IAM role, e.g. a user created with ``CREATE USER "IAMR:my_role" PASSWORD DISABLE;``),
+omit ``db_user``. The driver then calls ``GetClusterCredentialsWithIAM`` (requires ``boto3>=1.24.5``).
+Setting ``group_federation=True`` has the same effect.
+
+.. code-block:: python
+
+    import redshift_connector
+
+    # Connects as "IAMR:my_role" when the profile assumes the IAM role "my_role"
+    conn = redshift_connector.connect(
+        iam=True,
+        database='dev',
+        cluster_identifier='examplecluster',
+        profile='my_role_profile',
+        region='us-east-2'
+     )
+
 Example using IdpTokenAuthPlugin with Default Credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 When using Identity Center (IdC) authentication, the ``IdpTokenAuthPlugin`` can automatically resolve

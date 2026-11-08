@@ -82,6 +82,19 @@ class IamHelper(IdpAuthHelper):
         if not info._is_serverless:
             _logger.debug("Redshift provisioned")
             if not info.group_federation:
+                if (
+                    (info.db_user is None or info.db_user == "")
+                    and provider_type != IamHelper.IAMAuthenticationType.PLUGIN
+                    and IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type)
+                ):
+                    # No db_user was provided, so GetClusterCredentials (V1) cannot be used. Fall back to
+                    # GetClusterCredentialsWithIAM (V2), which derives the database user from the calling
+                    # IAM identity: "IAM:<user>" for an IAM user, "IAMR:<role>" for an assumed IAM role.
+                    _logger.debug(
+                        "Provisioned cluster, no db_user provided: GetClusterCredentialsAPIType.IAM_V2 "
+                        "(database user derived from IAM identity)"
+                    )
+                    return IamHelper.GetClusterCredentialsAPIType.IAM_V2
                 _logger.debug("Provisioned cluster GetClusterCredentialsAPIType.IAM_V1")
                 return IamHelper.GetClusterCredentialsAPIType.IAM_V1
             elif IamHelper.GetClusterCredentialsAPIType.can_support_v2(provider_type):
@@ -506,7 +519,11 @@ class IamHelper(IdpAuthHelper):
 
             else:
                 if info.db_user is None or info.db_user == "":
-                    raise InterfaceError("Connection parameter db_user must be specified when using IAM authentication")
+                    raise InterfaceError(
+                        "Connection parameter db_user must be specified when using IAM authentication. "
+                        "To connect as the database user mapped to your IAM identity (e.g. an IAMR:<role> user), "
+                        "set group_federation=True (requires boto3 >= 1.24.5)."
+                    )
                 # https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift/client/get_cluster_credentials.html
                 request_params = {
                     "DbUser": info.db_user,

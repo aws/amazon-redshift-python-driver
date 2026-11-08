@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Unreleased
+-------------------
+- Added support for connecting as the database user mapped to the caller's IAM identity (e.g. `IAMR:<role>` users) on provisioned clusters: when IAM authentication is used without `db_user`, the driver now calls `GetClusterCredentialsWithIAM` instead of failing. [#255](https://github.com/aws/amazon-redshift-python-driver/issues/255)
+
+
 v2.2.0 (2026-10-09)
 -------------------
 - Behavior change: Changed the default value of sslmode from verify-ca to verify-full. In addition to validating the certificate chain, the driver now checks that the server certificate matches the host name it connected to. If sslmode is not set and the host name doesn't match, the driver logs a warning and still connects, so existing connections keep working while you migrate. If sslmode=verify-full is set explicitly, a mismatch still fails the connection. A future release will fail the connection on a mismatch in both cases.
