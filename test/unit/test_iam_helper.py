@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, call
 
 import pytest  # type: ignore
 from dateutil.tz import tzutc
+from packaging.version import Version
 from pytest_mock import mocker  # type: ignore
 
 from redshift_connector import InterfaceError, ProgrammingError, RedshiftProperty
@@ -870,6 +871,84 @@ def test_get_cluster_credentials_api_type_will_use_correct_api(conn_params, prov
     else:
         with pytest.raises(InterfaceError, match=exp_result):
             IamHelper.get_cluster_credentials_api_type(info, provider)
+
+
+@pytest.mark.parametrize(
+    "conn_params, provider, exp_result",
+    (
+        # db_user provided -> keep legacy GetClusterCredentials (IAM:<db_user>)
+        (
+            {"db_user": "awsuser"},
+            IamHelper.IAMAuthenticationType.PROFILE,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V1,
+        ),
+        (
+            {"db_user": "awsuser"},
+            IamHelper.IAMAuthenticationType.IAM_KEYS,
+            IamHelper.GetClusterCredentialsAPIType.IAM_V1,
+        ),
+        # no db_user -> GetClusterCredentialsWithIAM, user derived from IAM identity (IAM:<user> / IAMR:<role>)
+        ({}, IamHelper.IAMAuthenticationType.PROFILE, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
+        ({"db_user": ""}, IamHelper.IAMAuthenticationType.PROFILE, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
+        ({}, IamHelper.IAMAuthenticationType.IAM_KEYS, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
+        ({}, IamHelper.IAMAuthenticationType.IAM_KEYS_WITH_SESSION, IamHelper.GetClusterCredentialsAPIType.IAM_V2),
+        # plugins keep the legacy behavior
+        ({}, IamHelper.IAMAuthenticationType.PLUGIN, IamHelper.GetClusterCredentialsAPIType.IAM_V1),
+        # serverless is unaffected
+        (
+            {"is_serverless": True},
+            IamHelper.IAMAuthenticationType.PROFILE,
+            IamHelper.GetClusterCredentialsAPIType.SERVERLESS_V1,
+        ),
+    ),
+)
+def test_get_cluster_credentials_api_type_without_db_user_uses_iam_identity(conn_params, provider, exp_result) -> None:
+    info = RedshiftProperty()
+    for k, v in conn_params.items():
+        info.put(k, v)
+    assert IamHelper.get_cluster_credentials_api_type(info, provider) == exp_result
+
+
+@pytest.mark.parametrize("boto3_version", ("1.17.110", "1.24.4"))
+def test_get_cluster_credentials_api_type_without_db_user_old_boto3_uses_v1(mocker, boto3_version) -> None:
+    mocker.patch(
+        "redshift_connector.idp_auth_helper.IdpAuthHelper.get_pkg_version", return_value=Version(boto3_version)
+    )
+    info = RedshiftProperty()
+    assert (
+        IamHelper.get_cluster_credentials_api_type(info, IamHelper.IAMAuthenticationType.PROFILE)
+        == IamHelper.GetClusterCredentialsAPIType.IAM_V1
+    )
+
+
+@mock.patch("boto3.client.get_cluster_credentials_with_iam")
+@mock.patch("boto3.client")
+def test_set_cluster_credentials_iamr_user_without_db_user(mock_boto_client, mock_get_creds_with_iam, mocker) -> None:
+    mocker.patch(
+        "redshift_connector.iam_helper.IamHelper.get_authentication_type",
+        return_value=IamHelper.IAMAuthenticationType.PROFILE,
+    )
+    mock_cred_provider = MagicMock()
+    mock_cred_provider.get_cache_key.return_value = "mocked"
+    mock_cred_holder = MagicMock()
+    mock_cred_holder.has_associated_session = False
+    mock_cred_provider.get_credentials.return_value = mock_cred_holder
+
+    rp: RedshiftProperty = make_redshift_property()
+    rp.db_user = None
+    rp.iam_disable_cache = True
+    mock_boto_client.return_value.get_cluster_credentials_with_iam.return_value = {
+        "DbUser": "IAMR:my_role",
+        "DbPassword": "secret",
+        "Expiration": datetime.datetime(9999, 1, 1, tzinfo=tzutc()),
+    }
+
+    IamHelper.set_cluster_credentials(mock_cred_provider, rp)
+
+    mock_boto_client.return_value.get_cluster_credentials.assert_not_called()
+    mock_boto_client.return_value.get_cluster_credentials_with_iam.assert_called_once()
+    assert rp.user_name == "IAMR:my_role"
+    assert rp.password == "secret"
 
 
 @pytest.mark.parametrize(
